@@ -60,10 +60,10 @@ jobs:
           /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
 
       - name: Restore Dependencies
-        run: dotnet restore
+        run: dotnet restore 211System
 
       - name: Build Application
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build 211system --no-restore --configuration Release
 
       - name: Run Tests & Collect Coverage
         run: dotnet test tests/tests.csproj --no-build --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
