@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16
+    container_name: 211_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: 211_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - 211-network
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: 211_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@211.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - 211-network
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    container_name: 211_azurite
+    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0"
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    volumes:
+      - azurite_data:/data
+    networks:
+      - 211-network
+
+volumes:
+  postgres_data:
+  azurite_data:
+
+networks:
+  211-network:
+    driver: bridge
