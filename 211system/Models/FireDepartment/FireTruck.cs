@@ -12,7 +12,7 @@ public class FireTruck
     public virtual FDepartment Department { get; set; }
 
     public Guid FireEquipmentid { get; set; }
-    public virtual FireEquipment FireEquipment{ get; set; }
+    public virtual ICollection<FireEquipment> FireEquipment{ get; set; }
 
     public FireTruck()
 	{

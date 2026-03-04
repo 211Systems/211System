@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CPR112.Models;
 
 namespace _211system.Models.Hospital
 {
@@ -28,7 +29,7 @@ namespace _211system.Models.Hospital
         public Guid IncidentId { get; set; }
 
         // [ForeignKey(nameof(IncidentId))]
-        // public virtual Incident Incident { get; set; }
+         public virtual Incident Incident { get; set; }
         public Guid? HospitalWardId { get; set; }
 
         [ForeignKey(nameof(HospitalWardId))]

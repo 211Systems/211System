@@ -8,7 +8,7 @@ public class FireEquipment
 	public Guid Id { get; set; }
 	public string Name { get; set; }
 
-	public Guid FireTRuckId { get; set; }
+	public Guid FireTruckId { get; set; }
 	public virtual FireTruck Firetruck { get; set; }
 
     public FireEquipment()

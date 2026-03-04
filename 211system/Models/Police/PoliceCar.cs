@@ -13,7 +13,7 @@ public class PoliceCar
     public virtual PDepartment PDepartment { get; set; }
 
     public Guid PoliceEquipmentId { get; set; }
-    public virtual PoliceEquipment PoliceEquipment { get; set; }
+    public virtual ICollection<PoliceEquipment> PoliceEquipment { get; set; }
 
     public PoliceCar()
 	{

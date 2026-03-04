@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Identity;
 
 namespace FireDepartment;
@@ -15,8 +16,9 @@ public class Fireman
     public Guid PDepartmentId { get; set; }
     public virtual FDepartment Department { get; set; }
 
-    public string IdentityUserId { get; set; }
-    public virtual IdentityUser IdentityUser { get; set; }
+    public string FireAccountId { get; set; }
+    [ForeignKey(nameof(FireAccountId))]
+    public virtual IdentityUser FireAccount { get; set; }
 
     public Fireman()
 	{
