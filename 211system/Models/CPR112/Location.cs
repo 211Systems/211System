@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+namespace CPR112.Models;
 
 public class Location {
     [Key]

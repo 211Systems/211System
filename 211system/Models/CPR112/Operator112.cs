@@ -9,6 +9,6 @@ public class Operator112 {
     public string LastName { get; set; }
     public string StationNumber { get; set; }
     public IdentityUser IdentityUserId { get; set; } 
-    public Guid ENCId { get; set; }
-    public ENC Center { get; set; }
+    public Guid EncId { get; set; }
+    public Enc Center { get; set; }
 }
