@@ -8,8 +8,8 @@ public class FireEquipment
 	public Guid Id { get; set; }
 	public string Name { get; set; }
 
-	public Guid PoliceCarId { get; set; }
-	public virtual PoliceCar PoliceCar { get; set; }
+	public Guid FireTRuckId { get; set; }
+	public virtual FireTruck Firetruck { get; set; }
 
     public FireEquipment()
 	{

@@ -10,7 +10,7 @@ public class PoliceCar
     //public string operationSignal { get; set;}
 
     public Guid PDepartmentId { get; set; }
-    public virtual FDepartment Department { get; set; }
+    public virtual PDepartment PDepartment { get; set; }
 
     public Guid PoliceEquipmentId { get; set; }
     public virtual PoliceEquipment PoliceEquipment { get; set; }

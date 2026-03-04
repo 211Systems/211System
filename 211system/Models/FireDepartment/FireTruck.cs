@@ -11,8 +11,8 @@ public class FireTruck
     public Guid PDepartmentId { get; set; }
     public virtual FDepartment Department { get; set; }
 
-    public Guid PoliceEquipmentId { get; set; }
-    public virtual PoliceEquipment PoliceEquipment { get; set; }
+    public Guid FireEquipmentid { get; set; }
+    public virtual FireEquipment FireEquipment{ get; set; }
 
     public FireTruck()
 	{
