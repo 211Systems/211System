@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using CPR112.Models;
 
 namespace Police;
 public class PoliceOperation
@@ -13,7 +14,7 @@ public class PoliceOperation
 	public virtual PDepartment Department { get; set; }
 
 	public Guid IncidentId { get; set; }
-	//public virtual Incident Incident { get; set; }
+	public virtual Incident Incident { get; set; }
 
 
     public PoliceOperation()

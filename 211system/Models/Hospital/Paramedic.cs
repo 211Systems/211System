@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 
 namespace _211system.Models.Hospital
 {
@@ -24,8 +25,9 @@ namespace _211system.Models.Hospital
         public string Specialization { get; set; }
 
         [Required]
-        [MaxLength(150)]
-        public string IdentityUserId { get; set; }
+        public string ParaAccountId { get; set; }
+        [ForeignKey(nameof(ParaAccountId))]
+        public virtual IdentityUser ParaAccount { get; set; }
 
         public Guid HospitalId { get; set; } // Zmieniona nazwa
 
