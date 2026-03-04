@@ -10,7 +10,7 @@ public class PDepartment
 	public string Name { get; set; }
 	public string Address { get; set; }
 	public string District { get; set; }
-	public ICollection<Policeman> Policemen { get; set; }
+	public ICollection<Policeman> Policemen { get; set; } = new List<Policeman>();
 
     public PDepartment()
 	{

@@ -12,11 +12,12 @@ public class Fireman
 	public string BadgeNumber { get; set; }
 	public string Rank { get; set; }
 
-    public Guid PDepartmentId { get; set; }
-    public virtual FDepartment Department { get; set; }
+    public Guid FDepartmentId { get; set; }
+    public virtual FDepartment FDepartment { get; set; }
 
     public string IdentityUserId { get; set; }
     public virtual IdentityUser IdentityUser { get; set; }
+	public ICollection<FireDepartmentOperation> FireDepartmentOperations { get; set; } = new List<FireDepartmentOperation>(); // Dodaj kolekcję operacji straży pożarnej
 
     public Fireman()
 	{

@@ -11,12 +11,12 @@ public class Policeman
 	public string Surname { get; set; }
 	public string BadgeNumber { get; set; }
 	public string Rank { get; set; }
-
     public Guid PDepartmentId { get; set; }
-    public virtual PDepartment Department { get; set; }
+    public PDepartment PDepartment { get; set; }
 
     public string IdentityUserId { get; set; }
     public virtual IdentityUser IdentityUser { get; set; }
+	public ICollection<PoliceOperation> PoliceOperations { get; set; } = new List<PoliceOperation>(); // Dodaj kolekcję operacji policyjnych
 
     public Policeman()
 	{

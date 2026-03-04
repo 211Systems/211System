@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using CPR112.Models;
 
 namespace FireDepartment;
 public class FireDepartmentOperation
@@ -13,7 +14,9 @@ public class FireDepartmentOperation
 	public virtual FDepartment Department { get; set; }
 
 	public Guid IncidentId { get; set; }
-	//public virtual Incident Incident { get; set; }
+	public Incident Incident { get; set; }
+	public Guid FiremanId { get; set; }
+	public virtual Fireman Fireman { get; set; }
 
 
     public FireDepartmentOperation()
