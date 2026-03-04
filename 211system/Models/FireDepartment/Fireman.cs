@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 
+namespace FireDepartment;
 public class Fireman
 {
 	[Key]

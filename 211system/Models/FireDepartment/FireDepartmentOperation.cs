@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 
+namespace FireDepartment;
 public class FireDepartmentOperation
 {
 	[Key]

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.ComponentModel.DataAnnotations;
 
+namespace FireDepartment;
 public class FDepartment
 {
 	[Key]

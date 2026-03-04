@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 
+namespace Police;
 public class PoliceCar
 {
     [Key]
