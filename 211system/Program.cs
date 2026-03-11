@@ -1,5 +1,6 @@
 using _211system.Data;
-using _211system.Services;
+using _211system.Models.Interfaces;
+using _211system.Models.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.CodeAnalysis;
@@ -22,6 +23,10 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 builder.Services.AddScoped<IEncService, EncService>();
 builder.Services.AddScoped<IOperatorService, OperatorService>();
+builder.Services.AddScoped<IPoliceService, PoliceService>();
+builder.Services.AddScoped<IFireService, FireService>();
+
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
