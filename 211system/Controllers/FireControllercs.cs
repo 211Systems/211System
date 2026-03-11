@@ -6,7 +6,7 @@ namespace _211system.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class FireController : ControllerBase
+    public class FireController : Controller
     {
         private readonly IFireService _fireService;
 

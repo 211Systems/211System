@@ -6,7 +6,7 @@ namespace FireDepartment;
 public class FDepartment
 {
 	[Key]
-	public Guid PDepartmentId { get; set; }
+	public Guid FDepartmentId { get; set; }
 	public string Name { get; set; }
 	public string Address { get; set; }
 	public string District { get; set; }
