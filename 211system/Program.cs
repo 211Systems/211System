@@ -1,13 +1,26 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using _211system.Data;
+using _211system.Services;
+using System.Diagnostics.CodeAnalysis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<_211DbContext>(options => options.UseNpgsql(ConnectionString));
 
-
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options => 
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 4;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
+.AddEntityFrameworkStores<_211DbContext>()
+.AddDefaultTokenProviders();
+builder.Services.AddScoped<IEncService, EncService>();
+builder.Services.AddScoped<IOperatorService, OperatorService>();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
@@ -48,3 +61,5 @@ app.MapControllerRoute(
 
 
 app.Run();
+[ExcludeFromCodeCoverage]
+public partial class Program { }
