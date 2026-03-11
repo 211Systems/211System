@@ -5,6 +5,7 @@ using _211system.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.CodeAnalysis;
+using _211system.DTOs.CPR112;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,7 @@ builder.Services.AddScoped<IEncService, EncService>();
 builder.Services.AddScoped<IOperatorService, OperatorService>();
 builder.Services.AddScoped<IPoliceService, PoliceService>();
 builder.Services.AddScoped<IFireService, FireService>();
+builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IReadinessService, ReadinessService>();
 
