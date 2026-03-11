@@ -103,7 +103,7 @@ namespace _211system.Data
             builder.Entity<Fireman>()
                 .HasOne(f => f.Department)
                 .WithMany(d => d.Firemen)
-                .HasForeignKey(f => f.PDepartmentId)
+                .HasForeignKey(f => f.FDepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<FireDepartmentOperation>()

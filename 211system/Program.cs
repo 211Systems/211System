@@ -29,6 +29,8 @@ builder.Services.AddScoped<IOperatorService, OperatorService>();
 builder.Services.AddScoped<IPoliceService, PoliceService>();
 builder.Services.AddScoped<IFireService, FireService>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
+builder.Services.AddScoped<IDispatchService, DispatchService>();
+builder.Services.AddScoped<IReadinessService, ReadinessService>();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();

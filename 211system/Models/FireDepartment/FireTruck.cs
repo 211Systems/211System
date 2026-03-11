@@ -8,7 +8,7 @@ public class FireTruck
 	public Guid Id { get; set; }
 	public string LicensePlate { get; set; }
 
-    public Guid PDepartmentId { get; set; }
+    public Guid FDepartmentId { get; set; }
     public virtual FDepartment Department { get; set; }
 
     public Guid FireEquipmentid { get; set; }

@@ -33,7 +33,7 @@ public class FireServiceTests
 
         var result = await fireService.CreateDepartmentAsync(dto);
 
-        var departmentInDb = await dbContext.FireDepartments.FirstOrDefaultAsync(d => d.PDepartmentId == result.PDepartmentId);
+        var departmentInDb = await dbContext.FireDepartments.FirstOrDefaultAsync(d => d.FDepartmentId == result.FDepartmentId);
 
         Assert.NotNull(result);
         Assert.NotNull(departmentInDb);
@@ -55,7 +55,7 @@ public class FireServiceTests
             Surname = "Zalewski",
             BadgeNumber = "PSP-998",
             Rank = "Kapitan",
-            FDepartmentId = department.PDepartmentId,
+            FDepartmentId = department.FDepartmentId,
             FireAccountId = "test-fire-acc"
         };
 

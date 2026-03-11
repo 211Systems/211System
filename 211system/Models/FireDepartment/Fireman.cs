@@ -13,7 +13,7 @@ public class Fireman
 	public string BadgeNumber { get; set; }
 	public string Rank { get; set; }
 
-    public Guid PDepartmentId { get; set; }
+    public Guid FDepartmentId { get; set; }
     public virtual FDepartment Department { get; set; }
 
     public string FireAccountId { get; set; }
