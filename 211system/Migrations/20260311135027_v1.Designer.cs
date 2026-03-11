@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using _211system.Data;
@@ -11,9 +12,11 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    partial class _211DbContextModelSnapshot : ModelSnapshot
+    [Migration("20260311135027_v1")]
+    partial class v1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -832,7 +835,7 @@ namespace _211system.Migrations
                     b.Property<DateTime?>("EndTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("IncidentId")
+                    b.Property<Guid>("IncidentId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("ParamedicId")
@@ -991,7 +994,7 @@ namespace _211system.Migrations
             modelBuilder.Entity("CPR112.Models.Operator112", b =>
                 {
                     b.HasOne("CPR112.Models.Enc", "Center")
-                        .WithMany("Operators")
+                        .WithMany()
                         .HasForeignKey("EncId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1234,7 +1237,9 @@ namespace _211system.Migrations
                 {
                     b.HasOne("CPR112.Models.Incident", "Incident")
                         .WithMany()
-                        .HasForeignKey("IncidentId");
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("_211system.Models.Hospital.Paramedic", "Paramedic")
                         .WithMany("MedicalOperations")
@@ -1281,11 +1286,6 @@ namespace _211system.Migrations
                     b.Navigation("HospitalWard");
 
                     b.Navigation("Incident");
-                });
-
-            modelBuilder.Entity("CPR112.Models.Enc", b =>
-                {
-                    b.Navigation("Operators");
                 });
 
             modelBuilder.Entity("CPR112.Models.Incident", b =>

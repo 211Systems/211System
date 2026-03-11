@@ -13,17 +13,17 @@ namespace _211system.Models.Hospital
         public Guid ReportId { get; set; }
 
         [Required]
-        public Guid ParamedicId { get; set; }
+        public Guid? ParamedicId { get; set; }
 
         [ForeignKey(nameof(ParamedicId))]
         public virtual Paramedic Paramedic { get; set; }
 
         //[ForeignKey(nameof(IncidentId))]
-        public virtual Incident Incident { get; set; }
+        public virtual Incident? Incident { get; set; }
 
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
 
-
+        // na czas testu ? przy guid i Incident
     }
 }
