@@ -14,7 +14,7 @@ public class Incident
     public string Status { get; set; } 
     public Guid LocationId { get; set; }
     public Location Location { get; set; }
-    public Guid OperatorId { get; set; }
+    public Guid? OperatorId { get; set; }
     public Operator112 Operator { get; set; }
     
     public ICollection<DispatcherComment> Comments { get; set; } = new List<DispatcherComment>();

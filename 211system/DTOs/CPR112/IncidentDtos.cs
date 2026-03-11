@@ -8,7 +8,7 @@ namespace _211system.DTOs.CPR112
         public string Description { get; set; } = string.Empty;
         public string Severity { get; set; } = string.Empty; 
         public Guid LocationId { get; set; }
-        public Guid OperatorId { get; set; }
+        public Guid? OperatorId { get; set; }
     }
 
     public class IncidentDto : CreateIncidentDto

@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class initialMig : Migration
+    public partial class RebasedNasa : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -68,14 +68,14 @@ namespace _211system.Migrations
                 name: "FireDepartments",
                 columns: table => new
                 {
-                    PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Address = table.Column<string>(type: "text", nullable: false),
                     District = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_FireDepartments", x => x.PDepartmentId);
+                    table.PrimaryKey("PK_FireDepartments", x => x.FDepartmentId);
                 });
 
             migrationBuilder.CreateTable(
@@ -105,6 +105,21 @@ namespace _211system.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Locations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "NasaFlarePoints",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Brightness = table.Column<double>(type: "double precision", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    DetectionDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NasaFlarePoints", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -293,7 +308,7 @@ namespace _211system.Migrations
                     Surname = table.Column<string>(type: "text", nullable: false),
                     BadgeNumber = table.Column<string>(type: "text", nullable: false),
                     Rank = table.Column<string>(type: "text", nullable: false),
-                    PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     FireAccountId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
@@ -306,10 +321,10 @@ namespace _211system.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_Firemen_FireDepartments_PDepartmentId",
-                        column: x => x.PDepartmentId,
+                        name: "FK_Firemen_FireDepartments_FDepartmentId",
+                        column: x => x.FDepartmentId,
                         principalTable: "FireDepartments",
-                        principalColumn: "PDepartmentId",
+                        principalColumn: "FDepartmentId",
                         onDelete: ReferentialAction.Restrict);
                 });
 
@@ -319,18 +334,17 @@ namespace _211system.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     LicensePlate = table.Column<string>(type: "text", nullable: false),
-                    PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
-                    DepartmentPDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     FireEquipmentid = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_FireTrucks", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_FireTrucks_FireDepartments_DepartmentPDepartmentId",
-                        column: x => x.DepartmentPDepartmentId,
+                        name: "FK_FireTrucks_FireDepartments_FDepartmentId",
+                        column: x => x.FDepartmentId,
                         principalTable: "FireDepartments",
-                        principalColumn: "PDepartmentId",
+                        principalColumn: "FDepartmentId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -456,11 +470,13 @@ namespace _211system.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    IncidentNumber = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
+                    Severity = table.Column<string>(type: "text", nullable: false),
                     ReportDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
                     LocationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    OperatorId = table.Column<Guid>(type: "uuid", nullable: false)
+                    OperatorId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -475,8 +491,7 @@ namespace _211system.Migrations
                         name: "FK_Incidents_Operators112_OperatorId",
                         column: x => x.OperatorId,
                         principalTable: "Operators112",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -600,7 +615,7 @@ namespace _211system.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     IncidentId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
@@ -611,7 +626,7 @@ namespace _211system.Migrations
                         name: "FK_FireOperations_FireDepartments_FDepartmentId",
                         column: x => x.FDepartmentId,
                         principalTable: "FireDepartments",
-                        principalColumn: "PDepartmentId",
+                        principalColumn: "FDepartmentId",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_FireOperations_Incidents_IncidentId",
@@ -628,7 +643,7 @@ namespace _211system.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ReportId = table.Column<Guid>(type: "uuid", nullable: false),
                     ParamedicId = table.Column<Guid>(type: "uuid", nullable: false),
-                    IncidentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IncidentId = table.Column<Guid>(type: "uuid", nullable: true),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -639,8 +654,7 @@ namespace _211system.Migrations
                         name: "FK_MedicalOperations_Incidents_IncidentId",
                         column: x => x.IncidentId,
                         principalTable: "Incidents",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_MedicalOperations_Paramedics_ParamedicId",
                         column: x => x.ParamedicId,
@@ -683,7 +697,7 @@ namespace _211system.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     IncidentId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
@@ -799,14 +813,14 @@ namespace _211system.Migrations
                 column: "FireTruckId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Firemen_FDepartmentId",
+                table: "Firemen",
+                column: "FDepartmentId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Firemen_FireAccountId",
                 table: "Firemen",
                 column: "FireAccountId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Firemen_PDepartmentId",
-                table: "Firemen",
-                column: "PDepartmentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FireOperations_FDepartmentId",
@@ -819,9 +833,9 @@ namespace _211system.Migrations
                 column: "IncidentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_FireTrucks_DepartmentPDepartmentId",
+                name: "IX_FireTrucks_FDepartmentId",
                 table: "FireTrucks",
-                column: "DepartmentPDepartmentId");
+                column: "FDepartmentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_GivenMedicines_ParamedicId",
@@ -963,6 +977,9 @@ namespace _211system.Migrations
 
             migrationBuilder.DropTable(
                 name: "MedicalOperations");
+
+            migrationBuilder.DropTable(
+                name: "NasaFlarePoints");
 
             migrationBuilder.DropTable(
                 name: "PeriodicReports");

@@ -121,7 +121,7 @@ namespace _211system.Migrations
                     b.Property<Guid>("LocationId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("OperatorId")
+                    b.Property<Guid?>("OperatorId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ReportDate")
@@ -167,6 +167,29 @@ namespace _211system.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Locations");
+                });
+
+            modelBuilder.Entity("CPR112.Models.NasaFlarePoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Brightness")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("DetectionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NasaFlarePoints");
                 });
 
             modelBuilder.Entity("CPR112.Models.Operator112", b =>
@@ -984,9 +1007,7 @@ namespace _211system.Migrations
 
                     b.HasOne("CPR112.Models.Operator112", "Operator")
                         .WithMany()
-                        .HasForeignKey("OperatorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("OperatorId");
 
                     b.Navigation("Location");
 
