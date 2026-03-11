@@ -41,7 +41,7 @@ namespace _211system.Models.Services
                 Surname = dto.Surname,
                 BadgeNumber = dto.BadgeNumber,
                 Rank = dto.Rank,
-                PDepartmentId = dto.FDepartmentId,
+                FDepartmentId = dto.FDepartmentId,
                 FireAccountId = dto.FireAccountId,
                 Department = department
             };
@@ -61,7 +61,7 @@ namespace _211system.Models.Services
             var fireTruck = new FireTruck
             {
                 LicensePlate = dto.LicensePlate,
-                PDepartmentId = dto.FDepartmentId,
+                FDepartmentId = dto.FDepartmentId,
                 Department = department
             };
 
@@ -75,7 +75,7 @@ namespace _211system.Models.Services
             return await _context.FireDepartments
                 .Select(d => new FDepartmentDto
                 {
-                    Id = d.PDepartmentId,
+                    Id = d.FDepartmentId,
                     Name = d.Name,
                     Address = d.Address,
                     District = d.District
@@ -92,7 +92,7 @@ namespace _211system.Models.Services
                     Surname = f.Surname,
                     BadgeNumber = f.BadgeNumber,
                     Rank = f.Rank,
-                    FDepartmentId = f.PDepartmentId,
+                    FDepartmentId = f.FDepartmentId,
                     FireAccountId = f.FireAccountId
                 }).ToListAsync();
         }
@@ -104,7 +104,7 @@ namespace _211system.Models.Services
                 {
                     Id = t.Id,
                     LicensePlate = t.LicensePlate,
-                    FDepartmentId = t.PDepartmentId
+                    FDepartmentId = t.FDepartmentId
                 }).ToListAsync();
         }
     }
