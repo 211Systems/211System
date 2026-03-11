@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260311170416_poprawki")]
-    partial class poprawki
+    [Migration("20260311184446_RebasedNasa")]
+    partial class RebasedNasa
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -117,14 +117,22 @@ namespace _211system.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("IncidentNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("LocationId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("OperatorId")
+                    b.Property<Guid?>("OperatorId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ReportDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -162,6 +170,29 @@ namespace _211system.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Locations");
+                });
+
+            modelBuilder.Entity("CPR112.Models.NasaFlarePoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Brightness")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("DetectionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NasaFlarePoints");
                 });
 
             modelBuilder.Entity("CPR112.Models.Operator112", b =>
@@ -979,9 +1010,7 @@ namespace _211system.Migrations
 
                     b.HasOne("CPR112.Models.Operator112", "Operator")
                         .WithMany()
-                        .HasForeignKey("OperatorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("OperatorId");
 
                     b.Navigation("Location");
 

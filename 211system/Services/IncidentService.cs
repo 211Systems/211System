@@ -28,7 +28,7 @@ namespace _211system.Services
             var incident = new Incident
             {
                 Id = Guid.NewGuid(),
-                IncidentNumber = incidentNumber, 
+                IncidentNumber = incidentNumber,
                 Description = dto.Description,
                 Status = "Nowe",
                 Severity = dto.Severity,
