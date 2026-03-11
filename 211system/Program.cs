@@ -10,6 +10,7 @@ var ConnectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<_211DbContext>(options => options.UseNpgsql(ConnectionString));
 builder.Services.AddScoped<IMedicalService, MedicalService>();
 
+
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options => 
 {
     options.Password.RequireDigit = false;
@@ -20,8 +21,14 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<_211DbContext>()
 .AddDefaultTokenProviders();
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<IEncService, EncService>();
 builder.Services.AddScoped<IOperatorService, OperatorService>();
+builder.Services.AddScoped<IPoliceService, PoliceService>();
+builder.Services.AddScoped<IFireService, FireService>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+builder.Services.AddScoped<INasaService, NasaService>();
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 

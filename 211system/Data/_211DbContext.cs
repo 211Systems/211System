@@ -17,6 +17,8 @@ namespace _211system.Data
         {
         }
 
+        public DbSet<NasaFlarePoint> NasaFlarePoints { get; set; }
+
         //112
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<DispatcherComment> DispatcherComments { get; set; }
