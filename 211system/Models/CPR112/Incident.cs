@@ -7,7 +7,9 @@ public class Incident
 {
     [Key]
     public Guid Id { get; set; }
+    public string IncidentNumber { get; set; }
     public string Description { get; set; }
+    public string Severity { get; set; }
     public DateTime ReportDate { get; set; } = DateTime.Now;
     public string Status { get; set; } 
     public Guid LocationId { get; set; }
