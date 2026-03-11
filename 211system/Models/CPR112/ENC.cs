@@ -7,4 +7,5 @@ public class Enc {
     public Guid Id { get; set; }
     public string Name { get; set; }
     public string Region { get; set; }
+    public virtual ICollection<Operator112> Operators { get; set; } = new List<Operator112>();
 }
