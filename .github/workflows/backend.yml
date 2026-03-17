@@ -72,7 +72,7 @@ jobs:
           --configuration Release 
           /p:CollectCoverage=true 
           /p:CoverletOutputFormat=opencover 
-          /p:CoverletOutput=./TestResults/
+          /p:CoverletOutput=../TestResults/
         env: 
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=211_test_db;Username=testuser;Password=testpassword"
 
