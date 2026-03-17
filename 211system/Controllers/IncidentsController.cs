@@ -6,7 +6,7 @@ namespace _211system.Controllers
 {
     [ApiController]
     [Route("api/CPR112/[controller]")] 
-    public class IncidentsController : ControllerBase
+    public class IncidentsController : Controller
     {
         private readonly IIncidentService _incidentService;
 
