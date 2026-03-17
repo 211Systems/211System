@@ -57,7 +57,7 @@ jobs:
           /o:"211systems" 
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" 
           /d:sonar.host.url="https://sonarcloud.io" 
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+          /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.opencover.xml"
 
       - name: Restore Dependencies
         run: dotnet restore 211System.sln
@@ -66,7 +66,13 @@ jobs:
         run: dotnet build 211System.sln --no-restore --configuration Release
 
       - name: Run Tests & Collect Coverage
-        run: dotnet test tests/tests.csproj --no-build --configuration Release --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+        run: >
+          dotnet test tests/tests.csproj 
+          --no-build 
+          --configuration Release 
+          /p:CollectCoverage=true 
+          /p:CoverletOutputFormat=opencover 
+          /p:CoverletOutput=./TestResults/
         env: 
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=211_test_db;Username=testuser;Password=testpassword"
 
