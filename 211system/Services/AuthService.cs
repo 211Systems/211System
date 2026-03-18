@@ -1,10 +1,11 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using _211system.DTOs;
+using _211system.Models.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
-using _211system.Models.Interfaces;
 
 namespace _211system.Services
 {
@@ -25,7 +26,8 @@ namespace _211system.Services
         {
             var user = new IdentityUser { UserName = email, Email = email };
 
-            var tempPassword = $"Temp{new Random().Next(1000, 9999)}";
+            int secureRandomNum = RandomNumberGenerator.GetInt32(1000, 10000);
+            var tempPassword = $"Temp{secureRandomNum}";
 
             var result = await _userManager.CreateAsync(user, tempPassword);
             if (!result.Succeeded)
