@@ -1,12 +1,10 @@
-﻿using _211system.Data;
-using _211system.Models.Hospital;
-using _211system.Models.Interfaces;
-using _211system.Services;
-using Microsoft.EntityFrameworkCore;
-using Moq;
-using System;
+﻿using System;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
+using _211system.Data;
+using _211system.Models.Hospital;
+using _211system.Services;
 
 namespace tests
 {
@@ -25,8 +23,7 @@ namespace tests
         public async Task StartMedicalOperationAsync_Should_Start_When_Paramedic_Is_Free()
         {
             var context = GetInMemoryDbContext();
-            var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var service = new MedicalService(context);
             var paramedicId = Guid.NewGuid();
             var reportId = Guid.NewGuid();
 
@@ -54,8 +51,7 @@ namespace tests
         public async Task StartMedicalOperationAsync_Should_Throw_When_Paramedic_Is_Busy()
         {
             var context = GetInMemoryDbContext();
-            var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var service = new MedicalService(context);
             var paramedicId = Guid.NewGuid();
 
             context.Paramedics.Add(new Paramedic
@@ -87,8 +83,7 @@ namespace tests
         public async Task EndMedicalOperationAsync_Should_Set_EndTime()
         {
             var context = GetInMemoryDbContext();
-            var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var service = new MedicalService(context);
             var operationId = Guid.NewGuid();
 
             context.MedicalOperations.Add(new MedicalOperation
