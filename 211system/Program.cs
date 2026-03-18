@@ -1,11 +1,14 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using _211system.Data;
+using _211system.DTOs.CPR112;
 using _211system.Models.Interfaces;
 using _211system.Models.Services;
 using _211system.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics.CodeAnalysis;
-using _211system.DTOs.CPR112;
+using Microsoft.IdentityModel.Tokens;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +16,29 @@ var builder = WebApplication.CreateBuilder(args);
 var ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<_211DbContext>(options => options.UseNpgsql(ConnectionString));
 builder.Services.AddScoped<IMedicalService, MedicalService>();
+
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+var jwtKey = builder.Configuration["Jwt:Key"];
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+});
 
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options => 
@@ -33,9 +59,6 @@ builder.Services.AddScoped<IFireService, FireService>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IReadinessService, ReadinessService>();
-
-builder.Services.AddScoped<IPoliceService, PoliceService>();
-builder.Services.AddScoped<IFireService, FireService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<INasaService, NasaService>();
 
@@ -62,6 +85,21 @@ if (app.Environment.IsDevelopment())
     // Add web UIs to interact with the document
     // Available at: http://localhost:<port>/swagger
     app.UseSwaggerUi();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    string[] roleNames = { "Admin112", "Dyspozytor112", "Policjant","Komendant", "Woüny", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
+
+    foreach (var roleName in roleNames)
+    {
+        var roleExist = await roleManager.RoleExistsAsync(roleName);
+        if (!roleExist)
+        {
+            await roleManager.CreateAsync(new IdentityRole(roleName));
+        }
+    }
 }
 
 app.UseHttpsRedirection();
