@@ -1,6 +1,7 @@
 ﻿using _211system.Data;
 using _211system.Models.Dtos.Fire;
 using _211system.Models.Interfaces;
+using _211system.Services;
 using FireDepartment;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,10 +10,12 @@ namespace _211system.Models.Services
     public class FireService : IFireService
     {
         private readonly _211DbContext _context;
+        private readonly IAuthService _authService;
 
-        public FireService(_211DbContext context)
+        public FireService(_211DbContext context, IAuthService authService)
         {
             _context = context;
+            _authService = authService;
         }
 
         public async Task<FDepartment> CreateDepartmentAsync(CreateFDepartmentDto dto)
@@ -28,27 +31,44 @@ namespace _211system.Models.Services
             return department;
         }
 
-        public async Task<Fireman> CreateFiremanAsync(CreateFiremanDto dto)
+        public async Task<FiremanCreatedDto> CreateFiremanAsync(CreateFiremanDto dto)
         {
             var department = await _context.FireDepartments.FindAsync(dto.FDepartmentId);
+            if (department == null) throw new Exception("Remiza o podanym ID nie istnieje!");
 
-            if (department == null)
-                throw new Exception("Remiza o podanym ID nie istnieje!");
+            var accountResult = await _authService.CreateTemporaryAccountAsync(dto.Email, dto.Rank);
 
             var fireman = new Fireman
             {
+                Id = Guid.NewGuid(),
                 Name = dto.Name,
                 Surname = dto.Surname,
                 BadgeNumber = dto.BadgeNumber,
                 Rank = dto.Rank,
                 FDepartmentId = dto.FDepartmentId,
-                FireAccountId = dto.FireAccountId,
+                FireAccountId = accountResult.AccountId,
                 Department = department
             };
 
             await _context.Firemen.AddAsync(fireman);
             await _context.SaveChangesAsync();
-            return fireman;
+
+            return new FiremanCreatedDto
+            {
+                Id = fireman.Id,
+                Email = dto.Email,
+                TemporaryPassword = accountResult.TemporaryPassword
+            };
+        }
+
+        public async Task DeleteFiremanAsync(Guid id)
+        {
+            var fireman = await _context.Firemen.FindAsync(id);
+            if (fireman != null)
+            {
+                _context.Firemen.Remove(fireman);
+                await _context.SaveChangesAsync();
+            }
         }
 
         public async Task<FireTruck> CreateFireTruckAsync(CreateFireTruckDto dto)
