@@ -38,6 +38,7 @@ builder.Services.AddScoped<IPoliceService, PoliceService>();
 builder.Services.AddScoped<IFireService, FireService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<INasaService, NasaService>();
+builder.Services.AddScoped<IOpenAiService, OpenAiService>();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
