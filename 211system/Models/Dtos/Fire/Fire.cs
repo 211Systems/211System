@@ -13,8 +13,16 @@
         public string Surname { get; set; }
         public string BadgeNumber { get; set; }
         public string Rank { get; set; }
+        public string Email { get; set; }
         public Guid FDepartmentId { get; set; }
         public string FireAccountId { get; set; }
+    }
+
+    public class FiremanCreatedDto
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; }
+        public string TemporaryPassword { get; set; }
     }
 
     public class CreateFireTruckDto

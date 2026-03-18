@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class RebasedNasa : Migration
+    public partial class Refactor : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
