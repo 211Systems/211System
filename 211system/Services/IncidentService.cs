@@ -34,7 +34,7 @@ namespace _211system.Services
                 Severity = dto.Severity,
                 ReportDate = now,
                 LocationId = dto.LocationId,
-                OperatorId = dto.OperatorId
+                OperatorId = dto.OperatorId 
             };
 
             await _context.Incidents.AddAsync(incident);
@@ -70,8 +70,7 @@ namespace _211system.Services
                 OperatorId = incident.OperatorId
             };
         }
-
-        public async Task ChangeIncidentStatusAsync(Guid id, ChangeIncidentStatusDto dto)
+        public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
         {
             var incident = await _context.Incidents.FindAsync(id);
             if (incident == null) throw new ArgumentException("Nie znaleziono zgłoszenia.");
@@ -85,7 +84,7 @@ namespace _211system.Services
                 OldStatus = incident.Status,
                 NewStatus = dto.NewStatus,
                 ChangeDate = DateTime.UtcNow,
-                OperatorId = dto.OperatorId
+                OperatorId = operatorId
             };
 
             await _context.StatusHistories.AddAsync(historyLog);

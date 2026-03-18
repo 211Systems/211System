@@ -1,18 +1,24 @@
-﻿using _211system.DTOs.CPR112;
+﻿using System.Security.Claims;
+using _211system.Data;
+using _211system.DTOs.CPR112;
 using _211system.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Controllers
 {
+    [Authorize(Roles = "Dyspozytor112, Admin")]
     [ApiController]
     [Route("api/CPR112/[controller]")] 
     public class IncidentsController : Controller
     {
         private readonly IIncidentService _incidentService;
-
-        public IncidentsController(IIncidentService incidentService)
+        private readonly _211DbContext _context;
+        public IncidentsController(IIncidentService incidentService, _211DbContext context)
         {
             _incidentService = incidentService;
+            _context = context;
         }
 
         [HttpPost]
@@ -41,7 +47,19 @@ namespace _211system.Controllers
         {
             try
             {
-                await _incidentService.ChangeIncidentStatusAsync(id, dto);
+
+                var identityUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (identityUserId == null)
+                    return Unauthorized("Brak autoryzacji (niewłaściwy lub brakujący token).");
+
+                var currentOperator = await _context.Operators112
+                    .FirstOrDefaultAsync(o => o.OpAccountId == identityUserId);
+
+                if (currentOperator == null)
+                    return Forbid("Zalogowane konto nie jest przypisane do profilu dyspozytora 112.");
+
+                await _incidentService.ChangeIncidentStatusAsync(id, currentOperator.Id, dto);
+                
                 return NoContent();
             }
             catch (ArgumentException ex)
