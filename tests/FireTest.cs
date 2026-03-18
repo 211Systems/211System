@@ -1,7 +1,9 @@
 ﻿using _211system.Data;
 using _211system.Models.Dtos.Fire;
+using _211system.Models.Interfaces;
 using _211system.Models.Services;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Xunit;
 
 namespace tests;
@@ -19,11 +21,22 @@ public class FireServiceTests
         return databaseContext;
     }
 
+    private Mock<IAuthService> GetMockAuthService()
+    {
+        var mock = new Mock<IAuthService>();
+
+        mock.Setup(s => s.CreateTemporaryAccountAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(("mock-account-id-123", "Temp9999"));
+        return mock;
+    }
+
     [Fact]
     public async Task CreateDepartmentAsync_ShouldAddFireDepartmentToDatabase()
     {
         var dbContext = await GetDatabaseContext();
-        var fireService = new FireService(dbContext);
+        var authMock = GetMockAuthService();
+        var fireService = new FireService(dbContext, authMock.Object);
+
         var dto = new CreateFDepartmentDto
         {
             Name = "JRG 1",
@@ -32,7 +45,6 @@ public class FireServiceTests
         };
 
         var result = await fireService.CreateDepartmentAsync(dto);
-
         var departmentInDb = await dbContext.FireDepartments.FirstOrDefaultAsync(d => d.FDepartmentId == result.FDepartmentId);
 
         Assert.NotNull(result);
@@ -44,7 +56,8 @@ public class FireServiceTests
     public async Task CreateFiremanAsync_WithValidDepartment_ShouldAddFireman()
     {
         var dbContext = await GetDatabaseContext();
-        var fireService = new FireService(dbContext);
+        var authMock = GetMockAuthService();
+        var fireService = new FireService(dbContext, authMock.Object);
 
         var departmentDto = new CreateFDepartmentDto { Name = "OSP Test", Address = "Test", District = "Test" };
         var department = await fireService.CreateDepartmentAsync(departmentDto);
@@ -56,13 +69,14 @@ public class FireServiceTests
             BadgeNumber = "PSP-998",
             Rank = "Kapitan",
             FDepartmentId = department.FDepartmentId,
-            FireAccountId = "test-fire-acc"
+            Email = "piotr@straz.pl" 
         };
 
         var result = await fireService.CreateFiremanAsync(firemanDto);
 
         Assert.NotNull(result);
-        Assert.Equal("Piotr", result.Name);
+        Assert.Equal("piotr@straz.pl", result.Email);
+        Assert.Equal("Temp9999", result.TemporaryPassword);
         Assert.Equal(1, await dbContext.Firemen.CountAsync());
     }
 
@@ -70,20 +84,20 @@ public class FireServiceTests
     public async Task CreateFiremanAsync_WithInvalidDepartment_ShouldThrowException()
     {
         var dbContext = await GetDatabaseContext();
-        var fireService = new FireService(dbContext);
+        var authMock = GetMockAuthService();
+        var fireService = new FireService(dbContext, authMock.Object);
 
         var firemanDto = new CreateFiremanDto
         {
             Name = "Adam",
             Surname = "Brakujący",
             BadgeNumber = "PSP-000",
-            Rank = "Strażak",
+            Rank = "Strazak",
             FDepartmentId = Guid.NewGuid(),
-            FireAccountId = "test-fire-acc-2"
+            Email = "adam@straz.pl"
         };
 
         var exception = await Assert.ThrowsAsync<Exception>(() => fireService.CreateFiremanAsync(firemanDto));
-
         Assert.Equal("Remiza o podanym ID nie istnieje!", exception.Message);
     }
 
@@ -91,7 +105,8 @@ public class FireServiceTests
     public async Task GetAllDepartmentsAsync_ShouldReturnAllDepartmentsAsDtos()
     {
         var dbContext = await GetDatabaseContext();
-        var fireService = new FireService(dbContext);
+        var authMock = GetMockAuthService();
+        var fireService = new FireService(dbContext, authMock.Object);
 
         await fireService.CreateDepartmentAsync(new CreateFDepartmentDto { Name = "JRG 1", Address = "A1", District = "D1" });
         await fireService.CreateDepartmentAsync(new CreateFDepartmentDto { Name = "JRG 2", Address = "A2", District = "D2" });
