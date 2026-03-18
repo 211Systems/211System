@@ -3,6 +3,7 @@ using _211system.DTOs.CPR112;
 using _211system.Models;
 using CPR112.Models;
 using Microsoft.EntityFrameworkCore;
+using _211system.Controllers;
 
 namespace _211system.Services
 {
@@ -70,8 +71,7 @@ namespace _211system.Services
                 OperatorId = incident.OperatorId
             };
         }
-
-        public async Task ChangeIncidentStatusAsync(Guid id, ChangeIncidentStatusDto dto)
+        public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
         {
             var incident = await _context.Incidents.FindAsync(id);
             if (incident == null) throw new ArgumentException("Nie znaleziono zgłoszenia.");
@@ -85,7 +85,7 @@ namespace _211system.Services
                 OldStatus = incident.Status,
                 NewStatus = dto.NewStatus,
                 ChangeDate = DateTime.UtcNow,
-                OperatorId = dto.OperatorId
+                OperatorId = operatorId
             };
 
             await _context.StatusHistories.AddAsync(historyLog);
