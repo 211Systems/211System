@@ -7,7 +7,7 @@ namespace _211system.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")] 
+[Authorize(Roles = "Admin")]
 public class OperatorsController : Controller
 {
     private readonly IOperatorService _operatorService;
@@ -32,12 +32,12 @@ public class OperatorsController : Controller
             var (newOperator, tempPassword) = await _operatorService.CreateAsync(dto);
 
             return CreatedAtAction(
-                nameof(GetAll), 
-                new { id = newOperator.Id }, 
-                new 
-                { 
-                    operatorDetails = newOperator, 
-                    temporaryPassword = tempPassword 
+                nameof(GetAll),
+                new { id = newOperator.Id },
+                new
+                {
+                    operatorDetails = newOperator,
+                    temporaryPassword = tempPassword
                 }
             );
         }

@@ -1,6 +1,7 @@
 ﻿using _211system.Data;
 using _211system.DTOs.Hospital;
 using _211system.Models.Hospital;
+using _211system.Models.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Services
@@ -8,10 +9,11 @@ namespace _211system.Services
     public class MedicalService : IMedicalService
     {
         private readonly _211DbContext _context;
-
-        public MedicalService(_211DbContext context)
+        private readonly IAuthService _authService;
+        public MedicalService(_211DbContext context, IAuthService authService)
         {
             _context = context;
+            _authService = authService;
         }
 
         public async Task<HospitalDto> CreateHospitalAsync(CreateHospitalDto dto)
@@ -25,7 +27,6 @@ namespace _211system.Services
 
             await _context.Hospitals.AddAsync(hospital);
             await _context.SaveChangesAsync();
-
             return new HospitalDto { Id = hospital.Id, Name = hospital.Name, HasSOR = hospital.HasSOR, Address = hospital.Address };
         }
         /*
@@ -51,28 +52,14 @@ namespace _211system.Services
         //testeowe później do usunięcia
         public async Task<ParamedicDto> CreateParamedicAsync(CreateParamedicDto dto)
         {
-            var accountExists = await _context.Users.AnyAsync(u => u.Id == dto.ParaAccountId);
-
-            if (!accountExists)
-            {
-                var dummyAccount = new Microsoft.AspNetCore.Identity.IdentityUser
-                {
-                    Id = dto.ParaAccountId, // Używamy Twojego stringa z payloadu Swaggera
-                    UserName = "du" + dto.ParaAccountId + "@test.com",
-                    Email = "du" + dto.ParaAccountId + "@test.com",
-                    NormalizedUserName = "DU" + dto.ParaAccountId.ToUpper() + "@TEST.COM",
-                    NormalizedEmail = "DU" + dto.ParaAccountId.ToUpper() + "@TEST.COM"
-                };
-                await _context.Users.AddAsync(dummyAccount);
-                await _context.SaveChangesAsync(); // Zapisujemy atrapę konta jako pierwsi
-            }
+            var accountResult = await _authService.CreateTemporaryAccountAsync(dto.Email, "Medyk");
             var paramedic = new Paramedic
             {
                 Name = dto.Name,
                 LastName = dto.LastName,
                 LicenseNumber = dto.LicenseNumber,
                 Specialization = dto.Specialization,
-                ParaAccountId = dto.ParaAccountId, // To ID teraz istnieje w AspNetUsers!
+                ParaAccountId = accountResult.AccountId,
                 HospitalId = dto.HospitalId
             };
 
@@ -86,8 +73,10 @@ namespace _211system.Services
                 LastName = paramedic.LastName,
                 LicenseNumber = paramedic.LicenseNumber,
                 Specialization = paramedic.Specialization,
-                ParaAccountId = paramedic.ParaAccountId,
-                HospitalId = paramedic.HospitalId
+                HospitalId = paramedic.HospitalId,
+                Email = dto.Email,
+                ParaAccountId = accountResult.AccountId,
+                TemporaryPassword = accountResult.TemporaryPassword
             };
         }
 
@@ -98,7 +87,6 @@ namespace _211system.Services
 
             var isBusy = await _context.MedicalOperations
                 .AnyAsync(m => m.ParamedicId == paramedicId && m.EndTime == null);
-
             if (isBusy)
             {
                 throw new InvalidOperationException("Ten ratownik jest już przypisany do innej, niezakończonej akcji!");
@@ -110,7 +98,6 @@ namespace _211system.Services
                 ReportId = reportId,
                 StartTime = DateTime.UtcNow
             };
-
             await _context.MedicalOperations.AddAsync(operation);
             await _context.SaveChangesAsync();
 
@@ -121,7 +108,6 @@ namespace _211system.Services
         {
             var operation = await _context.MedicalOperations.FindAsync(operationId);
             if (operation == null) throw new ArgumentException("Nie znaleziono takiej operacji.");
-
             if (operation.EndTime != null)
             {
                 throw new InvalidOperationException("Ta akcja została już wcześniej zakończona.");

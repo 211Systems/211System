@@ -5,12 +5,13 @@ using _211system.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using _211system.Models;
 
 namespace _211system.Controllers
 {
     [Authorize(Roles = "Dyspozytor112, Admin")]
     [ApiController]
-    [Route("api/CPR112/[controller]")] 
+    [Route("api/CPR112/[controller]")]
     public class IncidentsController : Controller
     {
         private readonly IIncidentService _incidentService;
@@ -59,7 +60,7 @@ namespace _211system.Controllers
                     return Forbid("Zalogowane konto nie jest przypisane do profilu dyspozytora 112.");
 
                 await _incidentService.ChangeIncidentStatusAsync(id, currentOperator.Id, dto);
-                
+
                 return NoContent();
             }
             catch (ArgumentException ex)

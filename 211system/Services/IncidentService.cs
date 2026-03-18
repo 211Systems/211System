@@ -3,6 +3,7 @@ using _211system.DTOs.CPR112;
 using _211system.Models;
 using CPR112.Models;
 using Microsoft.EntityFrameworkCore;
+using _211system.Controllers;
 
 namespace _211system.Services
 {
@@ -34,7 +35,7 @@ namespace _211system.Services
                 Severity = dto.Severity,
                 ReportDate = now,
                 LocationId = dto.LocationId,
-                OperatorId = dto.OperatorId 
+                OperatorId = dto.OperatorId
             };
 
             await _context.Incidents.AddAsync(incident);
