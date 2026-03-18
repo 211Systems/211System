@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,7 +62,9 @@ builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IReadinessService, ReadinessService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<INasaService, NasaService>();
+builder.Services.AddScoped<IOpenAiService, OpenAiService>();
 
+builder.Services.AddScoped<IPdfReportService, PdfReportService>();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
@@ -90,7 +93,7 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    string[] roleNames = { "Admin112", "Dyspozytor112", "Policjant","Komendant", "WoŸny", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
+    string[] roleNames = { "Admin112", "Dyspozytor112", "Policjant","Komendant", "Woï¿½ny", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
 
     foreach (var roleName in roleNames)
     {
