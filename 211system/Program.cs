@@ -37,6 +37,8 @@ builder.Services.AddScoped<IReadinessService, ReadinessService>();
 builder.Services.AddScoped<IPoliceService, PoliceService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<INasaService, NasaService>();
+builder.Services.AddScoped<IOpenAiService, OpenAiService>();
+
 builder.Services.AddScoped<IPdfReportService, PdfReportService>();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
