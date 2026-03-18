@@ -11,10 +11,12 @@ namespace _211system.Models.Services
     public class PoliceService : IPoliceService
     {
         private readonly _211DbContext _context;
+        private readonly IAuthService _authService;
 
-        public PoliceService(_211DbContext context)
+        public PoliceService(_211DbContext context, IAuthService authService)
         {
             _context = context;
+            _authService = authService;
         }
 
 
@@ -32,30 +34,43 @@ namespace _211system.Models.Services
             return department;
         }
 
-        public async Task<Policeman> CreatePolicemanAsync(CreatePolicemanDto dto)
+        public async Task<PolicemanCreatedDto> CreatePolicemanAsync(CreatePolicemanDto dto)
         {
             var department = await _context.PoliceDepartments.FindAsync(dto.PDepartmentId);
+            if (department == null) throw new Exception("Komenda o podanym ID nie istnieje!");
 
-            if (department == null)
-            {
-                throw new Exception("Komenda o podanym ID nie istnieje!");
-            }
+            var accountResult = await _authService.CreateTemporaryAccountAsync(dto.Email, dto.Rank);
 
             var policeman = new Policeman
             {
+                Id = Guid.NewGuid(),
                 Name = dto.Name,
                 Surname = dto.Surname,
                 BadgeNumber = dto.BadgeNumber,
                 Rank = dto.Rank,
                 PDepartmentId = dto.PDepartmentId,
-                PoliceAccountId = dto.PoliceAccountId,
+                PoliceAccountId = accountResult.AccountId,
                 Department = department
             };
 
             await _context.Policemen.AddAsync(policeman);
             await _context.SaveChangesAsync();
 
-            return policeman;
+            return new PolicemanCreatedDto
+            {
+                Id = policeman.Id,
+                Email = dto.Email,
+                TemporaryPassword = accountResult.TemporaryPassword
+            };
+        }
+        public async Task DeletePolicemanAsync(Guid id)
+        {
+            var policeman = await _context.Policemen.FindAsync(id);
+            if (policeman != null)
+            {
+                _context.Policemen.Remove(policeman);
+                await _context.SaveChangesAsync();
+            }
         }
 
         public async Task<PoliceCar> CreatePoliceCarAsync(CreatePoliceCarDto dto)

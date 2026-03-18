@@ -1,11 +1,13 @@
 ﻿using _211system.Models.Dtos.Fire;
 using _211system.Models.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace _211system.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class FireController : Controller
     {
         private readonly IFireService _fireService;
@@ -15,6 +17,7 @@ namespace _211system.Controllers
             _fireService = fireService;
         }
 
+        [Authorize(Roles = "Naczelnik")]
         [HttpPost("departments")]
         public async Task<IActionResult> AddDepartment([FromBody] CreateFDepartmentDto dto)
         {
@@ -22,6 +25,7 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Kapitan,Naczelnik, strazak")]
         [HttpGet("departments")]
         public async Task<IActionResult> GetAllDepartments()
         {
@@ -29,6 +33,7 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Kapitan")]
         [HttpPost("firemen")]
         public async Task<IActionResult> AddFireman([FromBody] CreateFiremanDto dto)
         {
@@ -43,6 +48,7 @@ namespace _211system.Controllers
             }
         }
 
+        [Authorize(Roles = "Kapitan,Naczelnik, strazak")]
         [HttpGet("firemen")]
         public async Task<IActionResult> GetAllFiremen()
         {
@@ -50,6 +56,7 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Kapitan")]
         [HttpPost("firetrucks")]
         public async Task<IActionResult> AddFireTruck([FromBody] CreateFireTruckDto dto)
         {
@@ -64,6 +71,7 @@ namespace _211system.Controllers
             }
         }
 
+        [Authorize(Roles = "Kapitan,Naczelnik, strazak")]
         [HttpGet("firetrucks")]
         public async Task<IActionResult> GetAllFireTrucks()
         {

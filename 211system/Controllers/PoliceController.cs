@@ -1,5 +1,6 @@
 ﻿using _211system.Models.Dtos.Police;
 using _211system.Models.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace _211system.Controllers
@@ -15,6 +16,7 @@ namespace _211system.Controllers
             _policeService = policeService;
         }
 
+        [Authorize(Roles = "Inspektor, Admin")]
         [HttpPost("departments")]
         public async Task<IActionResult> AddDepartment([FromBody] CreatePDepartmentDto dto)
         {
@@ -22,6 +24,7 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Komendant, Admin")]
         [HttpPost("policemen")]
         public async Task<IActionResult> AddPoliceman([FromBody] CreatePolicemanDto dto)
         {
@@ -36,6 +39,7 @@ namespace _211system.Controllers
             }
         }
 
+        [Authorize(Roles = "Komendant, Admin")]
         [HttpPost("cars")]
         public async Task<IActionResult> AddPoliceCar([FromBody] CreatePoliceCarDto dto)
         {
@@ -50,13 +54,15 @@ namespace _211system.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin,Inspektor, Komendant, Policjant")]
         [HttpGet("departments")]
         public async Task<IActionResult> GetAllDepartments()
         {
             var departments = await _policeService.GetAllDepartmentsAsync();
             return Ok(departments);
-        }
+        } 
 
+        [Authorize(Roles = "Admin,Inspektor, Komendant, Policjant")]
         [HttpGet("policemen")]
         public async Task<IActionResult> GetAllPolicemen()
         {
@@ -64,6 +70,7 @@ namespace _211system.Controllers
             return Ok(policemen);
         }
 
+        [Authorize(Roles = "Admin,Inspektor, Komendant, Policjant")]
         [HttpGet("cars")]
         public async Task<IActionResult> GetAllPoliceCars()
         {

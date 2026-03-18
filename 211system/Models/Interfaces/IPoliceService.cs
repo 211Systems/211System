@@ -6,11 +6,12 @@ namespace _211system.Models.Interfaces
     public interface IPoliceService
     {
         Task<PDepartment> CreateDepartmentAsync(CreatePDepartmentDto dto);
-        Task<Policeman> CreatePolicemanAsync(CreatePolicemanDto dto);
-        Task<PoliceCar> CreatePoliceCarAsync(CreatePoliceCarDto dto);
-
         Task<IEnumerable<PDepartmentDto>> GetAllDepartmentsAsync();
+
+        Task<PolicemanCreatedDto> CreatePolicemanAsync(CreatePolicemanDto dto);
         Task<IEnumerable<PolicemanDto>> GetAllPolicemenAsync();
+        Task DeletePolicemanAsync(Guid id);
+        Task<PoliceCar> CreatePoliceCarAsync(CreatePoliceCarDto dto);
         Task<IEnumerable<PoliceCarDto>> GetAllPoliceCarsAsync();
     }
 }

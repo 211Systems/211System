@@ -12,8 +12,15 @@
         public string Surname { get; set; }
         public string BadgeNumber { get; set; }
         public string Rank { get; set; }
+        public string Email { get; set; }
         public Guid PDepartmentId { get; set; }
-        public string PoliceAccountId { get; set; }
+    }
+
+    public class PolicemanCreatedDto
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; }
+        public string TemporaryPassword { get; set; }
     }
 
     public class CreatePoliceCarDto
