@@ -93,7 +93,7 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    string[] roleNames = { "Admin112", "Dyspozytor112", "Policjant","Komendant", "Wo�ny", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
+    string[] roleNames = { "Admin", "Dyspozytor112", "Policjant","Komendant", "Wo�ny", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
 
     foreach (var roleName in roleNames)
     {
