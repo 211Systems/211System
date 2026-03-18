@@ -1,13 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using _211system.DTOs;
 using _211system.Services;
-using System;
+
 namespace _211system.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")] 
 public class OperatorsController : Controller
 {
     private readonly IOperatorService _operatorService;
@@ -20,8 +18,7 @@ public class OperatorsController : Controller
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var operators = await _operatorService.GetAllAsync();
-        return Ok(operators);
+        return Ok(await _operatorService.GetAllAsync());
     }
 
     [HttpPost]
@@ -29,17 +26,8 @@ public class OperatorsController : Controller
     {
         try
         {
-            var (newOperator, tempPassword) = await _operatorService.CreateAsync(dto);
-
-            return CreatedAtAction(
-                nameof(GetAll), 
-                new { id = newOperator.Id }, 
-                new 
-                { 
-                    operatorDetails = newOperator, 
-                    temporaryPassword = tempPassword 
-                }
-            );
+            var result = await _operatorService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetAll), new { id = result.Id }, result);
         }
         catch (Exception ex)
         {

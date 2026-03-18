@@ -1,5 +1,6 @@
 ﻿using _211system.DTOs.Hospital;
 using _211system.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace _211system.Controllers
@@ -15,6 +16,7 @@ namespace _211system.Controllers
             _medicalService = medicalService;
         }
 
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
         [HttpPost("hospitals")]
         public async Task<IActionResult> CreateHospital([FromBody] CreateHospitalDto dto)
         {
@@ -22,6 +24,7 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
         [HttpPost("paramedics")]
         public async Task<IActionResult> CreateParamedic([FromBody] CreateParamedicDto dto)
         {
@@ -30,6 +33,7 @@ namespace _211system.Controllers
         }
 
 
+        [Authorize(Roles = "Admin, Medyk")]
         [HttpPost("operations/start")]
         public async Task<IActionResult> StartOperation([FromQuery] Guid paramedicId, [FromQuery] Guid reportId)
         {
@@ -47,7 +51,9 @@ namespace _211system.Controllers
                 return NotFound(ex.Message);
             }
         }
+        //r
 
+        [Authorize(Roles = "Admin, Medyk")]
         [HttpPut("operations/{operationId}/end")]
         public async Task<IActionResult> EndOperation(Guid operationId)
         {
