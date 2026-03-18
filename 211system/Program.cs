@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.CodeAnalysis;
 using _211system.DTOs.CPR112;
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,12 +34,10 @@ builder.Services.AddScoped<IFireService, FireService>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IReadinessService, ReadinessService>();
-
 builder.Services.AddScoped<IPoliceService, PoliceService>();
-builder.Services.AddScoped<IFireService, FireService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<INasaService, NasaService>();
-
+builder.Services.AddScoped<IPdfReportService, PdfReportService>();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
