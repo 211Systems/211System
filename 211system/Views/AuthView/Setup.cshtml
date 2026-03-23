@@ -1,0 +1,136 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Aktywacja Konta | System 211</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="~/dist/css/adminlte.min.css">
+</head>
+<body class="hold-transition register-page dark-mode">
+    <div class="register-box">
+        <div class="register-logo">
+            <a href="#"><b>Aktywacja</b>Konta</a>
+        </div>
+
+        <div class="card">
+            <div class="card-body register-card-body">
+                <p class="login-box-msg">Wykryto pierwsze logowanie. Ustaw swoje własne, bezpieczne hasło.</p>
+
+                <form id="setupForm">
+                    <div class="input-group mb-3">
+                        <input type="password" id="oldPassword" class="form-control" placeholder="Obecne (Tymczasowe) hasło" required>
+                        <div class="input-group-append">
+                            <div class="input-group-text"><span class="fas fa-key"></span></div>
+                        </div>
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <input type="password" id="newPassword" class="form-control" placeholder="Nowe hasło" required>
+                        <div class="input-group-append">
+                            <div class="input-group-text"><span class="fas fa-lock"></span></div>
+                        </div>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="password" id="confirmPassword" class="form-control" placeholder="Powtórz nowe hasło" required>
+                        <div class="input-group-append">
+                            <div class="input-group-text"><span class="fas fa-lock"></span></div>
+                        </div>
+                    </div>
+
+                    <p id="setup-error" class="text-danger text-center d-none"></p>
+                    <p id="setup-success" class="text-success text-center d-none">Hasło zmienione! Przekierowanie...</p>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-warning btn-block font-weight-bold">Zapisz i wejdź do systemu</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('jwt');
+
+        if (!token) {
+            window.location.href = '/AuthView/Login';
+        }
+
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        document.getElementById('setupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorMsg = document.getElementById('setup-error');
+            const successMsg = document.getElementById('setup-success');
+
+            if (newPassword !== confirmPassword) {
+                errorMsg.textContent = "Nowe hasła nie są identyczne!";
+                errorMsg.classList.remove('d-none');
+                return;
+            }
+
+            const decodedToken = parseJwt(token);
+            const userEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"];
+
+            const requestData = {
+                email: userEmail,
+                oldPassword: oldPassword,
+                newPassword: newPassword
+            };
+
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    errorMsg.classList.add('d-none');
+                    successMsg.classList.remove('d-none');
+
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1500);
+                } else {
+                    const data = await response.json();
+                    console.error("Błąd API:", data);
+
+                    if(data.errors) {
+                        errorMsg.innerHTML = Object.values(data.errors).join("<br/>");
+                    } else {
+                        errorMsg.textContent = data.message || "Błąd podczas zmiany hasła.";
+                    }
+                    errorMsg.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd komunikacji z serwerem.";
+                errorMsg.classList.remove('d-none');
+            }
+        });
+    </script>
+</body>
+</html>

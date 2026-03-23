@@ -1,0 +1,89 @@
+﻿@{
+    ViewData["Title"] = "Departamenty Policji";
+}
+
+<div class="row mb-3">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="m-0">Lista Komend</h1>
+        <a href="/Admin/Departments/Create" class="btn btn-success"><i class="fas fa-plus"></i> Dodaj nową placówkę</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary">
+                <h3 class="card-title">Zarządzanie strukturami policji</h3>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th style="width: 10px">#</th>
+                            <th>Nazwa Komendy</th>
+                            <th>Adres</th>
+                            <th>Dzielnica / Rejon</th>
+                            <th style="width: 150px">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="departments-table-body">
+                        <tr>
+                            <td colspan="5" class="text-center">Ładowanie danych...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", async function () {
+            const tableBody = document.getElementById('departments-table-body');
+            const token = localStorage.getItem('jwt');
+
+            try {
+                const response = await fetch('/api/Police/departments', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const departments = await response.json();
+                    tableBody.innerHTML = '';
+
+                    if (departments.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Brak placówek w systemie.</td></tr>';
+                        return;
+                    }
+
+                    departments.forEach((dept, index) => {
+                        const row = `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td><b>${dept.name}</b></td>
+                                <td>${dept.address}</td>
+                                <td><span class="badge bg-warning">${dept.district}</span></td>
+                                <td>
+                                    <a href="/Admin/Departments/Details/${dept.id}" class="btn btn-sm btn-info" title="Szczegóły">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.insertAdjacentHTML('beforeend', row);
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Błąd autoryzacji lub serwera.</td></tr>';
+                }
+            } catch (error) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Błąd połączenia z API.</td></tr>';
+                console.error(error);
+            }
+        });
+    </script>
+}
