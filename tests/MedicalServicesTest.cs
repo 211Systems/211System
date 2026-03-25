@@ -3,10 +3,12 @@ using _211system.Models.Hospital;
 using _211system.Models.Interfaces;
 using _211system.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Moq;
 using System;
 using System.Threading.Tasks;
 using Xunit;
+using _211system.Models;
 
 namespace tests
 {
@@ -134,7 +136,7 @@ namespace tests
             var service = new MedicalService(context, mockAuthService.Object);
 
             var accountId = Guid.NewGuid().ToString();
-            var account = new Microsoft.AspNetCore.Identity.IdentityUser { Id = accountId, Email = "ratownik@szpital.pl" };
+            var account = new ApplicationUser{ Id = accountId, Email = "ratownik@szpital.pl" };
             context.Users.Add(account);
 
             context.Paramedics.Add(new Paramedic
