@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using _211system.Models;
 using _211system.DTOs;
 using _211system.Models.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -11,11 +12,11 @@ namespace _211system.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
 
-        public AuthService(UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
+        public AuthService(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -24,7 +25,7 @@ namespace _211system.Services
 
         public async Task<(string AccountId, string TemporaryPassword)> CreateTemporaryAccountAsync(string email, string role)
         {
-            var user = new IdentityUser { UserName = email, Email = email };
+            var user = new ApplicationUser { UserName = email, Email = email };
 
             int secureRandomNum = RandomNumberGenerator.GetInt32(1000, 10000);
             var tempPassword = $"Temp{secureRandomNum}";

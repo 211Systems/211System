@@ -27,9 +27,9 @@ namespace _211system.Models.Hospital
         [Required]
         public string ParaAccountId { get; set; }
         [ForeignKey(nameof(ParaAccountId))]
-        public virtual IdentityUser ParaAccount { get; set; }
+        public virtual ApplicationUser ParaAccount { get; set; }
 
-        public Guid HospitalId { get; set; } // Zmieniona nazwa
+        public Guid HospitalId { get; set; }
 
         [ForeignKey(nameof(HospitalId))]
         public virtual Hospital Hospital { get; set; }

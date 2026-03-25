@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using _211system.Data;
 using _211system.DTOs.CPR112;
+using _211system.Models;
 using _211system.Models.Interfaces;
 using _211system.Models.Services;
 using _211system.Services;
@@ -17,7 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 var ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<_211DbContext>(options => options.UseNpgsql(ConnectionString));
 
-builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = false;
     options.Password.RequiredLength = 4;
@@ -65,6 +66,7 @@ builder.Services.AddScoped<INasaService, NasaService>();
 builder.Services.AddScoped<IOpenAiService, OpenAiService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPdfReportService, PdfReportService>();
+builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
 builder.Services.AddControllersWithViews();
 
@@ -99,7 +101,7 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
     string[] roleNames = { "Admin", "Admin112", "Dyspozytor112", "Inspektor", "Komendant", "Policjant",
         "Naczelnik", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
@@ -118,7 +120,7 @@ using (var scope = app.Services.CreateScope())
 
     if (await userManager.FindByEmailAsync(adminEmail) == null)
     {
-        var adminUser = new IdentityUser
+        var adminUser = new ApplicationUser
         {
             UserName = adminEmail,
             Email = adminEmail
