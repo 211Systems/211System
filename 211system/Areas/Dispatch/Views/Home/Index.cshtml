@@ -1,11 +1,523 @@
 ﻿@{
-    ViewData["Title"] = "Dashboard 112";
+    ViewData["Title"] = "Centrum Powiadamiania Ratunkowego 112";
 }
-<div class="card card-primary">
-    <div class="card-header">
-        <h3 class="card-title">Centrala 112</h3>
+<style>
+    .user-avatar-container { position: relative; cursor: pointer; display: inline-block; vertical-align: middle; }
+    .user-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; transition: transform 0.2s; background-color: #ccc; }
+    .user-avatar:hover { transform: scale(1.1); }
+    #avatarInput { display: none; }
+    
+    /* Płynne przejścia paneli */
+    .fade-panel { animation: fadeIn 0.4s; }
+    @@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<div id="incidents-panel" class="fade-panel">
+    
+    <div class="row mb-3" id="status-board">
+        <div class="col-md-4 col-12">
+            <div class="info-box bg-primary shadow">
+                <span class="info-box-icon"><i class="fas fa-car-side"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Gotowe Radiowozy</span>
+                    <span class="info-box-number" id="status-police">Ładowanie...</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-12">
+            <div class="info-box bg-success shadow">
+                <span class="info-box-icon"><i class="fas fa-ambulance"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Wolne Karetki</span>
+                    <span class="info-box-number" id="status-medic">Ładowanie...</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-12">
+            <div class="info-box bg-danger shadow">
+                <span class="info-box-icon"><i class="fas fa-fire-extinguisher"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Dostępne Wozy PSP</span>
+                    <span class="info-box-number" id="status-fire">Ładowanie...</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <p>Witaj w panelu 112.</p>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card card-danger shadow">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-phone-slash"></i> Nowe Zgłoszenie 112</h3>
+                </div>
+                <form id="createIncidentForm">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Opis Zdarzenia</label>
+                            <textarea id="incDescription" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Priorytet</label>
+                            <select id="incSeverity" class="form-control" required>
+                                <option value="Wysoki">Wysoki</option>
+                                <option value="Średni">Średni</option>
+                                <option value="Niski">Niski</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="incLocationId">
+                        <small id="location-status" class="text-muted">Sprawdzanie bazy...</small>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-danger btn-block font-weight-bold" id="btn-submit-incident">
+                            <i class="fas fa-plus"></i> Rejestruj Incydent
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card card-dark shadow">
+                <div class="card-header d-flex justify-content-between">
+                    <h3 class="card-title m-0"><i class="fas fa-list-ul"></i> Aktywne Interwencje</h3>
+                    <button class="btn btn-sm btn-outline-light ml-auto" onclick="refreshAll()"><i class="fas fa-sync-alt"></i></button>
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-striped table-hover m-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th><th>Opis</th><th>Priorytet</th><th>Status</th><th>Opcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incidents-table-body">
+                            <tr><td colspan="5" class="text-center">Ładowanie...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<div id="operators-panel" class="d-none fade-panel">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-warning font-weight-bold m-0"><i class="fas fa-users-cog mr-2"></i> Panel Administratora CPR</h2>
+        <button class="btn btn-outline-light" onclick="window.location.hash='';"><i class="fas fa-arrow-left"></i> Wróć do zgłoszeń</button>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card card-outline card-warning mb-4 shadow">
+                <div class="card-header">
+                    <h3 class="card-title text-bold">Rejestracja nowego pracownika</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3"><label>Imię</label><input type="text" id="regFirstName" class="form-control"></div>
+                        <div class="col-md-3"><label>Nazwisko</label><input type="text" id="regLastName" class="form-control"></div>
+                        <div class="col-md-2"><label>Stacja</label><input type="text" id="regStation" class="form-control" placeholder="np. S-1"></div>
+                        <div class="col-md-4"><label>Email (Login)</label><input type="email" id="regEmail" class="form-control"></div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label>Ranga</label>
+                            <select id="regRank" class="form-control">
+                                <option value="Dyspozytor112">Dyspozytor 112</option>
+                                <option value="Admin112">Administrator 112</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label>ID Placówki (Baza)</label>
+                            <input type="text" id="regEncId" class="form-control" placeholder="Wklej ID placówki">      
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-right">
+                    <button onclick="registerNewOperator()" class="btn btn-warning text-bold"><i class="fas fa-plus-circle"></i> Zarejestruj i wygeneruj hasło</button>
+                </div>
+            </div>
+
+            <div class="card card-dark shadow">
+                <div class="card-header"><h3 class="card-title m-0"><i class="fas fa-list"></i> Lista Zarejestrowanych Operatorów</h3></div>
+                <div class="card-body p-0">
+                    <table class="table table-striped m-0">
+                        <thead>
+                            <tr>
+                                <th>Pracownik</th>
+                                <th>Ranga</th>
+                                <th>Stanowisko</th>
+                                <th class="text-right">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="operators-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="statusModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">Aktualizacja Zgłoszenia</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="changeStatusForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editIncidentId">
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="editIncidentStatus" class="form-control">
+                            <option value="Nowe">Nowe</option>
+                            <option value="W toku">W toku</option>
+                            <option value="Zakończone">Zakończone</option>
+                            <option value="Fałszywy alarm">Fałszywy alarm</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Priorytet (Severity)</label>
+                        <select id="editIncidentPriority" class="form-control">
+                            <option value="Wysoki">Wysoki</option>
+                            <option value="Średni">Średni</option>
+                            <option value="Niski">Niski</option>
+                        </select>
+                    </div>
+                    <p id="edit-error" class="text-danger d-none font-weight-bold mt-2"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info" id="btn-save-status">Zapisz zmiany</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rankModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content text-dark">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-bold"><i class="fas fa-user-edit"></i> Zmiana rangi</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="changeRankForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editOperatorId">
+                    <div class="form-group">
+                        <label>Nowa ranga pracownika</label>
+                        <select id="editOperatorRank" class="form-control" required>
+                            <option value="Dyspozytor112">Dyspozytor 112</option>
+                            <option value="Admin112">Administrator 112</option>
+                        </select>
+                    </div>
+                    <p id="edit-rank-error" class="text-danger d-none font-weight-bold mt-2"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning font-weight-bold" id="btn-save-rank">Zapisz zmianę</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = localStorage.getItem('jwt');
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            if (!token) return;
+            try {
+                autoLoadIds(); 
+                checkAdminVisibility(); 
+                await refreshAll();
+                window.addEventListener('hashchange', togglePanels);
+            } catch (err) { console.error(err); }
+        });
+
+        function autoLoadIds() {
+            const myDatabaseId = "019d265c-6776-714f-ba19-c7fbd31480dc";
+            const incLoc = document.getElementById('incLocationId');
+            if (incLoc) incLoc.value = myDatabaseId;
+            const regEnc = document.getElementById('regEncId');
+            if (regEnc) regEnc.value = myDatabaseId;
+
+            const statusLabel = document.getElementById('location-status');
+            if (statusLabel) {
+                statusLabel.textContent = "Baza połączona (ID gotowe)";
+                statusLabel.className = "text-success font-weight-bold";
+            }
+        }
+
+        function checkAdminVisibility() {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+                const rolesArray = Array.isArray(role) ? role : [role];
+
+                if (rolesArray.includes('Admin') || rolesArray.includes('Admin112')) {
+                    togglePanels(); 
+                    loadOperators();
+                } else {
+                    document.getElementById('incidents-panel').classList.remove('d-none');
+                    document.getElementById('operators-panel').classList.add('d-none');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function togglePanels() {
+            const hash = window.location.hash;
+            const incPanel = document.getElementById('incidents-panel');
+            const opPanel = document.getElementById('operators-panel');
+
+            if (hash === '#admin-operator-section') {
+                incPanel.classList.add('d-none');
+                opPanel.classList.remove('d-none');
+            } else {
+                incPanel.classList.remove('d-none');
+                opPanel.classList.add('d-none');
+            }
+        }
+
+        async function refreshAll() {
+            await Promise.all([loadIncidents(), loadServiceStatuses()]);
+        }
+
+        async function loadServiceStatuses() {
+            try {
+                const response = await fetch('/api/Readiness/board', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('status-police').textContent = `${data.policeCarsAvailable || 0} / ${data.policeCarsTotal || 0}`;
+                    document.getElementById('status-medic').textContent = `${data.ambulancesAvailable || 0} / ${data.ambulancesTotal || 0}`;
+                    document.getElementById('status-fire').textContent = `${data.fireTrucksAvailable || 0} / ${data.fireTrucksTotal || 0}`;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadIncidents() {
+            const tableBody = document.getElementById('incidents-table-body');
+            try {
+                const response = await fetch('/api/CPR112/Incidents', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    const incidents = await response.json();
+                    if (incidents.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Brak aktywnych zgłoszeń.</td></tr>';
+                        return;
+                    }
+
+                    // SPRAWDZENIE ROLI DLA PRZYCISKU USUWANIA
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+                    const rolesArray = Array.isArray(role) ? role : [role];
+                    const isAdmin = rolesArray.includes('Admin') || rolesArray.includes('Admin112');
+
+                    tableBody.innerHTML = incidents.map(inc => {
+                        let badgeColor = 'info'; 
+                        if (inc.severity === 'Wysoki') badgeColor = 'danger'; 
+                        else if (inc.severity === 'Średni') badgeColor = 'warning'; 
+
+                        return `
+                        <tr>
+                            <td class="align-middle">${inc.incidentNumber || inc.id.substring(0,8)}</td>
+                            <td class="align-middle">${inc.description}</td>
+                            <td class="align-middle"><span class="badge bg-${badgeColor}">${inc.severity}</span></td>
+                            <td class="align-middle font-weight-bold">${inc.status}</td>
+                            <td class="align-middle">
+                                <button class="btn btn-xs btn-info" onclick="openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')">
+                                    <i class="fas fa-edit"></i> Edytuj
+                                </button>
+                                ${isAdmin ? `
+                                <button class="btn btn-xs btn-danger ml-1" onclick="deleteIncident('${inc.id}')" title="Usuń zgłoszenie">
+                                    <i class="fas fa-trash"></i>
+                                </button>` : ''}
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function deleteIncident(id) {
+            if (!confirm("⚠️ Czy na pewno chcesz trwale usunąć to zgłoszenie z bazy danych?")) return;
+            try {
+                const response = await fetch(`/api/CPR112/Incidents/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    await refreshAll();
+                } else {
+                    alert("❌ Błąd podczas usuwania zgłoszenia.");
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadOperators() {
+            const tableBody = document.getElementById('operators-table-body');
+            if(!tableBody) return;
+            try {
+                const response = await fetch('/api/Operators', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    const data = await response.json();
+                    tableBody.innerHTML = data.map(o => {
+                        const badgeClass = o.rank === 'Admin112' 
+                            ? 'badge-light text-danger font-weight-bold border border-danger' 
+                            : 'badge-light text-dark font-weight-bold border border-secondary';
+                        
+                        return `
+                        <tr>
+                            <td class="align-middle"><i class="fas fa-user text-secondary mr-2"></i> <b>${o.firstName} ${o.lastName}</b></td>
+                            <td class="align-middle"><span class="badge ${badgeClass} p-2">${o.rank}</span></td>
+                            <td class="align-middle">${o.stationNumber}</td>
+                            <td class="align-middle text-right">
+                                <button class="btn btn-sm btn-info mr-1" onclick="openEditRankModal('${o.id}', '${o.rank}')" title="Zmień rangę">
+                                    <i class="fas fa-user-tag"></i> Zmień Rangę
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteOperator('${o.id}')" title="Usuń operatora">
+                                    <i class="fas fa-trash-alt"></i> Usuń
+                                </button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function deleteOperator(id) {
+            if (!confirm("⚠️ Czy na pewno chcesz całkowicie usunąć tego pracownika? Operacji nie można cofnąć.")) return;
+            try {
+                const response = await fetch(`/api/Operators/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    alert("✅ Pracownik został usunięty.");
+                    loadOperators(); 
+                } else { alert("❌ Błąd podczas usuwania."); }
+            } catch (e) { console.error(e); }
+        }
+
+        async function registerNewOperator() {
+            const dto = {
+                firstName: document.getElementById('regFirstName').value,
+                lastName: document.getElementById('regLastName').value,
+                stationNumber: document.getElementById('regStation').value,
+                email: document.getElementById('regEmail').value,
+                rank: document.getElementById('regRank').value,
+                encId: document.getElementById('regEncId').value
+            };
+            try {
+                const response = await fetch('/api/Operators', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dto)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`✅ Sukces!\nHasło tymczasowe: ${result.temporaryPassword}`);
+                    loadOperators();
+                    document.getElementById('regFirstName').value = '';
+                    document.getElementById('regLastName').value = '';
+                    document.getElementById('regEmail').value = '';
+                } else { alert("Błąd: " + (result.message || "Email zajęty lub brak ID")); }
+            } catch (e) { console.error(e); }
+        }
+
+        function openEditRankModal(id, currentRank) {
+            document.getElementById('editOperatorId').value = id;
+            const rankSelect = document.getElementById('editOperatorRank');
+            rankSelect.value = (currentRank && currentRank !== 'Brak' && currentRank !== '') ? currentRank : 'Dyspozytor112';
+            document.getElementById('edit-rank-error').classList.add('d-none');
+            $('#rankModal').modal('show');
+        }
+
+        document.getElementById('changeRankForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-rank');
+            const errorMsg = document.getElementById('edit-rank-error');
+            btn.disabled = true;
+            const id = document.getElementById('editOperatorId').value;
+            const newRank = document.getElementById('editOperatorRank').value;
+            try {
+                const response = await fetch(`/api/Operators/${id}/rank`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newRank: newRank })
+                });
+                if (response.ok || response.status === 204) {
+                    $('#rankModal').modal('hide');
+                    loadOperators();
+                } else {
+                    errorMsg.textContent = "Błąd zapisu w bazie danych. (Kod: " + response.status + ")";
+                    errorMsg.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd połączenia z serwerem.";
+                errorMsg.classList.remove('d-none');
+            } finally { btn.disabled = false; }
+        });
+
+        document.getElementById('createIncidentForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-incident');
+            btn.disabled = true;
+            const locationId = document.getElementById('incLocationId').value;
+            try {
+                const response = await fetch('/api/CPR112/Incidents', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: document.getElementById('incDescription').value,
+                        severity: document.getElementById('incSeverity').value,
+                        locationId: locationId
+                    })
+                });
+                if (response.ok) {
+                    document.getElementById('incDescription').value = '';
+                    await refreshAll();
+                } else { alert("❌ Błąd przy zapisie zgłoszenia."); }
+            } catch (e) { console.error(e); } finally { btn.disabled = false; }
+        });
+
+        function openEditModal(id, currentStatus, currentPriority) {
+            document.getElementById('editIncidentId').value = id;
+            document.getElementById('editIncidentStatus').value = currentStatus;
+            const priorityEl = document.getElementById('editIncidentPriority');
+            if(priorityEl && currentPriority) priorityEl.value = currentPriority;
+            document.getElementById('edit-error').classList.add('d-none');
+            $('#statusModal').modal('show'); 
+        }
+
+        document.getElementById('changeStatusForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-status');
+            const errorMsg = document.getElementById('edit-error');
+            btn.disabled = true;
+            const id = document.getElementById('editIncidentId').value;
+            const requestData = { 
+                newStatus: document.getElementById('editIncidentStatus').value,
+                newSeverity: document.getElementById('editIncidentPriority').value, 
+                operatorId: "00000000-0000-0000-0000-000000000000" 
+            };
+            try {
+                const response = await fetch(`/api/CPR112/Incidents/${id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                if (response.ok || response.status === 204) {
+                    $('#statusModal').modal('hide');
+                    await refreshAll();
+                } else {
+                    errorMsg.textContent = "Błąd zapisu w bazie danych. (Kod: " + response.status + ")";
+                    errorMsg.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd połączenia z serwerem.";
+                errorMsg.classList.remove('d-none');
+            } finally { btn.disabled = false; }
+        });
+    </script>
+}

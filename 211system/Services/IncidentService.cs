@@ -71,29 +71,32 @@ namespace _211system.Services
                 OperatorId = incident.OperatorId
             };
         }
-        public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
-        {
-            var incident = await _context.Incidents.FindAsync(id);
-            if (incident == null) throw new ArgumentException("Nie znaleziono zgłoszenia.");
+      public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
+{
+    var incident = await _context.Incidents.FindAsync(id);
+    if (incident == null) throw new ArgumentException("Nie znaleziono zgłoszenia.");
 
-            if (incident.Status == dto.NewStatus)
-                throw new InvalidOperationException("Zgłoszenie ma już ten status.");
+    if (incident.Status == dto.NewStatus)
+    {
+        throw new InvalidOperationException("Zgłoszenie posiada już ten status.");
+    }
 
-            var historyLog = new StatusHistory
-            {
-                IncidentId = incident.Id,
-                OldStatus = incident.Status,
-                NewStatus = dto.NewStatus,
-                ChangeDate = DateTime.UtcNow,
-                OperatorId = operatorId
-            };
+    var historyLog = new StatusHistory
+    {
+        IncidentId = incident.Id,
+        OldStatus = incident.Status,
+        NewStatus = dto.NewStatus,
+        ChangeDate = DateTime.UtcNow,
+        OperatorId = operatorId
+    };
+    await _context.StatusHistories.AddAsync(historyLog);
 
-            await _context.StatusHistories.AddAsync(historyLog);
+    // Aktualizacja pól
+    incident.Status = dto.NewStatus;
+    incident.Severity = dto.NewSeverity;
 
-            incident.Status = dto.NewStatus;
-            _context.Incidents.Update(incident);
-
-            await _context.SaveChangesAsync();
-        }
+    _context.Incidents.Update(incident);
+    await _context.SaveChangesAsync();
+}
     }
 }

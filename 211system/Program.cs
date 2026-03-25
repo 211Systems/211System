@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using CPR112.Models;
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -73,14 +74,12 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApiDocument(config =>
 {
     config.Title = "211 System API";
-
     config.AddSecurity("Bearer", Enumerable.Empty<string>(), new NSwag.OpenApiSecurityScheme
     {
         Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
         Name = "Authorization",
         In = NSwag.OpenApiSecurityApiKeyLocation.Header
     });
-
     config.OperationProcessors.Add(new NSwag.Generation.Processors.Security.AspNetCoreOperationSecurityScopeProcessor("Bearer"));
 });
 
@@ -102,56 +101,71 @@ using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
 
     string[] roleNames = { "Admin", "Admin112", "Dyspozytor112", "Inspektor", "Komendant", "Policjant",
         "Naczelnik", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
 
     foreach (var roleName in roleNames)
     {
-        var roleExist = await roleManager.RoleExistsAsync(roleName);
-        if (!roleExist)
+        if (!await roleManager.RoleExistsAsync(roleName))
         {
             await roleManager.CreateAsync(new IdentityRole(roleName));
         }
     }
 
     string adminEmail = "admin@211.pl";
-    string adminPassword = "Admin123!";
-
     if (await userManager.FindByEmailAsync(adminEmail) == null)
     {
-        var adminUser = new ApplicationUser
-        {
-            UserName = adminEmail,
-            Email = adminEmail
-        };
+        var adminUser = new ApplicationUser { UserName = adminEmail, Email = adminEmail };
+        var result = await userManager.CreateAsync(adminUser, "Admin123!");
+        if (result.Succeeded) await userManager.AddToRoleAsync(adminUser, "Admin");
+    }
 
-        var result = await userManager.CreateAsync(adminUser, adminPassword);
+    string admin112Email = "admin112@211.pl";
+    if (await userManager.FindByEmailAsync(admin112Email) == null)
+    {
+        var admin112User = new ApplicationUser { UserName = admin112Email, Email = admin112Email };
+        var result = await userManager.CreateAsync(admin112User, "Admin112!");
 
         if (result.Succeeded)
         {
-            await userManager.AddToRoleAsync(adminUser, "Admin");
+            await userManager.AddToRoleAsync(admin112User, "Admin112");
+
+            var center = await dbContext.Encs.FirstOrDefaultAsync();
+            if (center != null)
+            {
+                dbContext.Operators112.Add(new Operator112
+                {
+                    Id = Guid.NewGuid(),
+                    FirstName = "Główny",
+                    LastName = "Administrator",
+                    StationNumber = "ADM-01",
+                    OpAccountId = admin112User.Id,
+                    Rank = OperatorRank.Admin112,
+                    EncId = center.Id
+                });
+                await dbContext.SaveChangesAsync();
+            }
         }
     }
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets();
-
 app.MapControllerRoute(
     name: "areas",
-    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
 

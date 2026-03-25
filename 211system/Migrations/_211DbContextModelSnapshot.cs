@@ -213,6 +213,9 @@ namespace _211system.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
+
                     b.Property<string>("StationNumber")
                         .IsRequired()
                         .HasColumnType("text");

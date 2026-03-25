@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260325170014_blob")]
-    partial class blob
+    [Migration("20260325185401_AddAvatarUrl")]
+    partial class AddAvatarUrl
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -215,6 +215,9 @@ namespace _211system.Migrations
                     b.Property<string>("OpAccountId")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
 
                     b.Property<string>("StationNumber")
                         .IsRequired()
