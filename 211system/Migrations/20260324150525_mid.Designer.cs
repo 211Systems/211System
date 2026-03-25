@@ -12,13 +12,7 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-<<<<<<<< HEAD:211system/Migrations/20260324150525_mid.Designer.cs
-    [Migration("20260324150525_mid")]
     partial class mid
-========
-    [Migration("20260325170014_blob")]
-    partial class blob
->>>>>>>> 11024e5168c7cb0a5498e285e51589c04a2b5953:211system/Migrations/20260325170014_blob.Designer.cs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
