@@ -1,23 +1,29 @@
 using System;
 
-namespace _211system.DTOs;
-
-public class OperatorDto
+namespace _211system.DTOs
 {
-    public Guid Id { get; set; }
-    public string FirstName { get; set; }
-    public string LastName { get; set; }
-    public string StationNumber { get; set; }
-    
-    public string OpAccountId { get; set; }
-    public Guid EncId { get; set; }
-}
+    public class OperatorDto
+    {
+        public Guid Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string StationNumber { get; set; } = string.Empty;
+        public string OpAccountId { get; set; } = string.Empty;
+        public Guid EncId { get; set; }
+        public string Rank { get; set; } = string.Empty; 
+    }
 
-public class CreateOperatorDto
-{
-    public string FirstName { get; set; }
-    public string LastName { get; set; }
-    public string StationNumber { get; set; }
-    public string OpAccountId { get; set; } 
-    public Guid EncId { get; set; }
+    public class CreateOperatorDto
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string StationNumber { get; set; } = string.Empty;
+        public Guid EncId { get; set; }
+        
+        public string Email { get; set; } = string.Empty;
+        
+        public string Rank { get; set; } = "Dyspozytor112";
+        
+        public string Password { get; set; } = string.Empty;
+    }
 }

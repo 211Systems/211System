@@ -29,30 +29,27 @@ function updateLayoutBasedOnAuth() {
         document.getElementById('profile-email').textContent = email;
         document.getElementById('profile-role').textContent = role;
 
+        // Ochrona tras
         if (currentPath.includes('/admin') && role !== "Admin") {
             alert("To jest strefa zarezerwowana tylko dla Głównego Administratora systemu!");
             window.location.href = '/';
             return;
         }
-
         if (currentPath.includes('/police') && !["Admin", "Policjant", "Komendant", "Inspektor"].includes(role)) {
             alert("Brak uprawnień do tego obszaru!");
             window.location.href = '/';
             return;
         }
-
         if (currentPath.includes('/medic') && !["Admin", "Medyk", "Lekarz", "Kierownik Szpitala"].includes(role)) {
             alert("Brak uprawnień do tego obszaru!");
             window.location.href = '/';
             return;
         }
-
         if (currentPath.includes('/fire') && !["Admin", "Strazak", "Kapitan", "Naczelnik"].includes(role)) {
             alert("Brak uprawnień do tego obszaru!");
             window.location.href = '/';
             return;
         }
-
         if (currentPath.includes('/dispatch') && !["Admin", "Admin112", "Dyspozytor112"].includes(role)) {
             alert("Brak uprawnień do tego obszaru!");
             window.location.href = '/';
@@ -61,6 +58,7 @@ function updateLayoutBasedOnAuth() {
 
         const homeLink = document.getElementById('nav-home-link');
 
+        // Odkrywanie menu
         if (role === "Admin") {
             if (document.getElementById('menu-admin')) document.getElementById('menu-admin').classList.remove('d-none');
             if (homeLink) homeLink.href = '/Admin/Home/Index';
@@ -86,8 +84,11 @@ function updateLayoutBasedOnAuth() {
         else if (role === "Strazak" || role === "Kapitan" || role === "Naczelnik") {
             if (homeLink) homeLink.href = '/Fire/Home/Index';
         }
+        // TUTAJ WSTAWIAMY ZAKTUALIZOWANY FRAGMENT:
         else if (role === "Admin112" || role === "Dyspozytor112") {
+            if (document.getElementById('menu-dispatch')) document.getElementById('menu-dispatch').classList.remove('d-none');
             if (homeLink) homeLink.href = '/Dispatch/Home/Index';
+            if (!currentPath.includes('/dispatch') && currentPath !== '/') window.location.href = '/Dispatch/Home/Index';
         }
 
     } else {
