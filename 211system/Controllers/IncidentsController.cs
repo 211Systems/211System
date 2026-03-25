@@ -9,13 +9,14 @@ using _211system.Models;
 
 namespace _211system.Controllers
 {
-    [Authorize(Roles = "Dyspozytor112, Admin")]
+    [Authorize(Roles = "Dyspozytor112, Admin112, Admin")]
     [ApiController]
     [Route("api/CPR112/[controller]")]
     public class IncidentsController : Controller
     {
         private readonly IIncidentService _incidentService;
         private readonly _211DbContext _context;
+
         public IncidentsController(IIncidentService incidentService, _211DbContext context)
         {
             _incidentService = incidentService;
@@ -27,6 +28,16 @@ namespace _211system.Controllers
         {
             var result = await _incidentService.CreateIncidentAsync(dto);
             return Ok(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllIncidents()
+        {
+            var incidents = await _context.Incidents
+                .OrderByDescending(i => i.ReportDate)
+                .ToListAsync();
+
+            return Ok(incidents);
         }
 
         [HttpGet("{id}")]
@@ -48,7 +59,6 @@ namespace _211system.Controllers
         {
             try
             {
-
                 var identityUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (identityUserId == null)
                     return Unauthorized("Brak autoryzacji (niewłaściwy lub brakujący token).");
@@ -56,10 +66,9 @@ namespace _211system.Controllers
                 var currentOperator = await _context.Operators112
                     .FirstOrDefaultAsync(o => o.OpAccountId == identityUserId);
 
-                if (currentOperator == null)
-                    return Forbid("Zalogowane konto nie jest przypisane do profilu dyspozytora 112.");
+                Guid operatorId = currentOperator?.Id ?? Guid.Empty;
 
-                await _incidentService.ChangeIncidentStatusAsync(id, currentOperator.Id, dto);
+                await _incidentService.ChangeIncidentStatusAsync(id, operatorId, dto);
 
                 return NoContent();
             }
@@ -70,6 +79,30 @@ namespace _211system.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin112, Admin")]
+        public async Task<IActionResult> DeleteIncident(Guid id)
+        {
+            try
+            {
+                var incident = await _context.Incidents.FindAsync(id);
+                
+                if (incident == null)
+                {
+                    return NotFound(new { message = "Nie znaleziono zgłoszenia o podanym ID." });
+                }
+
+                _context.Incidents.Remove(incident);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Zgłoszenie zostało trwale usunięte z bazy." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd podczas usuwania zgłoszenia.", error = ex.Message });
             }
         }
     }

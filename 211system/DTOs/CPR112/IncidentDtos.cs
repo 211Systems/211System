@@ -19,9 +19,10 @@ namespace _211system.DTOs.CPR112
         public DateTime ReportedAt { get; set; }
     }
 
-    public class ChangeIncidentStatusDto
-    {
-        public string NewStatus { get; set; } = string.Empty;
-        public Guid OperatorId { get; set; }
-    }
+   public class ChangeIncidentStatusDto
+{
+    public string NewStatus { get; set; } = string.Empty;
+    public string NewSeverity { get; set; } = string.Empty;
+    public Guid OperatorId { get; set; }
+}
 }

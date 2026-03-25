@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Authorization;
 namespace _211system.Areas.Dispatch.Controllers
 {
     [Area("Dispatch")]
+    [Route("Dispatch/[controller]")]
     [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
     public class HomeController : Controller
     {
-        [HttpGet]
+        [HttpGet("")]
+        [HttpGet("Index")]
         public IActionResult Index()
         {
             return View();
