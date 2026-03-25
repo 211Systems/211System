@@ -24,6 +24,5 @@ namespace _211system.Models.Hospital
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
 
-        // na czas testu ? przy guid i Incident
     }
 }

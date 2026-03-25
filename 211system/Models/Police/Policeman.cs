@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using _211system.Models;
 using Microsoft.AspNetCore.Identity;
 
 namespace Police;
@@ -18,7 +19,7 @@ public class Policeman
 
     public string PoliceAccountId { get; set; }
     [ForeignKey(nameof(PoliceAccountId))]
-    public virtual IdentityUser PoliceAccount { get; set; }
+    public virtual ApplicationUser PoliceAccount { get; set; }
 
     public Policeman()
 	{

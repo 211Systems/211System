@@ -1,0 +1,219 @@
+﻿@{
+    ViewData["Title"] = "Szczegóły Jednostki";
+    var departmentId = ViewBag.FireStationId;
+}
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card card-danger card-outline">
+            <div class="card-body box-profile">
+                <h3 class="profile-username text-center" id="dept-name">Ładowanie...</h3>
+                <p class="text-muted text-center" id="dept-district">...</p>
+                <ul class="list-group list-group-unbordered mb-3">
+                    <li class="list-group-item">
+                        <b>Adres</b> <a class="float-right" id="dept-address">...</a>
+                    </li>
+                    <li class="list-group-item">
+                        <b>ID Systemowe</b> <a class="float-right text-muted small">@departmentId</a>
+                    </li>
+                </ul>
+                <a href="/Admin/FireStations" class="btn btn-danger btn-block"><b>Powrót do listy</b></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card card-info">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title m-0">Personel Przypisany do Jednostki</h3>
+                <button type="button" class="btn btn-sm btn-light ml-auto" data-toggle="modal" data-target="#addStaffModal">
+                    <i class="fas fa-user-plus"></i> Dodaj Strażaka
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Stopień / Rola</th>
+                            <th>Imię i Nazwisko</th>
+                            <th>Odznaka</th>
+                            <th>Email (Login)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-table-body">
+                        <tr><td colspan="4" class="text-center">Ładowanie personelu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addStaffModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title">Rejestracja Nowego Strażaka</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="addStaffForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Imię</label>
+                        <input type="text" id="staffName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nazwisko</label>
+                        <input type="text" id="staffSurname" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Służbowy</label>
+                        <input type="email" id="staffEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Numer Odznaki</label>
+                        <input type="text" id="staffBadge" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Rola / Stopień w systemie</label>
+                        <select id="staffRank" class="form-control" required>
+                            <option value="Strazak">Strażak</option>
+                            <option value="Kapitan">Kapitan</option>
+                            <option value="Naczelnik">Naczelnik</option>
+                        </select>
+                    </div>
+
+                    <div id="generated-password-alert" class="alert alert-warning d-none">
+                        <h5><i class="icon fas fa-exclamation-triangle"></i> Konto utworzone!</h5>
+                        Przekaż to hasło pracownikowi: <strong id="temp-password-display" style="font-size: 1.2em;"></strong>
+                    </div>
+                    <p id="staff-error" class="text-danger d-none"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+                    <button type="submit" class="btn btn-danger" id="btn-submit-staff">Utwórz konto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const departmentId = "@departmentId";
+        const token = localStorage.getItem('jwt');
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            await loadDepartmentDetails();
+            await loadStaff();
+        });
+
+        async function loadDepartmentDetails() {
+            try {
+                const response = await fetch('/api/Fire/departments', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    const depts = await response.json();
+                    const myDept = depts.find(d => d.id === departmentId || d.Id === departmentId);
+
+                    if (myDept) {
+                        document.getElementById('dept-name').textContent = myDept.name || myDept.Name;
+                        document.getElementById('dept-district').textContent = myDept.district || myDept.District;
+                        document.getElementById('dept-address').textContent = myDept.address || myDept.Address;
+                    } else {
+                        document.getElementById('dept-name').textContent = "Nie znaleziono Jednostki";
+                    }
+                }
+            } catch (error) { console.error("Błąd pobierania jednostki:", error); }
+        }
+
+        async function loadStaff() {
+            const tableBody = document.getElementById('staff-table-body');
+            try {
+                const response = await fetch('/api/Fire/firemen', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    const allStaff = await response.json();
+                    const myStaff = allStaff.filter(p => p.fDepartmentId === departmentId || p.FDepartmentId === departmentId);
+
+                    tableBody.innerHTML = '';
+                    if(myStaff.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Brak przypisanego personelu.</td></tr>';
+                        return;
+                    }
+
+                    myStaff.forEach(p => {
+                        const row = `<tr>
+                            <td><span class="badge bg-danger">${p.rank || p.Rank}</span></td>
+                            <td>${p.name || p.Name} ${p.surname || p.Surname}</td>
+                            <td>${p.badgeNumber || p.BadgeNumber}</td>
+                            <td>${p.email || p.Email}</td>
+                        </tr>`;
+                        tableBody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+            } catch (error) { console.error("Błąd pobierania personelu:", error); }
+        }
+
+        document.getElementById('addStaffForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const btnSubmit = document.getElementById('btn-submit-staff');
+            const errorMsg = document.getElementById('staff-error');
+            const successAlert = document.getElementById('generated-password-alert');
+
+            btnSubmit.disabled = true;
+            errorMsg.classList.add('d-none');
+
+            const requestData = {
+                name: document.getElementById('staffName').value,
+                surname: document.getElementById('staffSurname').value,
+                email: document.getElementById('staffEmail').value,
+                badgeNumber: document.getElementById('staffBadge').value,
+                rank: document.getElementById('staffRank').value,
+                fDepartmentId: departmentId
+            };
+
+            try {
+                const response = await fetch('/api/Fire/firemen', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    document.getElementById('temp-password-display').textContent = result.password || result.temporaryPassword || "Temp!234";
+
+                    successAlert.classList.remove('d-none');
+                    btnSubmit.classList.add('d-none');
+
+                    await loadStaff();
+                } else {
+                    const errorData = await response.json();
+                    console.error(errorData);
+
+                    if(errorData.errors) {
+                        errorMsg.innerHTML = Object.values(errorData.errors).join("<br/>");
+                    } else {
+                        errorMsg.textContent = errorData.message || "Błąd walidacji lub serwera.";
+                    }
+                    errorMsg.classList.remove('d-none');
+                    btnSubmit.disabled = false;
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd połączenia z serwerem.";
+                errorMsg.classList.remove('d-none');
+                btnSubmit.disabled = false;
+            }
+        });
+    </script>
+}

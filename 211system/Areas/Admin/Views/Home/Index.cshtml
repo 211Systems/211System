@@ -1,39 +1,76 @@
 ﻿@{
-    ViewData["Title"] = "Panel Administratora";
+    ViewData["Title"] = "Panel Głównego Administratora";
 }
+
+<div class="row">
+    <div class="col-12">
+        <h3 class="mb-3">Zarządzanie Jednostkami Systemu 211</h3>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-lg-3 col-6">
-        <div class="small-box bg-info">
+        <div class="small-box bg-primary">
             <div class="inner">
-                <h3>Zarządzanie</h3>
-                <p>Placówki i Służby</p>
+                <h3>Policja</h3>
+                <p>Komendy i Kadra</p>
             </div>
             <div class="icon">
-                <i class="fas fa-building"></i>
+                <i class="fas fa-building-shield"></i>
             </div>
-            <a href="#" class="small-box-footer">Przejdź <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="/Admin/PoliceStations" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>Medyczne</h3>
+                <p>Szpitale i Dyspozytornie</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-hospital-alt"></i>
+            </div>
+            <a href="/Admin/Hospitals" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3>Straż</h3>
+                <p>Remizy i Sprzęt</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-fire-extinguisher"></i>
+            </div>
+            <a href="/Admin/FireStations" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
 
     <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
             <div class="inner">
-                <h3>Użytkownicy</h3>
-                <p>Dodaj / Usuń</p>
+                <h3>CPR 112</h3>
+                <p>Centra Powiadamiania</p>
             </div>
             <div class="icon">
-                <i class="fas fa-users-cog"></i>
+                <i class="fas fa-headset"></i>
             </div>
-            <a href="#" class="small-box-footer">Przejdź <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="/Admin/CprCenters" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
 </div>
 
-<div class="card card-dark">
-    <div class="card-header">
-        <h3 class="card-title">Główne Centrum Dowodzenia IT</h3>
-    </div>
-    <div class="card-body">
-        <p>Tutaj stworzymy formularze do zakładania nowych komend, remiz, szpitali i zatrudniania kadry kierowniczej.</p>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card card-dark">
+            <div class="card-header">
+                <h3 class="card-title">Główne Centrum Dowodzenia</h3>
+            </div>
+            <div class="card-body">
+                <p>Wybierz jedną ze służb powyżej, aby zarządzać jej strukturami terytorialnymi (komendy, szpitale) oraz kadrą kierowniczą wyższego szczebla.</p>
+            </div>
+        </div>
     </div>
 </div>

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Reflection.Emit;
+using _211system.Models;
 using _211system.Models.Hospital;
 using CPR112.Models;
 using FireDepartment;
@@ -10,7 +11,7 @@ using Police;
 
 namespace _211system.Data 
 {
-    public class _211DbContext : IdentityDbContext<IdentityUser>
+    public class _211DbContext : IdentityDbContext<ApplicationUser>
     {
         public _211DbContext(DbContextOptions<_211DbContext> options)
             : base(options)
@@ -132,7 +133,7 @@ namespace _211system.Data
             where TEntity : class
         {
             builder.Entity<TEntity>()
-                .HasOne<IdentityUser>()
+                .HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(keySelector)
                 .IsRequired(false)

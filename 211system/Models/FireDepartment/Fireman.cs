@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using _211system.Models;
 using Microsoft.AspNetCore.Identity;
 
 namespace FireDepartment;
@@ -18,7 +19,7 @@ public class Fireman
 
     public string FireAccountId { get; set; }
     [ForeignKey(nameof(FireAccountId))]
-    public virtual IdentityUser FireAccount { get; set; }
+    public virtual ApplicationUser FireAccount { get; set; }
 
     public Fireman()
 	{
