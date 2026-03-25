@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using _211system.DTOs;
+using _211system.Models;
 using _211system.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -10,10 +11,10 @@ namespace _211system.Tests.Services
 {
     public class AuthServiceTests
     {
-        private Mock<UserManager<IdentityUser>> MockUserManager()
+        private Mock<UserManager<ApplicationUser>> MockUserManager()
         {
-            var store = new Mock<IUserStore<IdentityUser>>();
-            return new Mock<UserManager<IdentityUser>>(store.Object, null, null, null, null, null, null, null, null);
+            var store = new Mock<IUserStore<ApplicationUser>>();
+            return new Mock<UserManager<ApplicationUser>>(store.Object, null, null, null, null, null, null, null, null);
         }
 
         private Mock<RoleManager<IdentityRole>> MockRoleManager()
@@ -32,13 +33,13 @@ namespace _211system.Tests.Services
             string testEmail = "policjant@211.pl";
             string testRole = "Policjant";
 
-            mockUserManager.Setup(x => x.CreateAsync(It.IsAny<IdentityUser>(), It.IsAny<string>()))
+            mockUserManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
                 .ReturnsAsync(IdentityResult.Success);
 
             mockRoleManager.Setup(x => x.RoleExistsAsync(testRole))
                 .ReturnsAsync(true);
 
-            mockUserManager.Setup(x => x.AddToRoleAsync(It.IsAny<IdentityUser>(), testRole))
+            mockUserManager.Setup(x => x.AddToRoleAsync(It.IsAny<ApplicationUser>(), testRole))
                 .ReturnsAsync(IdentityResult.Success);
 
             var authService = new AuthService(mockUserManager.Object, mockRoleManager.Object, mockConfig.Object);
@@ -48,7 +49,7 @@ namespace _211system.Tests.Services
             Assert.NotNull(result.AccountId);
             Assert.StartsWith("Temp", result.TemporaryPassword);
 
-            mockUserManager.Verify(x => x.AddToRoleAsync(It.IsAny<IdentityUser>(), testRole), Times.Once);
+            mockUserManager.Verify(x => x.AddToRoleAsync(It.IsAny<ApplicationUser>(), testRole), Times.Once);
         }
 
         [Fact]
@@ -59,7 +60,7 @@ namespace _211system.Tests.Services
             var mockConfig = new Mock<IConfiguration>();
 
             var loginDto = new LoginDto { Email = "test@test.pl", Password = "ValidPassword123" };
-            var fakeUser = new IdentityUser { Id = Guid.NewGuid().ToString(), Email = loginDto.Email };
+            var fakeUser = new ApplicationUser { Id = Guid.NewGuid().ToString(), Email = loginDto.Email };
 
             mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email))
                 .ReturnsAsync(fakeUser);
@@ -91,7 +92,7 @@ namespace _211system.Tests.Services
             var mockConfig = new Mock<IConfiguration>();
 
             var loginDto = new LoginDto { Email = "test@test.pl", Password = "WrongPassword" };
-            var fakeUser = new IdentityUser { Id = "123", Email = loginDto.Email };
+            var fakeUser = new ApplicationUser { Id = "123", Email = loginDto.Email };
 
             mockUserManager.Setup(x => x.FindByEmailAsync(loginDto.Email))
                 .ReturnsAsync(fakeUser);

@@ -1,34 +1,33 @@
 ﻿@{
-    ViewData["Title"] = "Departamenty Policji";
+    ViewData["Title"] = "Centra Powiadamiania Ratunkowego";
 }
 
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
-        <h1 class="m-0">Lista Komend</h1>
-        <a href="/Admin/Departments/Create" class="btn btn-success"><i class="fas fa-plus"></i> Dodaj nową placówkę</a>
+        <h1 class="m-0">Lista Centrów CPR 112</h1>
+        <a href="/Admin/CprCenters/Create" class="btn btn-warning"><i class="fas fa-plus"></i> Dodaj nowe centrum</a>
     </div>
 </div>
 
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-primary">
-                <h3 class="card-title">Zarządzanie strukturami policji</h3>
+            <div class="card-header bg-warning">
+                <h3 class="card-title">Zarządzanie strukturami 112</h3>
             </div>
             <div class="card-body p-0">
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
                             <th style="width: 10px">#</th>
-                            <th>Nazwa Komendy</th>
-                            <th>Adres</th>
-                            <th>Dzielnica / Rejon</th>
+                            <th>Nazwa Centrum CPR</th>
+                            <th>Region (Województwo)</th>
                             <th style="width: 150px">Akcje</th>
                         </tr>
                     </thead>
-                    <tbody id="departments-table-body">
+                    <tbody id="cpr-table-body">
                         <tr>
-                            <td colspan="5" class="text-center">Ładowanie danych...</td>
+                            <td colspan="4" class="text-center">Ładowanie danych...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -40,11 +39,11 @@
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", async function () {
-            const tableBody = document.getElementById('departments-table-body');
+            const tableBody = document.getElementById('cpr-table-body');
             const token = localStorage.getItem('jwt');
 
             try {
-                const response = await fetch('/api/Police/departments', {
+                const response = await fetch('/api/Cpr', {
                     method: 'GET',
                     headers: {
                         'Authorization': 'Bearer ' + token,
@@ -53,23 +52,22 @@
                 });
 
                 if (response.ok) {
-                    const departments = await response.json();
+                    const centers = await response.json();
                     tableBody.innerHTML = '';
 
-                    if (departments.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Brak placówek w systemie.</td></tr>';
+                    if (centers.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Brak centrów w systemie.</td></tr>';
                         return;
                     }
 
-                    departments.forEach((dept, index) => {
+                    centers.forEach((center, index) => {
                         const row = `
                             <tr>
                                 <td>${index + 1}</td>
-                                <td><b>${dept.name}</b></td>
-                                <td>${dept.address}</td>
-                                <td><span class="badge bg-warning">${dept.district}</span></td>
+                                <td><b>${center.name || center.Name}</b></td>
+                                <td><span class="badge bg-secondary">${center.region || center.Region}</span></td>
                                 <td>
-                                    <a href="/Admin/Departments/Details/${dept.id}" class="btn btn-sm btn-info" title="Szczegóły">
+                                    <a href="/Admin/CprCenters/Details/${center.id || center.Id}" class="btn btn-sm btn-info" title="Szczegóły">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 </td>
@@ -78,10 +76,10 @@
                         tableBody.insertAdjacentHTML('beforeend', row);
                     });
                 } else {
-                    tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Błąd autoryzacji lub serwera.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center">Błąd autoryzacji lub serwera.</td></tr>';
                 }
             } catch (error) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Błąd połączenia z API.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center">Błąd połączenia z API.</td></tr>';
                 console.error(error);
             }
         });

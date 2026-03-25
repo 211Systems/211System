@@ -1,0 +1,77 @@
+﻿@{
+    ViewData["Title"] = "Dodaj Komendę";
+}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card card-success">
+            <div class="card-header">
+                <h3 class="card-title">Rejestracja nowej jednostki policyjnej</h3>
+            </div>
+
+            <form id="createDepartmentForm">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="name">Nazwa Komendy</label>
+                        <input type="text" class="form-control" id="name" placeholder="np. Komenda Główna Policji" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="address">Adres Placówki</label>
+                        <input type="text" class="form-control" id="address" placeholder="np. ul. Puławska 148/150" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="district">Dzielnica / Obszar działań</label>
+                        <input type="text" class="form-control" id="district" placeholder="np. Mokotów" required>
+                    </div>
+
+                    <p id="form-error" class="text-danger d-none"></p>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="/Admin/PoliceStations" class="btn btn-default">Anuluj</a>
+                    <button type="submit" class="btn btn-success">Utwórz placówkę</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('createDepartmentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const token = localStorage.getItem('jwt');
+            const errorMsg = document.getElementById('form-error');
+
+            const requestData = {
+                name: document.getElementById('name').value,
+                address: document.getElementById('address').value,
+                district: document.getElementById('district').value
+            };
+
+            try {
+                const response = await fetch('/api/Police/departments', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    window.location.href = '/Admin/PoliceStations';
+                } else {
+                    const errorData = await response.json();
+                    errorMsg.textContent = errorData.message || "Błąd podczas dodawania komendy.";
+                    errorMsg.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd połączenia z serwerem.";
+                errorMsg.classList.remove('d-none');
+                console.error(error);
+            }
+        });
+    </script>
+}

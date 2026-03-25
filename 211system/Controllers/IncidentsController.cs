@@ -49,12 +49,12 @@ namespace _211system.Controllers
             try
             {
 
-                var identityUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (identityUserId == null)
+                var ApplicationUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (ApplicationUserId == null)
                     return Unauthorized("Brak autoryzacji (niewłaściwy lub brakujący token).");
 
                 var currentOperator = await _context.Operators112
-                    .FirstOrDefaultAsync(o => o.OpAccountId == identityUserId);
+                    .FirstOrDefaultAsync(o => o.OpAccountId == ApplicationUserId);
 
                 if (currentOperator == null)
                     return Forbid("Zalogowane konto nie jest przypisane do profilu dyspozytora 112.");
