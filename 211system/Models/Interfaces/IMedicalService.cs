@@ -6,6 +6,10 @@ namespace _211system.Services
     {
         Task<HospitalDto> CreateHospitalAsync(CreateHospitalDto dto);
         Task<ParamedicDto> CreateParamedicAsync(CreateParamedicDto dto);
+        Task<IEnumerable<HospitalDto>> GetAllHospitalsAsync();
+        Task<IEnumerable<ParamedicDto>> GetAllParamedicsAsync();
+        Task<AmbulanceDto> CreateAmbulanceAsync(CreateAmbulanceDto dto);
+        Task<IEnumerable<AmbulanceDto>> GetAllAmbulancesAsync();
 
         Task<Guid> StartMedicalOperationAsync(Guid paramedicId, Guid reportId);
         Task EndMedicalOperationAsync(Guid operationId);

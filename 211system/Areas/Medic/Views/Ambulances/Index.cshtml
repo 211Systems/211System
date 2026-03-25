@@ -1,0 +1,101 @@
+﻿@{
+    ViewData["Title"] = "Flota Karetek";
+}
+
+<div class="row mb-3">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="m-0 text-success"><i class="fas fa-ambulance"></i> Zarządzanie Flotą Ambulansów</h1>
+        <a href="/Medic/Ambulances/Create" class="btn btn-success"><i class="fas fa-plus"></i> Dodaj Karetkę</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card card-success card-outline">
+            <div class="card-header">
+                <h3 class="card-title">Zarejestrowane pojazdy medyczne</h3>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th style="width: 10px">#</th>
+                            <th>Numer Rejestracyjny</th>
+                            <th>Typ Karetki</th>
+                            <th>Przypisany Szpital</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ambulances-table-body">
+                        <tr>
+                            <td colspan="4" class="text-center">Ładowanie danych...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", async function () {
+            const tableBody = document.getElementById('ambulances-table-body');
+            const token = localStorage.getItem('jwt');
+
+            try {
+                const hospResponse = await fetch('/api/Medical/hospitals', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                let hospitals = [];
+                if(hospResponse.ok) {
+                    hospitals = await hospResponse.json();
+                }
+
+                const ambResponse = await fetch('/api/Medical/ambulances', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (ambResponse.ok) {
+                    const ambulances = await ambResponse.json();
+                    tableBody.innerHTML = '';
+
+                    if (ambulances.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Brak karetek w systemie.</td></tr>';
+                        return;
+                    }
+
+                    const typeMap = {
+                        0: "S (Specjalistyczna)",
+                        1: "T (Transportowa)",
+                        2: "P (Podstawowa)",
+                        3: "N (Neonatologiczna)"
+                    };
+
+                    ambulances.forEach((amb, index) => {
+                        const hospId = amb.hospitalId || amb.HospitalId;
+                        const myHosp = hospitals.find(h => h.id === hospId || h.Id === hospId);
+                        const hospName = myHosp ? (myHosp.name || myHosp.Name) : "Nieznany szpital";
+
+                        const typeVal = amb.type !== undefined ? amb.type : amb.Type;
+                        const typeBadge = typeMap[typeVal] || typeVal;
+
+                        const row = `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td><b>${amb.licensePlate || amb.LicensePlate}</b></td>
+                                <td><span class="badge bg-warning text-dark">${typeBadge}</span></td>
+                                <td><i class="fas fa-hospital text-muted mr-1"></i> ${hospName}</td>
+                            </tr>
+                        `;
+                        tableBody.insertAdjacentHTML('beforeend', row);
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center">Błąd autoryzacji lub serwera.</td></tr>';
+                }
+            } catch (error) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center">Błąd połączenia z API.</td></tr>';
+                console.error(error);
+            }
+        });
+    </script>
+}

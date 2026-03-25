@@ -67,5 +67,36 @@ namespace _211system.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [HttpGet("hospitals")]
+        public async Task<IActionResult> GetAllHospitals()
+        {
+            var result = await _medicalService.GetAllHospitalsAsync();
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [HttpGet("paramedics")]
+        public async Task<IActionResult> GetAllParamedics()
+        {
+            var result = await _medicalService.GetAllParamedicsAsync();
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
+        [HttpPost("ambulances")]
+        public async Task<IActionResult> CreateAmbulance([FromBody] CreateAmbulanceDto dto)
+        {
+            var result = await _medicalService.CreateAmbulanceAsync(dto);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [HttpGet("ambulances")]
+        public async Task<IActionResult> GetAllAmbulances()
+        {
+            var result = await _medicalService.GetAllAmbulancesAsync();
+            return Ok(result);
+        }
     }
 }

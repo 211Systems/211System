@@ -1,0 +1,76 @@
+﻿@{
+    ViewData["Title"] = "Rejestracja Szpitala";
+}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card card-success">
+            <div class="card-header">
+                <h3 class="card-title">Nowa Placówka Medyczna</h3>
+            </div>
+            
+            <form id="createHospitalForm">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="name">Nazwa Szpitala</label>
+                        <input type="text" class="form-control" id="name" placeholder="np. Wojewódzki Szpital Zespolony" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="address">Adres</label>
+                        <input type="text" class="form-control" id="address" placeholder="np. ul. Medyczna 1" required>
+                    </div>
+                    <div class="form-group custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+                        <input type="checkbox" class="custom-control-input" id="hasSOR">
+                        <label class="custom-control-label" for="hasSOR">Placówka posiada Szpitalny Oddział Ratunkowy (SOR)</label>
+                    </div>
+                    
+                    <p id="form-error" class="text-danger d-none mt-3"></p>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="/Medic/Hospitals" class="btn btn-default">Anuluj</a>
+                    <button type="submit" class="btn btn-success">Zarejestruj Szpital</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('createHospitalForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const token = localStorage.getItem('jwt');
+            const errorMsg = document.getElementById('form-error');
+            
+            const requestData = {
+                name: document.getElementById('name').value,
+                address: document.getElementById('address').value,
+                hasSOR: document.getElementById('hasSOR').checked
+            };
+
+            try {
+                const response = await fetch('/api/Medical/hospitals', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    window.location.href = '/Medic/Hospitals';
+                } else {
+                    const errorData = await response.json();
+                    errorMsg.textContent = errorData.message || "Błąd podczas dodawania szpitala.";
+                    errorMsg.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd połączenia z serwerem.";
+                errorMsg.classList.remove('d-none');
+            }
+        });
+    </script>
+}
