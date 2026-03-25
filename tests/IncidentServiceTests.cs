@@ -6,6 +6,7 @@ using _211system.DTOs.CPR112;
 using CPR112.Models;
 using System;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace _211system.Tests;
 
@@ -20,7 +21,6 @@ public class IncidentServiceTests
         databaseContext.Database.EnsureCreated();
         return databaseContext;
     }
-
 
     [Fact]
     public async Task CreateIncidentAsync_ShouldAddNewIncident()
@@ -43,15 +43,21 @@ public class IncidentServiceTests
         Assert.Equal(1, await context.Incidents.CountAsync());
     }
 
-
     [Fact]
     public async Task GetIncidentByIdAsync_ShouldReturnIncident_WhenExists()
     {
-
         var context = GetDatabaseContext();
         var service = new IncidentService(context);
         var incidentId = Guid.NewGuid();
-        context.Incidents.Add(new Incident { Id = incidentId, IncidentNumber = "TEST/1", Description = "Test", Status = "Nowe", Severity = "Niski", ReportDate = DateTime.UtcNow });
+        context.Incidents.Add(new Incident { 
+            Id = incidentId, 
+            IncidentNumber = "TEST/1", 
+            Description = "Test", 
+            Status = "Nowe", 
+            Severity = "Niski", 
+            ReportDate = DateTime.UtcNow,
+            LocationId = Guid.NewGuid()
+        });
         await context.SaveChangesAsync();
 
         var result = await service.GetIncidentByIdAsync(incidentId);
@@ -63,14 +69,12 @@ public class IncidentServiceTests
     [Fact]
     public async Task GetIncidentByIdAsync_ShouldThrowException_WhenNotExists()
     {
-
         var context = GetDatabaseContext();
         var service = new IncidentService(context);
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => service.GetIncidentByIdAsync(Guid.NewGuid()));
         Assert.Equal("Nie znaleziono zgłoszenia.", exception.Message);
     }
-
 
     [Fact]
     public async Task ChangeIncidentStatusAsync_ShouldUpdateStatusAndSaveOperatorInHistory()
@@ -93,7 +97,7 @@ public class IncidentServiceTests
         });
         await context.SaveChangesAsync();
 
-        var dto = new ChangeIncidentStatusDto { NewStatus = "Zakończone" };
+        var dto = new ChangeIncidentStatusDto { NewStatus = "Zakończone", NewSeverity = "Wysoki" };
 
         await service.ChangeIncidentStatusAsync(incidentId, trustedOperatorId, dto);
 
@@ -130,15 +134,16 @@ public class IncidentServiceTests
             IncidentNumber = "1", 
             Description = "T", 
             Severity = "W", 
+            LocationId = Guid.NewGuid(),
             ReportDate = DateTime.UtcNow 
         });
         await context.SaveChangesAsync();
 
-
         var dto = new ChangeIncidentStatusDto { NewStatus = "Nowe" };
+        
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => 
             service.ChangeIncidentStatusAsync(incidentId, Guid.NewGuid(), dto));
         
-        Assert.Equal("Zgłoszenie ma już ten status.", exception.Message);
+        Assert.Equal("Zgłoszenie posiada już ten status.", exception.Message);
     }
 }

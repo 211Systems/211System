@@ -24,12 +24,12 @@ namespace _211system.Tests
             return new _211DbContext(options);
         }
 
-        private void SetupControllerUser(IncidentsController controller, string identityId)
+        private void SetupControllerUser(IncidentsController controller, string identityId, string role = "Dyspozytor112")
         {
             var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
             {
                 new Claim(ClaimTypes.NameIdentifier, identityId),
-                new Claim(ClaimTypes.Role, "Dyspozytor112")
+                new Claim(ClaimTypes.Role, role)
             }, "TestAuth"));
 
             controller.ControllerContext = new ControllerContext
@@ -37,7 +37,6 @@ namespace _211system.Tests
                 HttpContext = new DefaultHttpContext { User = user }
             };
         }
-
 
         [Fact]
         public async Task CreateIncident_ShouldReturnOk()
@@ -53,7 +52,6 @@ namespace _211system.Tests
 
             Assert.IsType<OkObjectResult>(result.Result);
         }
-
 
         [Fact]
         public async Task GetIncidentById_Success_ShouldReturnOk()
@@ -85,7 +83,6 @@ namespace _211system.Tests
             Assert.IsType<NotFoundObjectResult>(result.Result);
         }
 
-
         [Fact]
         public async Task ChangeStatus_Unauthorized_WhenNoIdentityIdInToken()
         {
@@ -104,16 +101,17 @@ namespace _211system.Tests
         }
 
         [Fact]
-        public async Task ChangeStatus_Forbidden_WhenOperatorNotInDb()
+        public async Task ChangeStatus_Success_WhenOperatorNotInDbButAuthenticated()
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var controller = new IncidentsController(serviceMock.Object, context);
-            SetupControllerUser(controller, "non-existent-id");
+            
+            SetupControllerUser(controller, "admin-identity-id", "Admin112");
 
-            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto());
+            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" });
 
-            Assert.IsType<ForbidResult>(result);
+            Assert.IsType<NoContentResult>(result);
         }
 
         [Fact]

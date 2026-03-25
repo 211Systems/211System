@@ -71,24 +71,27 @@ namespace _211system.Services
                 OperatorId = incident.OperatorId
             };
         }
-       public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
+      public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
 {
     var incident = await _context.Incidents.FindAsync(id);
     if (incident == null) throw new ArgumentException("Nie znaleziono zgłoszenia.");
 
-    if (incident.Status != dto.NewStatus)
+    if (incident.Status == dto.NewStatus)
     {
-        var historyLog = new StatusHistory
-        {
-            IncidentId = incident.Id,
-            OldStatus = incident.Status,
-            NewStatus = dto.NewStatus,
-            ChangeDate = DateTime.UtcNow,
-            OperatorId = operatorId
-        };
-        await _context.StatusHistories.AddAsync(historyLog);
+        throw new InvalidOperationException("Zgłoszenie posiada już ten status.");
     }
 
+    var historyLog = new StatusHistory
+    {
+        IncidentId = incident.Id,
+        OldStatus = incident.Status,
+        NewStatus = dto.NewStatus,
+        ChangeDate = DateTime.UtcNow,
+        OperatorId = operatorId
+    };
+    await _context.StatusHistories.AddAsync(historyLog);
+
+    // Aktualizacja pól
     incident.Status = dto.NewStatus;
     incident.Severity = dto.NewSeverity;
 
