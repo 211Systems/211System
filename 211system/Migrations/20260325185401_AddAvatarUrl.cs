@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class blob : Migration
+    public partial class AddAvatarUrl : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -280,6 +280,7 @@ namespace _211system.Migrations
                     FirstName = table.Column<string>(type: "text", nullable: false),
                     LastName = table.Column<string>(type: "text", nullable: false),
                     StationNumber = table.Column<string>(type: "text", nullable: false),
+                    Rank = table.Column<int>(type: "integer", nullable: false),
                     OpAccountId = table.Column<string>(type: "text", nullable: false),
                     EncId = table.Column<Guid>(type: "uuid", nullable: false)
                 },

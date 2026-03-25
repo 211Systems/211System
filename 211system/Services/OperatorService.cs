@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using _211system.Models;
 
 namespace _211system.Services;
 
@@ -24,9 +25,9 @@ public class OperatorService : IOperatorService
 {
     private readonly _211DbContext _context;
     private readonly IAuthService _authService;
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public OperatorService(_211DbContext context, IAuthService authService, UserManager<IdentityUser> userManager)
+    public OperatorService(_211DbContext context, IAuthService authService, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _authService = authService;
@@ -95,14 +96,14 @@ public class OperatorService : IOperatorService
         if (operatorToDelete == null)
             return false;
 
-        var identityUser = await _userManager.FindByIdAsync(operatorToDelete.OpAccountId);
+        var applicationUser = await _userManager.FindByIdAsync(operatorToDelete.OpAccountId);
         
         _context.Operators112.Remove(operatorToDelete);
         await _context.SaveChangesAsync();
 
-        if (identityUser != null)
+        if (applicationUser != null)
         {
-            await _userManager.DeleteAsync(identityUser);
+            await _userManager.DeleteAsync(applicationUser);
         }
 
         return true;
@@ -119,12 +120,12 @@ public class OperatorService : IOperatorService
             operatorToUpdate.Rank = parsedRank;
         }
 
-        var identityUser = await _userManager.FindByIdAsync(operatorToUpdate.OpAccountId);
-        if (identityUser != null)
+        var applicationUser= await _userManager.FindByIdAsync(operatorToUpdate.OpAccountId);
+        if (applicationUser != null)
         {
-            var currentRoles = await _userManager.GetRolesAsync(identityUser);
-            await _userManager.RemoveFromRolesAsync(identityUser, currentRoles);
-            await _userManager.AddToRoleAsync(identityUser, newRank);
+            var currentRoles = await _userManager.GetRolesAsync(applicationUser);
+            await _userManager.RemoveFromRolesAsync(applicationUser, currentRoles);
+            await _userManager.AddToRoleAsync(applicationUser, newRank);
         }
 
         await _context.SaveChangesAsync();

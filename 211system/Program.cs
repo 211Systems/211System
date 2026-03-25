@@ -10,15 +10,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using CPR112.Models; // Upewnij się, że ten namespace pasuje do lokalizacji Twojego Operator112
-using CPR112.Models; // Upewnij się, że ten namespace pasuje do lokalizacji Twojego Operator112
+using CPR112.Models;
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// BAZA DANYCH
-// BAZA DANYCH
 var ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<_211DbContext>(options => options.UseNpgsql(ConnectionString));
 
@@ -33,8 +30,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<_211DbContext>()
 .AddDefaultTokenProviders();
 
-// JWT
-// JWT
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 var jwtKey = builder.Configuration["Jwt:Key"];
@@ -58,8 +53,6 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// REJESTRACJA SERWISÓW
-// REJESTRACJA SERWISÓW
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IMedicalService, MedicalService>();
 builder.Services.AddScoped<IEncService, EncService>();
@@ -78,8 +71,6 @@ builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
 builder.Services.AddControllersWithViews();
 
-// SWAGGER / OPENAPI
-// SWAGGER / OPENAPI
 builder.Services.AddOpenApiDocument(config =>
 {
     config.Title = "211 System API";
@@ -106,30 +97,23 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUi();
 }
 
-// SEED DANYCH (ROLE I ADMINI)
-// SEED DANYCH (ROLE I ADMINI)
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
 
-    // 1. Tworzenie ról
-    // 1. Tworzenie ról
     string[] roleNames = { "Admin", "Admin112", "Dyspozytor112", "Inspektor", "Komendant", "Policjant",
         "Naczelnik", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
 
     foreach (var roleName in roleNames)
     {
         if (!await roleManager.RoleExistsAsync(roleName))
-        if (!await roleManager.RoleExistsAsync(roleName))
         {
             await roleManager.CreateAsync(new IdentityRole(roleName));
         }
     }
 
-    // 2. Tworzenie Globalnego Admina
-    // 2. Tworzenie Globalnego Admina
     string adminEmail = "admin@211.pl";
     if (await userManager.FindByEmailAsync(adminEmail) == null)
     {
@@ -141,14 +125,13 @@ using (var scope = app.Services.CreateScope())
     string admin112Email = "admin112@211.pl";
     if (await userManager.FindByEmailAsync(admin112Email) == null)
     {
-        var admin112User = new IdentityUser { UserName = admin112Email, Email = admin112Email };
+        var admin112User = new ApplicationUser { UserName = admin112Email, Email = admin112Email };
         var result = await userManager.CreateAsync(admin112User, "Admin112!");
 
         if (result.Succeeded)
         {
             await userManager.AddToRoleAsync(admin112User, "Admin112");
 
-            // Szukamy centrum (Enc) do przypisania
             var center = await dbContext.Encs.FirstOrDefaultAsync();
             if (center != null)
             {
@@ -169,8 +152,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles(); // Poprawione z MapStaticAssets dla lepszej kompatybilności
-app.UseStaticFiles(); // Poprawione z MapStaticAssets dla lepszej kompatybilności
+app.UseStaticFiles();
+app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();
