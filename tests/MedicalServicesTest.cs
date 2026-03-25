@@ -106,5 +106,99 @@ namespace tests
             var operationInDb = await context.MedicalOperations.FindAsync(operationId);
             Assert.NotNull(operationInDb.EndTime); 
         }
+        [Fact]
+        public async Task GetAllHospitalsAsync_Should_Return_All_Hospitals()
+        {
+            var context = GetInMemoryDbContext();
+            var mockAuthService = new Mock<IAuthService>();
+            var service = new MedicalService(context, mockAuthService.Object);
+
+            context.Hospitals.AddRange(
+                new Hospital { Id = Guid.NewGuid(), Name = "Szpital A", Address = "Adres A", HasSOR = true },
+                new Hospital { Id = Guid.NewGuid(), Name = "Szpital B", Address = "Adres B", HasSOR = false }
+            );
+            await context.SaveChangesAsync();
+
+            var result = await service.GetAllHospitalsAsync();
+
+            Assert.NotNull(result);
+            Assert.Equal(2, result.Count());
+            Assert.Contains(result, h => h.Name == "Szpital A");
+        }
+
+        [Fact]
+        public async Task GetAllParamedicsAsync_Should_Return_All_Paramedics_With_Emails()
+        {
+            var context = GetInMemoryDbContext();
+            var mockAuthService = new Mock<IAuthService>();
+            var service = new MedicalService(context, mockAuthService.Object);
+
+            var accountId = Guid.NewGuid().ToString();
+            var account = new Microsoft.AspNetCore.Identity.IdentityUser { Id = accountId, Email = "ratownik@szpital.pl" };
+            context.Users.Add(account);
+
+            context.Paramedics.Add(new Paramedic
+            {
+                Id = Guid.NewGuid(),
+                Name = "Jan",
+                LastName = "Kowalski",
+                LicenseNumber = "PWZ123",
+                Specialization = "Ratownik",
+                ParaAccountId = accountId,
+                HospitalId = Guid.NewGuid()
+            });
+            await context.SaveChangesAsync();
+
+            var result = await service.GetAllParamedicsAsync();
+
+            Assert.NotNull(result);
+            Assert.Single(result);
+            Assert.Equal("ratownik@szpital.pl", result.First().Email);
+        }
+
+        [Fact]
+        public async Task CreateAmbulanceAsync_Should_Add_Ambulance_To_Database()
+        {
+            var context = GetInMemoryDbContext();
+            var mockAuthService = new Mock<IAuthService>();
+            var service = new MedicalService(context, mockAuthService.Object);
+
+            var hospitalId = Guid.NewGuid();
+            var dto = new _211system.DTOs.Hospital.CreateAmbulanceDto
+            {
+                Type = AmbulanceType.S,
+                LicensePlate = "GD 12345",
+                HospitalId = hospitalId
+            };
+
+            var result = await service.CreateAmbulanceAsync(dto);
+
+            Assert.NotNull(result);
+            Assert.Equal("GD 12345", result.LicensePlate);
+            Assert.Equal(AmbulanceType.S, result.Type);
+
+            var inDb = await context.Ambulances.FindAsync(result.Id);
+            Assert.NotNull(inDb);
+            Assert.Equal(hospitalId, inDb.HospitalId);
+        }
+
+        [Fact]
+        public async Task GetAllAmbulancesAsync_Should_Return_All_Ambulances()
+        {
+            var context = GetInMemoryDbContext();
+            var mockAuthService = new Mock<IAuthService>();
+            var service = new MedicalService(context, mockAuthService.Object);
+
+            context.Ambulances.AddRange(
+                new Ambulance { Id = Guid.NewGuid(), Type = AmbulanceType.P, LicensePlate = "POZ 111", HospitalId = Guid.NewGuid() },
+                new Ambulance { Id = Guid.NewGuid(), Type = AmbulanceType.N, LicensePlate = "POZ 222", HospitalId = Guid.NewGuid() }
+            );
+            await context.SaveChangesAsync();
+
+            var result = await service.GetAllAmbulancesAsync();
+
+            Assert.NotNull(result);
+            Assert.Equal(2, result.Count());
+        }
     }
 }

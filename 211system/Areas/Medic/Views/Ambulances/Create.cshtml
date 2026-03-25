@@ -1,0 +1,107 @@
+﻿@{
+    ViewData["Title"] = "Dodaj Karetkę";
+}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card card-success">
+            <div class="card-header">
+                <h3 class="card-title">Rejestracja Nowego Ambulansu</h3>
+            </div>
+            
+            <form id="createAmbulanceForm">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="licensePlate">Numer Rejestracyjny</label>
+                        <input type="text" class="form-control" id="licensePlate" placeholder="np. GD 12345" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="type">Typ Ambulansu</label>
+                        <select class="form-control" id="type" required>
+                            <option value="0">S - Specjalistyczna</option>
+                            <option value="1">T - Transportowa</option>
+                            <option value="2">P - Podstawowa</option>
+                            <option value="3">N - Neonatologiczna (dla noworodków)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hospitalId">Przypisz do Szpitala</label>
+                        <select class="form-control" id="hospitalId" required>
+                            <option value="">Wybierz szpital z listy...</option>
+                        </select>
+                    </div>
+                    
+                    <p id="form-error" class="text-danger d-none mt-3"></p>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="/Medic/Ambulances" class="btn btn-default">Anuluj</a>
+                    <button type="submit" class="btn btn-success">Zarejestruj Karetkę</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = localStorage.getItem('jwt');
+
+        document.addEventListener("DOMContentLoaded", async function () {
+
+            const hospSelect = document.getElementById('hospitalId');
+            try {
+                const response = await fetch('/api/Medical/hospitals', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    const hospitals = await response.json();
+                    hospitals.forEach(h => {
+                        const opt = document.createElement('option');
+                        opt.value = h.id || h.Id;
+                        opt.textContent = h.name || h.Name;
+                        hospSelect.appendChild(opt);
+                    });
+                }
+            } catch (error) {
+                console.error("Błąd ładowania szpitali", error);
+            }
+        });
+
+        document.getElementById('createAmbulanceForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const errorMsg = document.getElementById('form-error');
+            
+            const requestData = {
+                licensePlate: document.getElementById('licensePlate').value,
+                type: parseInt(document.getElementById('type').value),
+                hospitalId: document.getElementById('hospitalId').value
+            };
+
+            try {
+                const response = await fetch('/api/Medical/ambulances', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    window.location.href = '/Medic/Ambulances';
+                } else {
+                    const errorData = await response.json();
+                    errorMsg.textContent = errorData.message || "Błąd podczas dodawania karetki.";
+                    errorMsg.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd połączenia z serwerem.";
+                errorMsg.classList.remove('d-none');
+            }
+        });
+    </script>
+}

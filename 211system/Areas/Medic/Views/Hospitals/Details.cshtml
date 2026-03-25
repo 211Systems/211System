@@ -1,0 +1,233 @@
+﻿@{
+    ViewData["Title"] = "Zarządzanie Szpitalem";
+    var hospitalId = ViewBag.HospitalId;
+}
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card card-success card-outline">
+            <div class="card-body box-profile">
+                <h3 class="profile-username text-center" id="hosp-name">Ładowanie...</h3>
+                <p class="text-muted text-center" id="hosp-sor">...</p>
+                <ul class="list-group list-group-unbordered mb-3">
+                    <li class="list-group-item">
+                        <b>Adres</b> <a class="float-right" id="hosp-address">...</a>
+                    </li>
+                </ul>
+                <a href="/Medic/Hospitals" class="btn btn-success btn-block"><b>Wróć do listy</b></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card card-success">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title m-0">Zatrudnieni Medycy</h3>
+                <button type="button" class="btn btn-sm btn-light ml-auto text-success" data-toggle="modal" data-target="#addParamedicModal">
+                    <i class="fas fa-user-plus"></i> Zatrudnij Medyka
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px;" class="text-center">Awatar</th>
+                            
+                            <th>Imię i Nazwisko</th>
+                            <th>Nr Prawa Wyk. Zawodu</th>
+                            <th>Specjalizacja</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paramedics-table-body">
+                        <tr><td colspan="5" class="text-center">Ładowanie personelu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addParamedicModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-success">
+                <h5 class="modal-title">Rejestracja Medyka</h5>
+                <button type="button" class="close text-white test-end float-end" data-dismiss="modal" aria-label="Zamknij" style="outline: none; border: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addParamedicForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Imię</label>
+                        <input type="text" id="pName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nazwisko</label>
+                        <input type="text" id="pLastName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email (Login)</label>
+                        <input type="email" id="pEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nr Prawa Wykonywania Zawodu</label>
+                        <input type="text" id="pLicense" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Specjalizacja</label>
+                        <select id="pSpec" class="form-control" required>
+                            <option value="Ratownik Medyczny">Ratownik Medyczny</option>
+                            <option value="Lekarz Systemu">Lekarz Systemu</option>
+                            <option value="Pielęgniarka Ratunkowa">Pielęgniarka Ratunkowa</option>
+                        </select>
+                    </div>
+                    
+                    <div id="generated-password-alert" class="alert alert-warning d-none">
+                        <h5><i class="icon fas fa-check"></i> Konto aktywne!</h5>
+                        Tymczasowe hasło pracownika: <strong id="temp-password-display" style="font-size: 1.2em;"></strong>
+                    </div>
+                    <p id="form-error" class="text-danger d-none"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+                    <button type="submit" class="btn btn-success" id="btn-submit">Dodaj do systemu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const hospitalId = "@hospitalId";
+        const token = localStorage.getItem('jwt');
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            await loadHospitalDetails();
+            await loadParamedics();
+        });
+
+        async function loadHospitalDetails() {
+            try {
+                const response = await fetch('/api/Medical/hospitals', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    const hospitals = await response.json();
+                    const hosp = hospitals.find(h => h.id === hospitalId || h.Id === hospitalId);
+                    
+                    if (hosp) {
+                        document.getElementById('hosp-name').textContent = hosp.name || hosp.Name;
+                        document.getElementById('hosp-address').textContent = hosp.address || hosp.Address;
+                        
+                        const hasSor = hosp.hasSOR || hosp.HasSOR;
+                        document.getElementById('hosp-sor').innerHTML = hasSor
+                            ? '<span class="badge bg-danger">Posiada oddział SOR</span>'
+                            : '<span class="badge bg-secondary">Brak oddziału SOR</span>';
+                    }
+                }
+            } catch (error) { console.error("Błąd:", error); }
+        }
+
+        async function loadParamedics() {
+            const tableBody = document.getElementById('paramedics-table-body');
+            try {
+                // Pobieramy medyków z API
+                const response = await fetch('/api/Medical/paramedics', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) {
+                    const allStaff = await response.json();
+                    
+                    const myStaff = allStaff.filter(p => p.hospitalId === hospitalId || p.HospitalId === hospitalId);
+                    
+                    tableBody.innerHTML = '';
+                    if(myStaff.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Brak zatrudnionego personelu.</td></tr>';
+                        return;
+                    }
+
+                    myStaff.forEach(p => {
+                        const firstName = p.name || p.Name;
+                        const lastName = p.lastName || p.LastName;
+                        
+                        // Kamil tu pisz
+                        const fallbackAvatar = `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff`;
+                        const avatarSrc = p.avatarUrl || p.AvatarUrl || fallbackAvatar;
+
+                        const row = `<tr>
+                            <td class="text-center align-middle">
+                                <img src="${avatarSrc}" alt="Awatar" class="img-circle elevation-1" style="width: 45px; height: 45px; object-fit: cover;">
+                            </td>
+                            <td class="align-middle"><b>${firstName} ${lastName}</b></td>
+                            <td class="align-middle">${p.licenseNumber || p.LicenseNumber}</td>
+                            <td class="align-middle"><span class="badge bg-success">${p.specialization || p.Specialization}</span></td>
+                            <td class="align-middle">${p.email || p.Email}</td>
+                        </tr>`;
+                        
+                        tableBody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+            } catch (error) {
+                console.error("Błąd podczas ładowania ratowników:", error);
+            }
+        }
+
+        document.getElementById('addParamedicForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btnSubmit = document.getElementById('btn-submit');
+            const errorMsg = document.getElementById('form-error');
+            const successAlert = document.getElementById('generated-password-alert');
+            
+            btnSubmit.disabled = true;
+            errorMsg.classList.add('d-none');
+
+            const requestData = {
+                name: document.getElementById('pName').value,
+                lastName: document.getElementById('pLastName').value,
+                email: document.getElementById('pEmail').value,
+                licenseNumber: document.getElementById('pLicense').value,
+                specialization: document.getElementById('pSpec').value,
+                hospitalId: hospitalId,
+                paraAccountId: "zostanie-nadpisane-przez-backend"
+            };
+
+            try {
+                const response = await fetch('/api/Medical/paramedics', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    document.getElementById('temp-password-display').textContent = result.temporaryPassword || result.password || "Temp!234";
+                    successAlert.classList.remove('d-none');
+                    btnSubmit.classList.add('d-none');
+                    
+                    await loadParamedics();
+                } else {
+                    const errorData = await response.json();
+                    if(errorData.errors) {
+                        errorMsg.innerHTML = Object.values(errorData.errors).join("<br/>");
+                    } else {
+                        errorMsg.textContent = errorData.message || "Błąd podczas rejestracji.";
+                    }
+                    errorMsg.classList.remove('d-none');
+                    btnSubmit.disabled = false;
+                }
+            } catch (error) {
+                errorMsg.textContent = "Błąd sieci.";
+                errorMsg.classList.remove('d-none');
+                btnSubmit.disabled = false;
+            }
+        });
+    </script>
+}

@@ -29,6 +29,38 @@ namespace _211system.Services
             await _context.SaveChangesAsync();
             return new HospitalDto { Id = hospital.Id, Name = hospital.Name, HasSOR = hospital.HasSOR, Address = hospital.Address };
         }
+        public async Task<IEnumerable<HospitalDto>> GetAllHospitalsAsync()
+        {
+            var hospitals = await _context.Hospitals.ToListAsync();
+
+            return hospitals.Select(h => new HospitalDto
+            {
+                Id = h.Id,
+                Name = h.Name,
+                HasSOR = h.HasSOR,
+                Address = h.Address
+            });
+        }
+
+        public async Task<IEnumerable<ParamedicDto>> GetAllParamedicsAsync()
+        {
+            // Include pobiera powiązane konto (IdentityUser), gdzie zapisany jest email
+            var paramedics = await _context.Paramedics
+                .Include(p => p.ParaAccount)
+                .ToListAsync();
+
+            return paramedics.Select(p => new ParamedicDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                LastName = p.LastName,
+                LicenseNumber = p.LicenseNumber,
+                Specialization = p.Specialization,
+                ParaAccountId = p.ParaAccountId,
+                HospitalId = p.HospitalId,
+                Email = p.ParaAccount?.Email ?? "Brak" // Mapujemy e-mail do DTO
+            });
+        }
         /*
         public async Task<ParamedicDto> CreateParamedicAsync(CreateParamedicDto dto)
         {
@@ -115,6 +147,38 @@ namespace _211system.Services
             operation.EndTime = DateTime.UtcNow;
             _context.MedicalOperations.Update(operation);
             await _context.SaveChangesAsync();
+        }
+        public async Task<AmbulanceDto> CreateAmbulanceAsync(CreateAmbulanceDto dto)
+        {
+            var ambulance = new Ambulance
+            {
+                Type = dto.Type,
+                LicensePlate = dto.LicensePlate,
+                HospitalId = dto.HospitalId
+            };
+
+            await _context.Ambulances.AddAsync(ambulance);
+            await _context.SaveChangesAsync();
+
+            return new AmbulanceDto
+            {
+                Id = ambulance.Id,
+                Type = ambulance.Type,
+                LicensePlate = ambulance.LicensePlate,
+                HospitalId = ambulance.HospitalId
+            };
+        }
+
+        public async Task<IEnumerable<AmbulanceDto>> GetAllAmbulancesAsync()
+        {
+            var ambulances = await _context.Ambulances.ToListAsync();
+            return ambulances.Select(a => new AmbulanceDto
+            {
+                Id = a.Id,
+                Type = a.Type,
+                LicensePlate = a.LicensePlate,
+                HospitalId = a.HospitalId
+            });
         }
     }
 }
