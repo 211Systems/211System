@@ -133,6 +133,7 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
+
             var service = new MedicalService(context, mockAuthService.Object);
 
             var accountId = Guid.NewGuid().ToString();
