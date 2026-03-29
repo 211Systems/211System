@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace _211system.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     public class MedicalController : Controller
     {
         private readonly IMedicalService _medicalService;
@@ -16,83 +16,64 @@ namespace _211system.Controllers
             _medicalService = medicalService;
         }
 
-        [Authorize(Roles = "Admin, Kierownik Szpitala")]
         [HttpPost("hospitals")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
         public async Task<IActionResult> CreateHospital([FromBody] CreateHospitalDto dto)
         {
             var result = await _medicalService.CreateHospitalAsync(dto);
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
-        [HttpPost("paramedics")]
-        public async Task<IActionResult> CreateParamedic([FromBody] CreateParamedicDto dto)
-        {
-            var result = await _medicalService.CreateParamedicAsync(dto);
-            return Ok(result);
-        }
-
-
-        [Authorize(Roles = "Admin, Medyk")]
-        [HttpPost("operations/start")]
-        public async Task<IActionResult> StartOperation([FromQuery] Guid paramedicId, [FromQuery] Guid reportId)
-        {
-            try
-            {
-                var operationId = await _medicalService.StartMedicalOperationAsync(paramedicId, reportId);
-                return Ok(new { Message = "Akcja rozpoczęta pomyślnie.", OperationId = operationId });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ex.Message);
-            }
-        }
-        //r
-
-        [Authorize(Roles = "Admin, Medyk")]
-        [HttpPut("operations/{operationId}/end")]
-        public async Task<IActionResult> EndOperation(Guid operationId)
-        {
-            try
-            {
-                await _medicalService.EndMedicalOperationAsync(operationId);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
         [HttpGet("hospitals")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
         public async Task<IActionResult> GetAllHospitals()
         {
             var result = await _medicalService.GetAllHospitalsAsync();
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [HttpPost("paramedics")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
+        public async Task<IActionResult> CreateParamedic([FromBody] CreateParamedicDto dto)
+        {
+            var result = await _medicalService.CreateParamedicAsync(dto);
+            return Ok(result);
+        }
+
         [HttpGet("paramedics")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
         public async Task<IActionResult> GetAllParamedics()
         {
             var result = await _medicalService.GetAllParamedicsAsync();
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin, Kierownik Szpitala")]
+        [HttpPost("operations/start")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        public async Task<IActionResult> StartOperation([FromQuery] Guid paramedicId, [FromQuery] Guid reportId)
+        {
+            await _medicalService.StartMedicalOperationAsync(paramedicId, reportId);
+            return Ok("Rozpoczęto akcję medyczną.");
+        }
+
+        [HttpPut("operations/{operationId}/end")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        public async Task<IActionResult> EndOperation(Guid operationId)
+        {
+            await _medicalService.EndMedicalOperationAsync(operationId);
+            return Ok("Zakończono akcję medyczną.");
+        }
+
         [HttpPost("ambulances")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
         public async Task<IActionResult> CreateAmbulance([FromBody] CreateAmbulanceDto dto)
         {
             var result = await _medicalService.CreateAmbulanceAsync(dto);
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
         [HttpGet("ambulances")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
         public async Task<IActionResult> GetAllAmbulances()
         {
             var result = await _medicalService.GetAllAmbulancesAsync();

@@ -26,6 +26,10 @@ namespace _211system.Models.Hospital
 
         [Required]
         public string ParaAccountId { get; set; }
+
+        [MaxLength(50)]
+        public string Rank { get; set; }
+
         [ForeignKey(nameof(ParaAccountId))]
         public virtual ApplicationUser ParaAccount { get; set; }
 

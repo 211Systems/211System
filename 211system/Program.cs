@@ -102,6 +102,9 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
+    
+    //Jeżeli masz problem System.InvalidOperationExeption w tym foreachu na dole na świeżej migracji to odkomentuj bo muszą się tabele utowrzyć >:)
+    //dbContext.Database.Migrate();
 
     string[] roleNames = { "Admin", "Admin112", "Dyspozytor112", "Inspektor", "Komendant", "Policjant",
         "Naczelnik", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };

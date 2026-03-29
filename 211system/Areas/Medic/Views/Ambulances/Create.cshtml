@@ -49,15 +49,62 @@
     <script>
         const token = localStorage.getItem('jwt');
 
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                return JSON.parse(window.atob(base64));
+            } catch (e) { return null; }
+        }
+
+        let currentUserRoles = [];
+        let currentUserEmail = "";
+        
+        if (token) {
+            const decodedToken = parseJwt(token);
+            if (decodedToken) {
+                let role = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
+                currentUserRoles = Array.isArray(role) ? role : [role];
+                currentUserEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", async function () {
+            if (!currentUserRoles.includes("Admin") && !currentUserRoles.includes("Kierownik Szpitala")) {
+                window.location.href = '/Medic/Ambulances';
+                return;
+            }
 
             const hospSelect = document.getElementById('hospitalId');
+            const submitBtn = document.querySelector('button[type="submit"]');
+
             try {
-                const response = await fetch('/api/Medical/hospitals', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (response.ok) {
-                    const hospitals = await response.json();
+                const hospResponse = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + token } });
+                let hospitals = await hospResponse.json();
+
+
+                if (!currentUserRoles.includes("Admin") && currentUserRoles.includes("Kierownik Szpitala")) {
+                    const paramResponse = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + token } });
+                    const paramedics = await paramResponse.json();
+                    
+                    const myRecord = paramedics.find(p => p.email === currentUserEmail || p.Email === currentUserEmail);
+                    if (myRecord) {
+                        const myHospitalId = myRecord.hospitalId || myRecord.HospitalId;
+                        hospitals = hospitals.filter(h => (h.id || h.Id) === myHospitalId);
+                    } else {
+                        hospitals = [];
+                    }
+                }
+                hospSelect.innerHTML = ''; 
+
+                if (hospitals.length === 0) {
+                    hospSelect.innerHTML = '<option value="">Brak przypisanego szpitala (Brak uprawnień)</option>';
+                    submitBtn.disabled = true;
+                } else {
+                    if (currentUserRoles.includes("Admin")) {
+                        hospSelect.innerHTML = '<option value="">Wybierz szpital z listy...</option>';
+                    }
+                    
                     hospitals.forEach(h => {
                         const opt = document.createElement('option');
                         opt.value = h.id || h.Id;
@@ -74,11 +121,18 @@
             e.preventDefault();
             
             const errorMsg = document.getElementById('form-error');
+            const hospId = document.getElementById('hospitalId').value;
+
+            if (!hospId) {
+                errorMsg.textContent = "Musisz wybrać szpital!";
+                errorMsg.classList.remove('d-none');
+                return;
+            }
             
             const requestData = {
                 licensePlate: document.getElementById('licensePlate').value,
                 type: parseInt(document.getElementById('type').value),
-                hospitalId: document.getElementById('hospitalId').value
+                hospitalId: hospId
             };
 
             try {

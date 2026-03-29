@@ -7,239 +7,277 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="~/dist/css/adminlte.min.css">
 
-    <style>
-        /* AWATAR W PASKU NAV */
-        .user-avatar-nav {
-            width: 32px !important;
-            height: 32px !important;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 1px solid rgba(255,255,255,0.3);
-            margin-right: 8px;
-        }
+        <style>
+                /* AWATAR W PASKU NAV */
+                .user-avatar-nav {
+                    width: 32px !important;
+                    height: 32px !important;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    border: 1px solid rgba(255,255,255,0.3);
+                    margin-right: 8px;
+                }
 
-        /* FIX MENU DROPDOWN - Wyrównanie do prawej i szerokość */
-        .user-menu .dropdown-menu {
-            border-radius: 8px !important;
-            overflow: hidden;
-            padding: 0 !important;
-            width: 280px !important;
-            left: auto !important;
-            right: 0 !important;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important;
-        }
+                /* FIX MENU DROPDOWN - Wyrównanie do prawej i szerokość */
+                .user-menu .dropdown-menu {
+                    border-radius: 8px !important;
+                    overflow: hidden;
+                    padding: 0 !important;
+                    width: 280px !important;
+                    left: auto !important;
+                    right: 0 !important;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important;
+                }
 
-        /* NIEBIESKI PANEL PROFILU */
-        .user-header {
-            background-color: #007bff !important;
-            padding: 20px !important;
-            text-align: center !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-        }
+                /* NIEBIESKI PANEL PROFILU */
+                .user-header {
+                    background-color: #007bff !important;
+                    padding: 20px !important;
+                    text-align: center !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
+                }
 
-        .user-avatar-big {
-            width: 90px !important;
-            height: 90px !important;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid rgba(255,255,255,0.4);
-            margin-bottom: 10px;
-            background-color: #fff;
-        }
+                .user-avatar-big {
+                    width: 90px !important;
+                    height: 90px !important;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    border: 3px solid rgba(255,255,255,0.4);
+                    margin-bottom: 10px;
+                    background-color: #fff;
+                }
 
-        /* STOPKA MENU (PRZYCISKI) */
-        .user-footer {
-            background-color: #343a40 !important;
-            padding: 15px !important;
-            display: flex !important;
-            justify-content: space-between !important;
-        }
+                /* STOPKA MENU (PRZYCISKI) */
+                .user-footer {
+                    background-color: #343a40 !important;
+                    padding: 15px !important;
+                    display: flex !important;
+                    justify-content: space-between !important;
+                }
 
-        .avatar-upload-overlay {
-            position: absolute;
-            bottom: 10px;
-            right: 5px;
-            background: rgba(0,0,0,0.6);
-            border-radius: 50%;
-            padding: 6px;
-            font-size: 11px;
-        }
+                .avatar-upload-overlay {
+                    position: absolute;
+                    bottom: 10px;
+                    right: 5px;
+                    background: rgba(0,0,0,0.6);
+                    border-radius: 50%;
+                    padding: 6px;
+                    font-size: 11px;
+                }
 
-        #profile-email {
-            color: #fff !important;
-            display: block;
-            margin-bottom: 5px;
-            word-break: break-all;
-        }
-    </style>
-</head>
+                #profile-email {
+                    color: #fff !important;
+                    display: block;
+                    margin-bottom: 5px;
+                    word-break: break-all;
+                }
+        </style>
+    </head>
 
-<body class="hold-transition layout-top-nav dark-mode">
-    <div class="wrapper">
-        <nav class="main-header navbar navbar-expand-md navbar-dark bg-dark border-bottom-0 shadow-sm">
-            <div class="container-fluid">
-
-                <ul class="navbar-nav" id="main-navigation">
-                    <li class="nav-item">
-                        <a href="/" class="nav-link"><i class="fas fa-home"></i> Panel</a>
-                    </li>
-
-                    <li class="nav-item dropdown d-none" id="menu-admin">
-                        <a id="dd-admin" href="#" data-toggle="dropdown" class="nav-link dropdown-toggle text-danger font-weight-bold">
-                            <i class="fas fa-cogs"></i> Administracja Globalna
-                        </a>
-                        <ul aria-labelledby="dd-admin" class="dropdown-menu border-0 shadow">
-                            <li><a href="/Admin/Departments" class="dropdown-item"><i class="fas fa-city mr-2"></i> Zarządzanie Placówkami</a></li>
-                            <li><a href="/Admin/Users" class="dropdown-item"><i class="fas fa-users-cog mr-2"></i> Zarządzanie Kadrą (Globalnie)</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown d-none" id="menu-dispatch">
-                        <a id="dd-dispatch" href="#" data-toggle="dropdown" class="nav-link dropdown-toggle text-danger font-weight-bold">
-                            <i class="fas fa-headset"></i> CPR 112
-                        </a>
-                        <ul aria-labelledby="dd-dispatch" class="dropdown-menu border-0 shadow">
-                            <li><a href="/Dispatch/Home/Index" class="dropdown-item"><i class="fas fa-file-medical mr-2"></i> Centrum Zgłoszeń</a></li>
-                            
-                            <li id="nav-admin-cpr-container" class="d-none">
-                                <a href="/Dispatch/Home/Index#admin-operator-section" class="dropdown-item">
-                                    <i class="fas fa-user-plus mr-2 text-warning"></i> Zarządzanie Kadrą CPR
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-
-                <ul class="navbar-nav ml-auto">
-                    <li class="nav-item d-none d-sm-flex align-items-center mr-3">
-                        <span class="badge badge-dark p-2" id="live-clock" style="font-size: 1rem;">00:00:00</span>
-                    </li>
-                    
-                    <li class="nav-item dropdown user-menu">
-                        <a href="#" class="nav-link dropdown-toggle d-flex align-items-center" data-toggle="dropdown">
-                            <i class="fas fa-user-circle fa-lg mr-2" id="nav-user-icon"></i>
-                            <img id="nav-user-avatar" src="/images/default-avatar.png" class="user-avatar-nav d-none" alt="Avatar">
-                            <span class="d-none d-md-inline" id="nav-user-name">Ładowanie...</span>
-                        </a>
-                        
-                        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right shadow-lg border-0">
-                            <div id="auth-logged-in" class="d-none">
-                                <div class="user-header">
-                                    <div style="position: relative; display: inline-block; cursor: pointer;" onclick="document.getElementById('avatarUploadInput').click();">
-                                        <i class="fas fa-user-circle fa-5x text-white mb-2" id="profile-user-icon"></i>
-                                        <img id="profile-user-avatar" src="/images/default-avatar.png" class="user-avatar-big d-none" alt="User Image">
-                                        <div class="avatar-upload-overlay">
-                                            <i class="fas fa-camera text-white"></i>
-                                        </div>
-                                    </div>
-                                    <input type="file" id="avatarUploadInput" style="display:none" accept="image/*">
-                                    <p>
-                                        <span id="profile-email">email@system211.pl</span>
-                                        <small id="profile-role-container">Rola: <span id="profile-role" class="text-warning font-weight-bold">Brak</span></small>
-                                    </p>
-                                </div>
-                                <div class="user-footer">
-                                    <a href="/Auth/Profile" class="btn btn-outline-light btn-sm px-3">Profil</a>
-                                    <button onclick="logout()" class="btn btn-danger btn-sm px-3">Wyloguj</button>
-                                </div>
-                            </div>
-                            <div id="auth-logged-out">
-                                <div class="p-4 text-center">
-                                    <a href="/AuthView/Login" class="btn btn-primary btn-block">Zaloguj się</a>
-                                </div>
-                            </div>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-
-        <div class="content-wrapper">
-            <div class="content pt-4">
+    <body class="hold-transition layout-top-nav dark-mode">
+        <div class="wrapper">
+            <nav class="main-header navbar navbar-expand-md navbar-dark bg-dark border-bottom-0 shadow-sm">
                 <div class="container-fluid">
-                    @RenderBody()
+
+                    <ul class="navbar-nav" id="main-navigation">
+                        <li class="nav-item">
+                            <a href="/" class="nav-link"><i class="fas fa-home"></i> Panel</a>
+                        </li>
+
+                        <li class="nav-item dropdown d-none" id="menu-admin">
+                            <a id="dd-admin" href="#" data-toggle="dropdown" class="nav-link dropdown-toggle text-danger font-weight-bold">
+                                <i class="fas fa-cogs"></i> Administracja Globalna
+                            </a>
+                            <ul aria-labelledby="dd-admin" class="dropdown-menu border-0 shadow">
+                                <li><a href="/Admin/Departments" class="dropdown-item"><i class="fas fa-city mr-2"></i> Zarządzanie Placówkami</a></li>
+                                <li><a href="/Admin/Users" class="dropdown-item"><i class="fas fa-users-cog mr-2"></i> Zarządzanie Kadrą (Globalnie)</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown d-none" id="menu-dispatch">
+                            <a id="dd-dispatch" href="#" data-toggle="dropdown" class="nav-link dropdown-toggle text-warning font-weight-bold">
+                                <i class="fas fa-headset"></i> CPR 112
+                            </a>
+                            <ul aria-labelledby="dd-dispatch" class="dropdown-menu border-0 shadow">
+                                <li><a href="/Dispatch/Home/Index" class="dropdown-item"><i class="fas fa-file-medical mr-2"></i> Centrum Zgłoszeń</a></li>
+                                <li id="nav-admin-cpr-container" class="d-none">
+                                    <a href="/Dispatch/Home/Index#admin-operator-section" class="dropdown-item">
+                                        <i class="fas fa-user-plus mr-2 text-warning"></i> Zarządzanie Kadrą CPR
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown d-none" id="menu-medic-manager">
+                            <a id="dd-medic-mgr" href="#" data-toggle="dropdown" class="nav-link dropdown-toggle text-success font-weight-bold">
+                                <i class="fas fa-hospital-user"></i> Zarządzanie Szpitalem
+                            </a>
+                            <ul aria-labelledby="dd-medic-mgr" class="dropdown-menu border-0 shadow">
+                                <li id="link-hospitals" class="d-none"><a href="/Medic/Hospitals" class="dropdown-item"><i class="fas fa-clinic-medical mr-2 text-success"></i> Placówki i Kadra</a></li>
+                                <li id="link-ambulances" class="d-none"><a href="/Medic/Ambulances" class="dropdown-item"><i class="fas fa-ambulance mr-2 text-success"></i> Flota Karetek</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item dropdown d-none" id="menu-medic-worker">
+                            <a id="dd-medic-wrk" href="#" data-toggle="dropdown" class="nav-link dropdown-toggle text-success font-weight-bold">
+                                <i class="fas fa-heartbeat"></i> Praca Medyczna
+                            </a>
+                            <ul aria-labelledby="dd-medic-wrk" class="dropdown-menu border-0 shadow">
+                                <li id="link-operations" class="d-none"><a href="/Medic/Operations" class="dropdown-item"><i class="fas fa-briefcase-medical mr-2 text-success"></i> Akcje Medyczne</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item d-none d-sm-flex align-items-center mr-3">
+                            <span class="badge badge-dark p-2" id="live-clock" style="font-size: 1rem;">00:00:00</span>
+                        </li>
+                    
+                        <li class="nav-item dropdown user-menu">
+                            <a href="#" class="nav-link dropdown-toggle d-flex align-items-center" data-toggle="dropdown">
+                                <i class="fas fa-user-circle fa-lg mr-2" id="nav-user-icon"></i>
+                                <img id="nav-user-avatar" src="/images/default-avatar.png" class="user-avatar-nav d-none" alt="Avatar">
+                                <span class="d-none d-md-inline" id="nav-user-name">Ładowanie...</span>
+                            </a>
+                        
+                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right shadow-lg border-0">
+                                <div id="auth-logged-in" class="d-none">
+                                    <div class="user-header">
+                                        <div style="position: relative; display: inline-block; cursor: pointer;" onclick="document.getElementById('avatarUploadInput').click();">
+                                            <i class="fas fa-user-circle fa-5x text-white mb-2" id="profile-user-icon"></i>
+                                            <img id="profile-user-avatar" src="/images/default-avatar.png" class="user-avatar-big d-none" alt="User Image">
+                                            <div class="avatar-upload-overlay">
+                                                <i class="fas fa-camera text-white"></i>
+                                            </div>
+                                        </div>
+                                        <input type="file" id="avatarUploadInput" style="display:none" accept="image/*">
+                                        <p>
+                                            <span id="profile-email">email@system211.pl</span>
+                                            <small id="profile-role-container">Rola: <span id="profile-role" class="text-warning font-weight-bold">Brak</span></small>
+                                        </p>
+                                    </div>
+                                    <div class="user-footer">
+                                        <a href="/Auth/Profile" class="btn btn-outline-light btn-sm px-3">Profil</a>
+                                        <button onclick="logout()" class="btn btn-danger btn-sm px-3">Wyloguj</button>
+                                    </div>
+                                </div>
+                                <div id="auth-logged-out">
+                                    <div class="p-4 text-center">
+                                        <a href="/AuthView/Login" class="btn btn-primary btn-block">Zaloguj się</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <div class="content-wrapper">
+                <div class="content pt-4">
+                    <div class="container-fluid">
+                        @RenderBody()
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/dist/js/adminlte.min.js"></script>
-    <script src="~/js/auth-layout.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="~/dist/js/adminlte.min.js"></script>
+        <script src="~/js/auth-layout.js"></script>
 
-    <script>
-        function updateClock() {
+        <script>
+            function updateClock() {
             const clock = document.getElementById('live-clock');
             if(clock) clock.textContent = new Date().toLocaleTimeString('pl-PL');
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
 
-        // DEKODER JWT I UPRAWNIENIA
-        function parseJwt(token) {
+            // DEKODER JWT I UPRAWNIENIA
+            function parseJwt(token) {
             try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                return JSON.parse(window.atob(base64));
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            return JSON.parse(window.atob(base64));
             } catch (e) { return null; }
-        }
+            }
 
-        function checkPermissions() {
+            function checkPermissions() {
             const token = localStorage.getItem('jwt');
             if (!token) return;
 
             const decoded = parseJwt(token);
             if (!decoded) return;
 
-            // Pobieranie roli z tokena
             let role = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
-            
-            // Konwersja na tablicę (w razie gdyby system zwrócił role jako Array)
             const rolesArray = Array.isArray(role) ? role : [role];
             console.log("Wykryte role użytkownika:", rolesArray);
 
-            // LOGIKA POKAZYWANIA MENU
+            // LOGIKA POKAZYWANIA MENU DLA CPR
             if (rolesArray.includes("Admin")) {
-                document.getElementById('menu-admin')?.classList.remove('d-none');
-                document.getElementById('menu-dispatch')?.classList.remove('d-none');
-                document.getElementById('nav-admin-cpr-container')?.classList.remove('d-none'); // Pokazuje zarządzanie kadrą
-            } 
-            else if (rolesArray.includes("Admin112")) {
-                document.getElementById('menu-dispatch')?.classList.remove('d-none');
-                document.getElementById('nav-admin-cpr-container')?.classList.remove('d-none'); // Pokazuje zarządzanie kadrą
-            } 
-            else if (rolesArray.includes("Dyspozytor112")) {
-                document.getElementById('menu-dispatch')?.classList.remove('d-none'); // Tylko Centrum Zgłoszeń
+            document.getElementById('menu-admin')?.classList.remove('d-none');
+            document.getElementById('menu-dispatch')?.classList.remove('d-none');
+            document.getElementById('nav-admin-cpr-container')?.classList.remove('d-none');
             }
-        }
+            else if (rolesArray.includes("Admin112")) {
+            document.getElementById('menu-dispatch')?.classList.remove('d-none');
+            document.getElementById('nav-admin-cpr-container')?.classList.remove('d-none');
+            }
+            else if (rolesArray.includes("Dyspozytor112")) {
+            document.getElementById('menu-dispatch')?.classList.remove('d-none');
+            }
 
-        document.addEventListener("DOMContentLoaded", checkPermissions);
+            // =======================================================
+            // LOGIKA POKAZYWANIA MENU DLA MEDYKÓW (Zgodnie z Figure 6)
+            // =======================================================
+            if (rolesArray.includes("Admin") || rolesArray.includes("Kierownik Szpitala")) {
+            document.getElementById('menu-medic-manager')?.classList.remove('d-none');
+            document.getElementById('menu-medic-worker')?.classList.remove('d-none');
+            document.getElementById('link-hospitals')?.classList.remove('d-none');
+            document.getElementById('link-ambulances')?.classList.remove('d-none');
+            document.getElementById('link-operations')?.classList.remove('d-none');
+            }
+            else if (rolesArray.includes("Lekarz")) {
+            document.getElementById('menu-medic-manager')?.classList.remove('d-none');
+            document.getElementById('menu-medic-worker')?.classList.remove('d-none');
+            document.getElementById('link-hospitals')?.classList.remove('d-none'); // Ma dostęp by wejść i zatrudniać
+            document.getElementById('link-operations')?.classList.remove('d-none');
+            // UWAGA: Ambulanse są ukryte (brak uprawnień)
+            }
+            else if (rolesArray.includes("Medyk")) {
+            document.getElementById('menu-medic-worker')?.classList.remove('d-none');
+            document.getElementById('link-operations')?.classList.remove('d-none');
+            // UWAGA: Cały moduł zarządzania jest ukryty
+            }
+            }
 
-        // OBSŁUGA AWATARA
-        const avatarInput = document.getElementById('avatarUploadInput');
-        if(avatarInput) {
+            document.addEventListener("DOMContentLoaded", checkPermissions);
+
+            // OBSŁUGA AWATARA
+            const avatarInput = document.getElementById('avatarUploadInput');
+            if(avatarInput) {
             avatarInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        document.getElementById('nav-user-avatar').src = event.target.result;
-                        document.getElementById('nav-user-avatar').classList.remove('d-none');
-                        document.getElementById('nav-user-icon').classList.add('d-none');
+            const file = e.target.files[0];
+            if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+            document.getElementById('nav-user-avatar').src = event.target.result;
+            document.getElementById('nav-user-avatar').classList.remove('d-none');
+            document.getElementById('nav-user-icon').classList.add('d-none');
 
-                        document.getElementById('profile-user-avatar').src = event.target.result;
-                        document.getElementById('profile-user-avatar').classList.remove('d-none');
-                        document.getElementById('profile-user-icon').classList.add('d-none');
-                    };
-                    reader.readAsDataURL(file);
-                }
+            document.getElementById('profile-user-avatar').src = event.target.result;
+            document.getElementById('profile-user-avatar').classList.remove('d-none');
+            document.getElementById('profile-user-icon').classList.add('d-none');
+            };
+            reader.readAsDataURL(file);
+            }
             });
-        }
-    </script>
+            }
+        </script>
 
-    @await RenderSectionAsync("Scripts", required: false)
-</body>
+        @await RenderSectionAsync("Scripts", required: false)
+    </body>
 </html>
