@@ -34,6 +34,7 @@ namespace _211system.DTOs.Hospital
         public string Specialization { get; set; }
         public string ParaAccountId { get; set; }
         public string Email { get; set; }
+        public string Rank { get; set; }
         public Guid HospitalId { get; set; }
     }
 

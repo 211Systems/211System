@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Moq;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 using _211system.Models;
@@ -38,7 +39,8 @@ namespace tests
                 Name = "Test",
                 LastName = "Test",
                 LicenseNumber = "123",
-                Specialization = "Ratownik",
+                Specialization = "Medycyna", 
+                Rank = "Medyk",
                 ParaAccountId = "konto",
                 HospitalId = Guid.NewGuid()
             });
@@ -66,7 +68,8 @@ namespace tests
                 Name = "Test",
                 LastName = "Test",
                 LicenseNumber = "123",
-                Specialization = "Ratownik",
+                Specialization = "Medycyna",
+                Rank = "Medyk",
                 ParaAccountId = "konto",
                 HospitalId = Guid.NewGuid()
             });
@@ -85,6 +88,7 @@ namespace tests
 
             Assert.Equal("Ten ratownik jest już przypisany do innej, niezakończonej akcji!", exception.Message);
         }
+
         [Fact]
         public async Task EndMedicalOperationAsync_Should_Set_EndTime()
         {
@@ -106,8 +110,9 @@ namespace tests
             await service.EndMedicalOperationAsync(operationId);
 
             var operationInDb = await context.MedicalOperations.FindAsync(operationId);
-            Assert.NotNull(operationInDb.EndTime); 
+            Assert.NotNull(operationInDb.EndTime);
         }
+
         [Fact]
         public async Task GetAllHospitalsAsync_Should_Return_All_Hospitals()
         {
@@ -137,7 +142,7 @@ namespace tests
             var service = new MedicalService(context, mockAuthService.Object);
 
             var accountId = Guid.NewGuid().ToString();
-            var account = new ApplicationUser{ Id = accountId, Email = "ratownik@szpital.pl" };
+            var account = new ApplicationUser { Id = accountId, Email = "ratownik@szpital.pl" };
             context.Users.Add(account);
 
             context.Paramedics.Add(new Paramedic
@@ -146,7 +151,8 @@ namespace tests
                 Name = "Jan",
                 LastName = "Kowalski",
                 LicenseNumber = "PWZ123",
-                Specialization = "Ratownik",
+                Specialization = "Medycyna",
+                Rank = "Lekarz",
                 ParaAccountId = accountId,
                 HospitalId = Guid.NewGuid()
             });

@@ -1,6 +1,5 @@
 ﻿@{
     ViewData["Title"] = "Zarządzanie Szpitalem";
-    var hospitalId = ViewBag.HospitalId;
 }
 
 <div class="row">
@@ -23,7 +22,7 @@
         <div class="card card-success">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h3 class="card-title m-0">Zatrudnieni Medycy</h3>
-                <button type="button" class="btn btn-sm btn-light ml-auto text-success" data-toggle="modal" data-target="#addParamedicModal">
+                <button type="button" class="btn btn-sm btn-light ml-auto text-success d-none" id="btn-open-modal" data-toggle="modal" data-target="#addParamedicModal">
                     <i class="fas fa-user-plus"></i> Zatrudnij Medyka
                 </button>
             </div>
@@ -32,7 +31,6 @@
                     <thead>
                         <tr>
                             <th style="width: 70px;" class="text-center">Awatar</th>
-                            
                             <th>Imię i Nazwisko</th>
                             <th>Nr Prawa Wyk. Zawodu</th>
                             <th>Specjalizacja</th>
@@ -61,26 +59,23 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Imię</label>
-                        <input type="text" id="pName" class="form-control" required>
+                        <input type="text" id="staffName" class="form-control" required>
                     </div>
                     <div class="form-group">
                         <label>Nazwisko</label>
-                        <input type="text" id="pLastName" class="form-control" required>
+                        <input type="text" id="staffLastName" class="form-control" required>
                     </div>
                     <div class="form-group">
                         <label>Email (Login)</label>
-                        <input type="email" id="pEmail" class="form-control" required>
+                        <input type="email" id="staffEmail" class="form-control" required>
                     </div>
                     <div class="form-group">
                         <label>Nr Prawa Wykonywania Zawodu</label>
-                        <input type="text" id="pLicense" class="form-control" required>
+                        <input type="text" id="staffLicense" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Specjalizacja</label>
-                        <select id="pSpec" class="form-control" required>
-                            <option value="Ratownik Medyczny">Ratownik Medyczny</option>
-                            <option value="Lekarz Systemu">Lekarz Systemu</option>
-                            <option value="Pielęgniarka Ratunkowa">Pielęgniarka Ratunkowa</option>
+                        <label>Hierarchia / Rola w systemie</label>
+                        <select id="staffRole" class="form-control" required>
                         </select>
                     </div>
                     
@@ -101,10 +96,39 @@
 
 @section Scripts {
     <script>
-        const hospitalId = "@hospitalId";
+        const hospitalId = window.location.pathname.split('/').filter(Boolean).pop();
         const token = localStorage.getItem('jwt');
 
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                return JSON.parse(window.atob(base64));
+            } catch (e) { return null; }
+        }
+
+        let currentUserRoles = [];
+        if (token) {
+            const decodedToken = parseJwt(token);
+            if (decodedToken) {
+                let role = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
+                currentUserRoles = Array.isArray(role) ? role : [role];
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", async function () {
+            const roleSelect = document.getElementById('staffRole');
+            
+            if (currentUserRoles.includes("Admin") || currentUserRoles.includes("Kierownik Szpitala")) {
+                roleSelect.innerHTML = `
+                    <option value="Kierownik Szpitala">Kierownik Szpitala</option>
+                    <option value="Lekarz">Lekarz</option>
+                    <option value="Medyk">Medyk</option>
+                `;
+            } else if (currentUserRoles.includes("Lekarz")) {
+                roleSelect.innerHTML = `<option value="Medyk">Medyk</option>`;
+            }
+
             await loadHospitalDetails();
             await loadParamedics();
         });
@@ -134,13 +158,11 @@
         async function loadParamedics() {
             const tableBody = document.getElementById('paramedics-table-body');
             try {
-                // Pobieramy medyków z API
                 const response = await fetch('/api/Medical/paramedics', {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
                 if (response.ok) {
                     const allStaff = await response.json();
-                    
                     const myStaff = allStaff.filter(p => p.hospitalId === hospitalId || p.HospitalId === hospitalId);
                     
                     tableBody.innerHTML = '';
@@ -153,18 +175,30 @@
                         const firstName = p.name || p.Name;
                         const lastName = p.lastName || p.LastName;
                         
-                        // Kamil tu pisz
                         const fallbackAvatar = `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff`;
                         const avatarSrc = p.avatarUrl || p.AvatarUrl || fallbackAvatar;
+
+                        let deleteBtn = '';
+                        const employeeRank = p.rank || p.Rank || "Medyk";
+                        if (currentUserRoles.includes("Admin") || currentUserRoles.includes("Kierownik Szpitala")) {
+                            deleteBtn = `<button onclick="alert('Usunięcie w przyszłości')" class="btn btn-sm btn-danger float-right ml-2" title="Zwolnij"><i class="fas fa-user-times"></i></button>`;
+                        } else if (currentUserRoles.includes("Lekarz") && canManageStaff) {
+                            if (employeeRank === "Medyk") {
+                                deleteBtn = `<button onclick="alert('Usunięcie w przyszłości')" class="btn btn-sm btn-danger float-right ml-2" title="Zwolnij"><i class="fas fa-user-times"></i></button>`;
+                            }
+                        }
 
                         const row = `<tr>
                             <td class="text-center align-middle">
                                 <img src="${avatarSrc}" alt="Awatar" class="img-circle elevation-1" style="width: 45px; height: 45px; object-fit: cover;">
                             </td>
-                            <td class="align-middle"><b>${firstName} ${lastName}</b></td>
+                            <td class="align-middle">
+                                <b>${firstName} ${lastName}</b><br/>
+                                <small class="text-warning font-weight-bold">${p.rank || "Medyk"}</small>
+                            </td>
                             <td class="align-middle">${p.licenseNumber || p.LicenseNumber}</td>
                             <td class="align-middle"><span class="badge bg-success">${p.specialization || p.Specialization}</span></td>
-                            <td class="align-middle">${p.email || p.Email}</td>
+                            <td class="align-middle">${p.email || p.Email} ${deleteBtn}</td>
                         </tr>`;
                         
                         tableBody.insertAdjacentHTML('beforeend', row);
@@ -186,15 +220,15 @@
             errorMsg.classList.add('d-none');
 
             const requestData = {
-                name: document.getElementById('pName').value,
-                lastName: document.getElementById('pLastName').value,
-                email: document.getElementById('pEmail').value,
-                licenseNumber: document.getElementById('pLicense').value,
-                specialization: document.getElementById('pSpec').value,
+                name: document.getElementById('staffName').value,
+                lastName: document.getElementById('staffLastName').value,
+                email: document.getElementById('staffEmail').value,
+                licenseNumber: document.getElementById('staffLicense').value,
+                specialization: "Medycyna",
                 hospitalId: hospitalId,
-                paraAccountId: "zostanie-nadpisane-przez-backend"
+                rank: document.getElementById('staffRole').value,
+                paraAccountId: "Zostanie-Wygenerowane-W-Backendzie"
             };
-
             try {
                 const response = await fetch('/api/Medical/paramedics', {
                     method: 'POST',
@@ -224,7 +258,7 @@
                     btnSubmit.disabled = false;
                 }
             } catch (error) {
-                errorMsg.textContent = "Błąd sieci.";
+                errorMsg.textContent = "Błąd sieci. Sprawdź konsolę (F12).";
                 errorMsg.classList.remove('d-none');
                 btnSubmit.disabled = false;
             }

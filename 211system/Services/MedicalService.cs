@@ -44,7 +44,6 @@ namespace _211system.Services
 
         public async Task<IEnumerable<ParamedicDto>> GetAllParamedicsAsync()
         {
-            // Include pobiera powiązane konto (IdentityUser), gdzie zapisany jest email
             var paramedics = await _context.Paramedics
                 .Include(p => p.ParaAccount)
                 .ToListAsync();
@@ -56,41 +55,23 @@ namespace _211system.Services
                 LastName = p.LastName,
                 LicenseNumber = p.LicenseNumber,
                 Specialization = p.Specialization,
+                Rank = p.Rank,
                 ParaAccountId = p.ParaAccountId,
                 HospitalId = p.HospitalId,
-                Email = p.ParaAccount?.Email ?? "Brak" // Mapujemy e-mail do DTO
+                Email = p.ParaAccount?.Email ?? "Brak"
             });
         }
-        /*
         public async Task<ParamedicDto> CreateParamedicAsync(CreateParamedicDto dto)
         {
+            var accountResult = await _authService.CreateTemporaryAccountAsync(dto.Email, dto.Rank);
+
             var paramedic = new Paramedic
             {
                 Name = dto.Name,
                 LastName = dto.LastName,
                 LicenseNumber = dto.LicenseNumber,
                 Specialization = dto.Specialization,
-                ParaAccountId = dto.ParaAccountId,
-                HospitalId = dto.HospitalId
-            };
-
-            await _context.Paramedics.AddAsync(paramedic);
-            await _context.SaveChangesAsync();
-
-            return new ParamedicDto { Id = paramedic.Id, Name = paramedic.Name, LastName = paramedic.LastName, LicenseNumber = paramedic.LicenseNumber, Specialization = paramedic.Specialization, ParaAccountId = paramedic.ParaAccountId, HospitalId = paramedic.HospitalId };
-        }
-        */
-
-        //testeowe później do usunięcia
-        public async Task<ParamedicDto> CreateParamedicAsync(CreateParamedicDto dto)
-        {
-            var accountResult = await _authService.CreateTemporaryAccountAsync(dto.Email, "Medyk");
-            var paramedic = new Paramedic
-            {
-                Name = dto.Name,
-                LastName = dto.LastName,
-                LicenseNumber = dto.LicenseNumber,
-                Specialization = dto.Specialization,
+                Rank = dto.Rank,
                 ParaAccountId = accountResult.AccountId,
                 HospitalId = dto.HospitalId
             };
@@ -105,6 +86,7 @@ namespace _211system.Services
                 LastName = paramedic.LastName,
                 LicenseNumber = paramedic.LicenseNumber,
                 Specialization = paramedic.Specialization,
+                Rank = paramedic.Rank,
                 HospitalId = paramedic.HospitalId,
                 Email = dto.Email,
                 ParaAccountId = accountResult.AccountId,

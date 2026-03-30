@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using _211system.Data;
@@ -11,9 +12,11 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    partial class _211DbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325204336_AddAvatarUrll")]
+    partial class AddAvatarUrll
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -914,11 +917,6 @@ namespace _211system.Migrations
                     b.Property<string>("ParaAccountId")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("Rank")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("Specialization")
                         .IsRequired()
