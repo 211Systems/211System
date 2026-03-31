@@ -91,7 +91,6 @@ namespace _211system.Services
     };
     await _context.StatusHistories.AddAsync(historyLog);
 
-    // Aktualizacja pól
     incident.Status = dto.NewStatus;
     incident.Severity = dto.NewSeverity;
 
