@@ -119,6 +119,18 @@
         }
 
         document.addEventListener("DOMContentLoaded", async function () {
+            const roleSelect = document.getElementById('staffRole');
+            
+            if (currentUserRoles.includes("Admin") || currentUserRoles.includes("Kierownik Szpitala")) {
+                roleSelect.innerHTML = `
+                    <option value="Kierownik Szpitala">Kierownik Szpitala</option>
+                    <option value="Lekarz">Lekarz</option>
+                    <option value="Medyk">Medyk</option>
+                `;
+            } else if (currentUserRoles.includes("Lekarz")) {
+                roleSelect.innerHTML = `<option value="Medyk">Medyk</option>`;
+            }
+
             await loadHospitalDetails();
             await loadParamedics();
         });
@@ -246,7 +258,6 @@
                 rank: document.getElementById('staffRole').value,
                 paraAccountId: "Zostanie-Wygenerowane-W-Backendzie"
             };
-
             try {
                 const response = await fetch('/api/Medical/paramedics', {
                     method: 'POST',
@@ -271,7 +282,7 @@
                     btnSubmit.disabled = false;
                 }
             } catch (error) {
-                errorMsg.textContent = "Błąd sieci.";
+                errorMsg.textContent = "Błąd sieci. Sprawdź konsolę (F12).";
                 errorMsg.classList.remove('d-none');
                 btnSubmit.disabled = false;
             }
