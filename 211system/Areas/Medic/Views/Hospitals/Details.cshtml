@@ -108,11 +108,13 @@
         }
 
         let currentUserRoles = [];
+        let currentUserEmail = "";
         if (token) {
             const decodedToken = parseJwt(token);
             if (decodedToken) {
                 let role = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
                 currentUserRoles = Array.isArray(role) ? role : [role];
+                currentUserEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
             }
         }
 
@@ -161,11 +163,43 @@
                 const response = await fetch('/api/Medical/paramedics', {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
+                
                 if (response.ok) {
                     const allStaff = await response.json();
-                    const myStaff = allStaff.filter(p => p.hospitalId === hospitalId || p.HospitalId === hospitalId);
                     
+                    let isMyHospital = false;
+                    const myRecord = allStaff.find(p => p.email === currentUserEmail || p.Email === currentUserEmail);
+                    if (myRecord && (myRecord.hospitalId === hospitalId || myRecord.HospitalId === hospitalId)) {
+                        isMyHospital = true;
+                    }
+
+                    const btnOpenModal = document.getElementById('btn-open-modal');
+                    const roleSelect = document.getElementById('staffRole');
+
+                    const isAdmin = currentUserRoles.includes("Admin");
+                    const isKierownik = currentUserRoles.includes("Kierownik Szpitala");
+                    const isLekarz = currentUserRoles.includes("Lekarz");
+
+                    if (isAdmin || isKierownik) {
+                        if (btnOpenModal) btnOpenModal.classList.remove('d-none');
+                        if (roleSelect) {
+                            roleSelect.innerHTML = `
+                                <option value="Kierownik Szpitala">Kierownik Szpitala</option>
+                                <option value="Lekarz">Lekarz</option>
+                                <option value="Medyk">Medyk</option>
+                            `;
+                        }
+                    }
+                    else if (isLekarz && isMyHospital) {
+                        if (btnOpenModal) btnOpenModal.classList.remove('d-none');
+                        if (roleSelect) {
+                            roleSelect.innerHTML = `<option value="Medyk">Medyk</option>`;
+                        }
+                    }
+
+                    const myStaff = allStaff.filter(p => p.hospitalId === hospitalId || p.HospitalId === hospitalId);
                     tableBody.innerHTML = '';
+                    
                     if(myStaff.length === 0) {
                         tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Brak zatrudnionego personelu.</td></tr>';
                         return;
@@ -174,18 +208,15 @@
                     myStaff.forEach(p => {
                         const firstName = p.name || p.Name;
                         const lastName = p.lastName || p.LastName;
-                        
+                        const employeeRank = p.rank || p.Rank || "Medyk";
                         const fallbackAvatar = `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff`;
                         const avatarSrc = p.avatarUrl || p.AvatarUrl || fallbackAvatar;
 
                         let deleteBtn = '';
-                        const employeeRank = p.rank || p.Rank || "Medyk";
-                        if (currentUserRoles.includes("Admin") || currentUserRoles.includes("Kierownik Szpitala")) {
+                        if (isAdmin || isKierownik) {
                             deleteBtn = `<button onclick="alert('Usunięcie w przyszłości')" class="btn btn-sm btn-danger float-right ml-2" title="Zwolnij"><i class="fas fa-user-times"></i></button>`;
-                        } else if (currentUserRoles.includes("Lekarz") && canManageStaff) {
-                            if (employeeRank === "Medyk") {
-                                deleteBtn = `<button onclick="alert('Usunięcie w przyszłości')" class="btn btn-sm btn-danger float-right ml-2" title="Zwolnij"><i class="fas fa-user-times"></i></button>`;
-                            }
+                        } else if (isLekarz && isMyHospital && employeeRank === "Medyk") {
+                            deleteBtn = `<button onclick="alert('Usunięcie w przyszłości')" class="btn btn-sm btn-danger float-right ml-2" title="Zwolnij"><i class="fas fa-user-times"></i></button>`;
                         }
 
                         const row = `<tr>
@@ -194,19 +225,17 @@
                             </td>
                             <td class="align-middle">
                                 <b>${firstName} ${lastName}</b><br/>
-                                <small class="text-warning font-weight-bold">${p.rank || "Medyk"}</small>
+                                <small class="text-warning font-weight-bold">${employeeRank}</small>
                             </td>
                             <td class="align-middle">${p.licenseNumber || p.LicenseNumber}</td>
-                            <td class="align-middle"><span class="badge bg-success">${p.specialization || p.Specialization}</span></td>
+                            <td class="align-middle"><span class="badge bg-success">${p.specialization || p.Specialization || "Medycyna"}</span></td>
                             <td class="align-middle">${p.email || p.Email} ${deleteBtn}</td>
                         </tr>`;
                         
                         tableBody.insertAdjacentHTML('beforeend', row);
                     });
                 }
-            } catch (error) {
-                console.error("Błąd podczas ładowania ratowników:", error);
-            }
+            } catch (error) { console.error("Błąd ładowania ratowników:", error); }
         }
 
         document.getElementById('addParamedicForm').addEventListener('submit', async function(e) {
@@ -232,20 +261,15 @@
             try {
                 const response = await fetch('/api/Medical/paramedics', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestData)
                 });
 
                 if (response.ok) {
                     const result = await response.json();
-                    
                     document.getElementById('temp-password-display').textContent = result.temporaryPassword || result.password || "Temp!234";
                     successAlert.classList.remove('d-none');
                     btnSubmit.classList.add('d-none');
-                    
                     await loadParamedics();
                 } else {
                     const errorData = await response.json();
