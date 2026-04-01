@@ -10,6 +10,7 @@ using _211system.Controllers;
 using _211system.Data;
 using _211system.DTOs.CPR112;
 using _211system.Services;
+using _211system.Models.Interfaces;
 using CPR112.Models;
 
 namespace _211system.Tests
@@ -43,12 +44,13 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var blobMock = new Mock<IBlobStorageService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
             var dto = new CreateIncidentDto { Description = "Test" };
             
             serviceMock.Setup(s => s.CreateIncidentAsync(dto)).ReturnsAsync(new IncidentDto());
 
-            var result = await controller.CreateIncident(dto);
+            var result = await controller.CreateIncident(dto, null);
 
             Assert.IsType<OkObjectResult>(result.Result);
         }
@@ -58,7 +60,8 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var blobMock = new Mock<IBlobStorageService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
             var id = Guid.NewGuid();
             
             serviceMock.Setup(s => s.GetIncidentByIdAsync(id)).ReturnsAsync(new IncidentDto { Id = id });
@@ -73,7 +76,8 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var blobMock = new Mock<IBlobStorageService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
             var id = Guid.NewGuid();
 
             serviceMock.Setup(s => s.GetIncidentByIdAsync(id)).ThrowsAsync(new ArgumentException("Not found"));
@@ -88,14 +92,15 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var blobMock = new Mock<IBlobStorageService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
 
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
             };
 
-            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto());
+            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto(), null);
 
             Assert.IsType<UnauthorizedObjectResult>(result);
         }
@@ -105,11 +110,12 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var blobMock = new Mock<IBlobStorageService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
             
             SetupControllerUser(controller, "admin-identity-id", "Admin112");
 
-            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" });
+            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" }, null);
 
             Assert.IsType<NoContentResult>(result);
         }
@@ -119,20 +125,21 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
+            var blobMock = new Mock<IBlobStorageService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
             
             context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
             SetupControllerUser(controller, identityId);
 
             var incidentId = Guid.NewGuid();
             var dto = new ChangeIncidentStatusDto();
             serviceMock.Setup(s => s.ChangeIncidentStatusAsync(incidentId, operatorId, dto)).ThrowsAsync(new ArgumentException("Incident not found"));
 
-            var result = await controller.ChangeStatus(incidentId, dto);
+            var result = await controller.ChangeStatus(incidentId, dto, null);
 
             Assert.IsType<NotFoundObjectResult>(result);
         }
@@ -142,20 +149,21 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
+            var blobMock = new Mock<IBlobStorageService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
             
             context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
             SetupControllerUser(controller, identityId);
 
             var incidentId = Guid.NewGuid();
             var dto = new ChangeIncidentStatusDto();
             serviceMock.Setup(s => s.ChangeIncidentStatusAsync(incidentId, operatorId, dto)).ThrowsAsync(new InvalidOperationException("Same status"));
 
-            var result = await controller.ChangeStatus(incidentId, dto);
+            var result = await controller.ChangeStatus(incidentId, dto, null);
 
             Assert.IsType<BadRequestObjectResult>(result);
         }
@@ -165,16 +173,17 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
+            var blobMock = new Mock<IBlobStorageService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
             
             context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context);
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
             SetupControllerUser(controller, identityId);
 
-            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" });
+            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" }, null);
 
             Assert.IsType<NoContentResult>(result);
         }

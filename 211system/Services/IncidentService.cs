@@ -1,9 +1,7 @@
 ﻿using _211system.Data;
 using _211system.DTOs.CPR112;
-using _211system.Models;
-using CPR112.Models;
 using Microsoft.EntityFrameworkCore;
-using _211system.Controllers;
+using CPR112.Models;
 
 namespace _211system.Services
 {
@@ -26,7 +24,7 @@ namespace _211system.Services
 
             var incidentNumber = $"112/{now:yyyy/MM/dd}/{(todayIncidentsCount + 1):D3}";
 
-            var incident = new Incident
+            var incident = new Incident 
             {
                 Id = Guid.NewGuid(),
                 IncidentNumber = incidentNumber,
@@ -35,7 +33,8 @@ namespace _211system.Services
                 Severity = dto.Severity,
                 ReportDate = now,
                 LocationId = dto.LocationId,
-                OperatorId = dto.OperatorId
+                OperatorId = dto.OperatorId,
+                PhotoUrl = dto.PhotoUrl 
             };
 
             await _context.Incidents.AddAsync(incident);
@@ -50,7 +49,8 @@ namespace _211system.Services
                 Severity = incident.Severity,
                 ReportedAt = incident.ReportDate,
                 LocationId = incident.LocationId,
-                OperatorId = incident.OperatorId
+                OperatorId = incident.OperatorId,
+                PhotoUrl = incident.PhotoUrl
             };
         }
 
@@ -68,34 +68,45 @@ namespace _211system.Services
                 Severity = incident.Severity,
                 ReportedAt = incident.ReportDate,
                 LocationId = incident.LocationId,
-                OperatorId = incident.OperatorId
+                OperatorId = incident.OperatorId,
+                PhotoUrl = incident.PhotoUrl
             };
         }
-      public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
-{
-    var incident = await _context.Incidents.FindAsync(id);
-    if (incident == null) throw new ArgumentException("Nie znaleziono zgłoszenia.");
 
-    if (incident.Status == dto.NewStatus)
-    {
-        throw new InvalidOperationException("Zgłoszenie posiada już ten status.");
-    }
+        public async Task ChangeIncidentStatusAsync(Guid id, Guid operatorId, ChangeIncidentStatusDto dto)
+        {
+            var incident = await _context.Incidents.FindAsync(id);
+            if (incident == null) throw new ArgumentException("Nie znaleziono zgłoszenia.");
 
-    var historyLog = new StatusHistory
-    {
-        IncidentId = incident.Id,
-        OldStatus = incident.Status,
-        NewStatus = dto.NewStatus,
-        ChangeDate = DateTime.UtcNow,
-        OperatorId = operatorId
-    };
-    await _context.StatusHistories.AddAsync(historyLog);
+            if (incident.Status == dto.NewStatus && incident.Severity == dto.NewSeverity && string.IsNullOrEmpty(dto.NewPhotoUrl))
+            {
+                throw new InvalidOperationException("Zgłoszenie posiada już te parametry.");
+            }
 
-    incident.Status = dto.NewStatus;
-    incident.Severity = dto.NewSeverity;
+            if (incident.Status != dto.NewStatus)
+            {
+                var historyLog = new StatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    IncidentId = incident.Id,
+                    OldStatus = incident.Status,
+                    NewStatus = dto.NewStatus,
+                    ChangeDate = DateTime.UtcNow,
+                    OperatorId = operatorId
+                };
+                await _context.StatusHistories.AddAsync(historyLog);
+                incident.Status = dto.NewStatus;
+            }
 
-    _context.Incidents.Update(incident);
-    await _context.SaveChangesAsync();
-}
+            incident.Severity = dto.NewSeverity;
+
+            if (!string.IsNullOrEmpty(dto.NewPhotoUrl))
+            {
+                incident.PhotoUrl = dto.NewPhotoUrl;
+            }
+
+            _context.Incidents.Update(incident);
+            await _context.SaveChangesAsync();
+        }
     }
 }

@@ -16,6 +16,7 @@ public class Incident
     public Location Location { get; set; }
     public Guid? OperatorId { get; set; }
     public Operator112 Operator { get; set; }
+    public string? PhotoUrl { get; set; }
     
     public ICollection<DispatcherComment> Comments { get; set; } = new List<DispatcherComment>();
 }

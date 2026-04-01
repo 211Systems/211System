@@ -124,6 +124,9 @@ namespace _211system.Migrations
                     b.Property<Guid?>("OperatorId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("ReportDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -742,8 +745,14 @@ namespace _211system.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CurrentIncidentId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("HospitalId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("LicensePlate")
                         .IsRequired()
