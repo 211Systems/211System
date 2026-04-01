@@ -63,7 +63,8 @@ namespace _211system.Services
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email)
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim("AvatarUrl", user.AvatarUrl ?? "")
             };
 
             foreach (var role in roles)

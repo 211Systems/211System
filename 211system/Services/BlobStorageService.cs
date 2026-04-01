@@ -1,6 +1,7 @@
 ﻿using _211system.Models.Interfaces;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
 
 namespace _211system.Services
 {
@@ -31,9 +32,15 @@ namespace _211system.Services
             var blobName = $"{Guid.NewGuid()}{fileExtension}";
 
             var blobClient = containerClient.GetBlobClient(blobName);
-
             using var stream = file.OpenReadStream();
-            await blobClient.UploadAsync(stream, new BlobHttpHeaders { ContentType = file.ContentType });
+
+            var uploadOptions = new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType },
+                AccessTier = containerName.ToLower() == "avatars" ? AccessTier.Hot : AccessTier.Cool
+            };
+
+            await blobClient.UploadAsync(stream, uploadOptions);
 
             return blobClient.Uri.ToString();
         }
@@ -43,13 +50,45 @@ namespace _211system.Services
             if (string.IsNullOrEmpty(fileUrl)) return false;
 
             var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
-
             var uri = new Uri(fileUrl);
             var blobName = Path.GetFileName(uri.LocalPath);
-
             var blobClient = containerClient.GetBlobClient(blobName);
 
             return await blobClient.DeleteIfExistsAsync();
+        }
+
+        public string GetSecureFileUrl(string fileUrl, string containerName, int expireMinutes = 15)
+        {
+            if (string.IsNullOrEmpty(fileUrl)) return null;
+
+            var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+            var uri = new Uri(fileUrl);
+            var blobName = Path.GetFileName(uri.LocalPath);
+            var blobClient = containerClient.GetBlobClient(blobName);
+
+            if (containerName.ToLower() == "avatars")
+            {
+                return fileUrl;
+            }
+
+            if (blobClient.CanGenerateSasUri)
+            {
+                var sasBuilder = new BlobSasBuilder
+                {
+                    BlobContainerName = containerName,
+                    BlobName = blobName,
+                    Resource = "b", 
+                    ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(expireMinutes)
+                };
+                sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+                var sasUri = blobClient.GenerateSasUri(sasBuilder);
+                return sasUri.ToString();
+            }
+            else
+            {
+                throw new Exception("Brak poświadczeń do wygenerowania tokenu SAS (skonfiguruj klucz konta storage).");
+            }
         }
     }
 }
