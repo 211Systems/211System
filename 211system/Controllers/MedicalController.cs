@@ -1,19 +1,23 @@
 ﻿using _211system.DTOs.Hospital;
 using _211system.Services;
+using _211system.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class MedicalController : Controller
+    public class MedicalController : ControllerBase
     {
         private readonly IMedicalService _medicalService;
+        private readonly _211DbContext _context;
 
-        public MedicalController(IMedicalService medicalService)
+        public MedicalController(IMedicalService medicalService, _211DbContext context)
         {
             _medicalService = medicalService;
+            _context = context;
         }
 
         [HttpPost("hospitals")]
@@ -53,6 +57,15 @@ namespace _211system.Controllers
         public async Task<IActionResult> StartOperation([FromQuery] Guid paramedicId, [FromQuery] Guid reportId)
         {
             await _medicalService.StartMedicalOperationAsync(paramedicId, reportId);
+
+            var incident = await _context.Incidents.FindAsync(reportId);
+            if (incident != null)
+            {
+                incident.IsMedicalActive = true;
+                incident.Status = "W toku";
+                await _context.SaveChangesAsync();
+            }
+
             return Ok("Rozpoczęto akcję medyczną.");
         }
 
@@ -60,10 +73,28 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
         public async Task<IActionResult> EndOperation(Guid operationId)
         {
+            var op = await _context.MedicalOperations.FindAsync(operationId);
+            if (op == null) return NotFound("Nie znaleziono operacji.");
+
+            var incidentId = op.ReportId;
+
             await _medicalService.EndMedicalOperationAsync(operationId);
+
+            var incident = await _context.Incidents.FindAsync(incidentId);
+            if (incident != null)
+            {
+                incident.IsMedicalActive = false;
+                
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+                
+                await _context.SaveChangesAsync();
+            }
+
             return Ok("Zakończono akcję medyczną.");
         }
-
 
         [HttpPost("ambulances")]
         [Authorize(Roles = "Admin, Kierownik Szpitala")]
@@ -88,6 +119,7 @@ namespace _211system.Controllers
             var result = await _medicalService.GetAvailableAmbulancesAsync();
             return Ok(result);
         }
+
         [HttpPut("ambulances/{ambulanceId}/assign/{incidentId}")]
         [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
         public async Task<IActionResult> AssignAmbulanceToIncident(Guid ambulanceId, Guid incidentId)

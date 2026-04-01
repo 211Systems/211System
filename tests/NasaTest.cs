@@ -1,7 +1,8 @@
 ﻿using System.Net;
 using _211system.Data;
+using _211system.Models;
 using _211system.Models.Services;
-using _211system.Services;
+using CPR112.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Xunit;
@@ -53,7 +54,6 @@ public class NasaServiceTests
     public async Task FetchFireData_WithoutApiKey_ShouldThrowException()
     {
         var dbContext = await GetDatabaseContext();
-
         var emptyConfig = new ConfigurationBuilder().Build();
         var fakeClientFactory = new FakeHttpClientFactory(new HttpClient());
 
@@ -67,6 +67,15 @@ public class NasaServiceTests
     public async Task FetchFireData_WithValidCsv_ShouldParseAndCreateIncidents()
     {
         var dbContext = await GetDatabaseContext();
+
+        var testCenter = new Enc 
+        { 
+            Id = Guid.NewGuid(), 
+            Name = "Testowe CPR", 
+            Region = "Podlaskie" 
+        };
+        await dbContext.Encs.AddAsync(testCenter);
+        await dbContext.SaveChangesAsync();
 
         var configParams = new Dictionary<string, string> { { "NasaApiKey", "TEST_KEY_123" } };
         var config = new ConfigurationBuilder().AddInMemoryCollection(configParams).Build();
@@ -89,9 +98,28 @@ public class NasaServiceTests
         Assert.Single(incidents);
 
         var generatedIncident = incidents.First();
-        Assert.Contains($"{350.5} K", generatedIncident.Description);
-        Assert.Equal(53.13, generatedIncident.Location.Latitude);
-        Assert.Equal(23.16, generatedIncident.Location.Longitude);
+        
+        Assert.StartsWith("ALARM SATELITARNY", generatedIncident.Description);
+        Assert.Equal(testCenter.Id, generatedIncident.LocationId);
+        Assert.Equal("Testowe CPR", generatedIncident.Location.Name);
         Assert.Null(generatedIncident.OperatorId);
+        
+        Assert.False(generatedIncident.IsPoliceActive);
+        Assert.False(generatedIncident.IsFireActive);
+        Assert.False(generatedIncident.IsMedicalActive);
+    }
+
+    [Fact]
+    public async Task FetchFireData_NoEncInDatabase_ShouldThrowException()
+    {
+        var dbContext = await GetDatabaseContext();
+        var configParams = new Dictionary<string, string> { { "NasaApiKey", "TEST_KEY_123" } };
+        var config = new ConfigurationBuilder().AddInMemoryCollection(configParams).Build();
+        
+        var fakeClientFactory = new FakeHttpClientFactory(new HttpClient(new FakeHttpMessageHandler("lat,lon,bright\n50,20,400")));
+        var nasaService = new NasaService(dbContext, fakeClientFactory, config);
+
+        var exception = await Assert.ThrowsAsync<Exception>(() => nasaService.FetchFireDataAndCreateIncidentsAsync());
+        Assert.Contains("System nie posiada żadnej placówki", exception.Message);
     }
 }

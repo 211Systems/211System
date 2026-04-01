@@ -3,6 +3,7 @@ using _211system.Data;
 using _211system.Models.Dtos.Nasa;
 using _211system.Models.Interfaces;
 using CPR112.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Models.Services
 {
@@ -25,6 +26,11 @@ namespace _211system.Models.Services
             if (string.IsNullOrEmpty(apiKey))
                 throw new Exception("Brak klucza NASA API!");
 
+            // Pobieramy pierwszą dostępną placówkę z tabeli Encs, aby do niej przypisać pożary z satelity
+            var mainEnc = await _context.Encs.FirstOrDefaultAsync();
+            if (mainEnc == null)
+                throw new Exception("Błąd: System nie posiada żadnej placówki (Enc) w bazie danych. Nie można przypisać incydentu NASA.");
+
             string nasaUrl = $"https://firms.modaps.eosdis.nasa.gov/api/country/csv/{apiKey}/VIIRS_SNPP_NRT/POL/1";
 
             var client = _httpClientFactory.CreateClient();
@@ -43,9 +49,9 @@ namespace _211system.Models.Services
                 var columns = line.Split(',');
                 if (columns.Length < 3) continue;
 
-                double latitude = double.Parse(columns[0], CultureInfo.InvariantCulture);
-                double longitude = double.Parse(columns[1], CultureInfo.InvariantCulture);
-                double brightness = double.Parse(columns[2], CultureInfo.InvariantCulture);
+                if (!double.TryParse(columns[0], CultureInfo.InvariantCulture, out double latitude)) continue;
+                if (!double.TryParse(columns[1], CultureInfo.InvariantCulture, out double longitude)) continue;
+                if (!double.TryParse(columns[2], CultureInfo.InvariantCulture, out double brightness)) continue;
 
                 var nasaPoint = new NasaFlarePoint
                 {
@@ -58,29 +64,24 @@ namespace _211system.Models.Services
                 await _context.NasaFlarePoints.AddAsync(nasaPoint);
                 resultDto.TotalAnomaliesDetected++;
 
+                // Jeśli jasność przekracza 330K, generujemy incydent
                 if (brightness > 330)
                 {
-                    var location = new Location
-                    {
-                        Address = "WYKRYTO Z SATELITY",
-                        City = "BRAK DANYCH",
-                        Latitude = latitude,
-                        Longitude = longitude
-                    };
-
-                    await _context.Locations.AddAsync(location);
-
                     var randomSuffix = Guid.NewGuid().ToString().Substring(0, 4).ToUpper();
 
                     var incident = new Incident
                     {
+                        Id = Guid.NewGuid(),
                         IncidentNumber = $"NASA/{DateTime.UtcNow:yyyyMMdd}/{randomSuffix}",
                         Severity = "Krytyczny",
-                        Description = $"ALARM SATELITARNY: System FIRMS wykrył anomalię termiczną o wysokiej jasności ({brightness} K).",
+                        Description = $"ALARM SATELITARNY: Wykryto anomalię termiczną ({brightness} K). Współrzędne: {latitude}, {longitude}",
                         ReportDate = DateTime.UtcNow,
                         Status = "Nowe",
-                        Location = location,
-                        OperatorId = null
+                        // PRZYPISANIE DO PLACÓWKI (ENC)
+                        LocationId = mainEnc.Id,
+                        Location = mainEnc, 
+                        OperatorId = null,
+                        PhotoUrl = null
                     };
 
                     await _context.Incidents.AddAsync(incident);
@@ -97,9 +98,7 @@ namespace _211system.Models.Services
             }
 
             await _context.SaveChangesAsync();
-
             return resultDto;
         }
-
     }
 }

@@ -53,7 +53,22 @@ namespace _211system.Controllers
                 .OrderByDescending(i => i.ReportDate)
                 .ToListAsync();
 
-            return Ok(incidents);
+            var dtos = incidents.Select(inc => new IncidentDto
+            {
+                Id = inc.Id,
+                IncidentNumber = inc.IncidentNumber,
+                Description = inc.Description,
+                Severity = inc.Severity,
+                Status = inc.Status,
+                ReportedAt = inc.ReportDate,
+                LocationId = inc.LocationId,
+                OperatorId = inc.OperatorId,
+                PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl) 
+                    ? null 
+                    : _blobStorageService.GetSecureFileUrl(inc.PhotoUrl, "incidents")
+            }).ToList();
+
+            return Ok(dtos);
         }
 
         [HttpGet("{id}")]
@@ -62,6 +77,12 @@ namespace _211system.Controllers
             try
             {
                 var result = await _incidentService.GetIncidentByIdAsync(id);
+            
+                if (!string.IsNullOrEmpty(result.PhotoUrl))
+                {
+                    result.PhotoUrl = _blobStorageService.GetSecureFileUrl(result.PhotoUrl, "incidents");
+                }
+
                 return Ok(result);
             }
             catch (ArgumentException ex)
@@ -77,7 +98,7 @@ namespace _211system.Controllers
             {
                 var ApplicationUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (ApplicationUserId == null)
-                    return Unauthorized("Brak autoryzacji (niewłaściwy lub brakujący token).");
+                    return Unauthorized("Brak autoryzacji.");
 
                 var currentOperator = await _context.Operators112
                     .FirstOrDefaultAsync(o => o.OpAccountId == ApplicationUserId);
@@ -109,33 +130,49 @@ namespace _211system.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+
+       [HttpDelete("{id}")]
         [Authorize(Roles = "Admin112, Admin")]
         public async Task<IActionResult> DeleteIncident(Guid id)
         {
             try
             {
                 var incident = await _context.Incidents.FindAsync(id);
+                if (incident == null) 
+                    return NotFound(new { message = "Nie znaleziono zgłoszenia." });
 
-                if (incident == null)
+                var ambulances = await _context.Ambulances
+                    .Where(a => a.CurrentIncidentId == id)
+                    .ToListAsync();
+
+                if (ambulances.Any())
                 {
-                    return NotFound(new { message = "Nie znaleziono zgłoszenia o podanym ID." });
+                    foreach (var amb in ambulances)
+                    {
+                        amb.CurrentIncidentId = null;
+                        amb.IsAvailable = true;
+                        
+                        _context.Entry(amb).State = EntityState.Modified;
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(incident.PhotoUrl))
                 {
-                    await _blobStorageService.DeleteAsync(incident.PhotoUrl, "incidents");
+                    try { await _blobStorageService.DeleteAsync(incident.PhotoUrl, "incidents"); } catch { }
                 }
 
                 _context.Incidents.Remove(incident);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Zgłoszenie zostało trwale usunięte z bazy (wraz z załącznikiem)." });
+                return Ok(new { 
+                    message = "Zgłoszenie usunięte, jednostki zwolnione.", 
+                    releasedCount = ambulances.Count 
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = "Błąd podczas usuwania zgłoszenia.", error = ex.Message });
+                return BadRequest(new { message = "Błąd krytyczny.", error = ex.Message });
             }
         }
-    }
+    } 
 }

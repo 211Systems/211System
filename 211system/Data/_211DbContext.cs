@@ -1,10 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Reflection.Emit;
 using _211system.Models;
 using _211system.Models.Hospital;
 using CPR112.Models;
 using FireDepartment;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Police;
@@ -20,25 +18,24 @@ namespace _211system.Data
 
         public DbSet<NasaFlarePoint> NasaFlarePoints { get; set; }
 
-        //112
+        // CPR 112
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<DispatcherComment> DispatcherComments { get; set; }
         public DbSet<Enc> Encs { get; set; } 
         public DbSet<FinalReport> FinalReports { get; set; }
         public DbSet<Incident> Incidents { get; set; }
-        public DbSet<Location> Locations { get; set; }
         public DbSet<Operator112> Operators112 { get; set; }
         public DbSet<PeriodicReport> PeriodicReports { get; set; }
         public DbSet<StatusHistory> StatusHistories { get; set; }
 
-        //Straz pozarna
+        // Straz pozarna
         public DbSet<FDepartment> FireDepartments { get; set; }
         public DbSet<FireDepartmentOperation> FireOperations { get; set; }
         public DbSet<FireEquipment> FireEquipments { get; set; }
         public DbSet<Fireman> Firemen { get; set; }
         public DbSet<FireTruck> FireTrucks { get; set; }
         
-        //Szpital
+        // Szpital
         public DbSet<Ambulance> Ambulances { get; set; }
         public DbSet<AmbulanceEquipment> AmbulanceEquipments { get; set; }
         public DbSet<GivenMedicine> GivenMedicines { get; set; }
@@ -48,7 +45,7 @@ namespace _211system.Data
         public DbSet<Paramedic> Paramedics { get; set; }
         public DbSet<Patient> Patients { get; set; }
 
-        //Policja
+        // Policja
         public DbSet<PDepartment> PoliceDepartments { get; set; }
         public DbSet<PoliceCar> PoliceCars { get; set; }
         public DbSet<PoliceEquipment> PoliceEquipments { get; set; }
@@ -59,37 +56,43 @@ namespace _211system.Data
         {
             base.OnModelCreating(builder);
 
+            // Relacja Operator112 -> Konto użytkownika
             builder.Entity<Operator112>()
                  .HasOne(o => o.OpAccount)
                  .WithMany()
                  .HasForeignKey(o => o.OpAccountId)
                  .OnDelete(DeleteBehavior.SetNull);
 
+            // Relacja Fireman -> Konto użytkownika
             builder.Entity<Fireman>()
                 .HasOne(f => f.FireAccount)
                 .WithMany()
                 .HasForeignKey(f => f.FireAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Relacja Paramedic -> Konto użytkownika
             builder.Entity<Paramedic>()
                 .HasOne(p => p.ParaAccount)
                 .WithMany()
                 .HasForeignKey(p => p.ParaAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Relacja Policeman -> Konto użytkownika
             builder.Entity<Policeman>()
                 .HasOne(p => p.PoliceAccount)
                 .WithMany()
                 .HasForeignKey(p => p.PoliceAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // POPRAWIONA RELACJA: Incident -> Enc (Placówka)
+            // To rozwiązuje błąd FK_Incidents_Locations_LocationId
             builder.Entity<Incident>()
-                .HasOne(i => i.Location)
+                .HasOne(i => i.Location) // Właściwość nawigacyjna w klasie Incident (typu Enc)
                 .WithMany()
                 .HasForeignKey(i => i.LocationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Policja
+            // Policja - Relacje
             builder.Entity<Policeman>()
                 .HasOne(p => p.Department)
                 .WithMany(d => d.Policemen)
@@ -102,7 +105,7 @@ namespace _211system.Data
                 .HasForeignKey(po => po.PDepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Straż
+            // Straż - Relacje
             builder.Entity<Fireman>()
                 .HasOne(f => f.Department)
                 .WithMany(d => d.Firemen)
@@ -115,7 +118,7 @@ namespace _211system.Data
                 .HasForeignKey(fo => fo.FDepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Medycy
+            // Medycy - Relacje
             builder.Entity<Paramedic>()
                 .HasOne(p => p.Hospital)
                 .WithMany(h => h.Paramedics)
@@ -127,17 +130,6 @@ namespace _211system.Data
                 .WithMany(p => p.MedicalOperations)
                 .HasForeignKey(mo => mo.ParamedicId)
                 .OnDelete(DeleteBehavior.Restrict);
-        }
-
-        private void ConfigureIdentity<TEntity>(ModelBuilder builder, System.Linq.Expressions.Expression<System.Func<TEntity, object>> keySelector)
-            where TEntity : class
-        {
-            builder.Entity<TEntity>()
-                .HasOne<ApplicationUser>()
-                .WithMany()
-                .HasForeignKey(keySelector)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

@@ -16,6 +16,7 @@ namespace _211system.Services
             _context = context;
             _authService = authService;
         }
+        
         public async Task<HospitalDto> CreateHospitalAsync(CreateHospitalDto dto)
         {
             var hospital = new Hospital
@@ -41,6 +42,7 @@ namespace _211system.Services
                 Address = h.Address
             });
         }
+        
         public async Task<IEnumerable<ParamedicDto>> GetAllParamedicsAsync()
         {
             var paramedics = await _context.Paramedics
@@ -129,6 +131,7 @@ namespace _211system.Services
                 IsAvailable = a.IsAvailable
             });
         }
+        
         public async Task<IEnumerable<AmbulanceDto>> GetAvailableAmbulancesAsync()
         {
             var available = await _context.Ambulances
@@ -144,6 +147,7 @@ namespace _211system.Services
                 IsAvailable = true
             });
         }
+        
         public async Task AssignAmbulanceToIncidentAsync(Guid ambulanceId, Guid incidentId)
         {
             var ambulance = await _context.Ambulances.FindAsync(ambulanceId);
@@ -151,17 +155,26 @@ namespace _211system.Services
 
             if (!ambulance.IsAvailable) 
                 throw new InvalidOperationException("Ta karetka jest już w trakcie innej akcji.");
+            
             ambulance.IsAvailable = false;
+            ambulance.CurrentIncidentId = incidentId; 
+            
             var incident = await _context.Incidents.FindAsync(incidentId);
-            if (incident != null && incident.Status == "Nowe")
+            if (incident != null)
             {
-                incident.Status = "W toku";
+                incident.IsMedicalActive = true; 
+                
+                if (incident.Status == "Nowe")
+                {
+                    incident.Status = "W toku";
+                }
                 _context.Incidents.Update(incident);
             }
 
             _context.Ambulances.Update(ambulance);
             await _context.SaveChangesAsync();
         }
+        
         public async Task<Guid> StartMedicalOperationAsync(Guid paramedicId, Guid reportId)
         {
             var paramedicExists = await _context.Paramedics.AnyAsync(p => p.Id == paramedicId);
@@ -190,12 +203,26 @@ namespace _211system.Services
         {
             var operation = await _context.MedicalOperations.FindAsync(operationId);
             if (operation == null) throw new ArgumentException("Nie znaleziono takiej operacji.");
+            
             if (operation.EndTime != null)
             {
                 throw new InvalidOperationException("Ta akcja została już wcześniej zakończona.");
             }
+            
             operation.EndTime = DateTime.UtcNow;
             _context.MedicalOperations.Update(operation);
+            
+            var ambulances = await _context.Ambulances
+                .Where(a => a.CurrentIncidentId == operation.ReportId)
+                .ToListAsync();
+                
+            foreach(var amb in ambulances)
+            {
+                amb.IsAvailable = true;
+                amb.CurrentIncidentId = null;
+                _context.Ambulances.Update(amb);
+            }
+
             await _context.SaveChangesAsync();
         }
     }

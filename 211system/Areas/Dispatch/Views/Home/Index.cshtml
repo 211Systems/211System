@@ -15,6 +15,8 @@
     .incident-photo-link:hover { transform: scale(1.2); color: #e0a800; }
     .table-valign-middle td { vertical-align: middle !important; }
     .card-title { font-weight: 600; }
+    .btn-group .btn { margin-left: 2px; }
+    .custom-file-label::after { content: "Szukaj"; }
 </style>
 
 <div id="incidents-panel" class="fade-panel">
@@ -24,7 +26,7 @@
                 <span class="info-box-icon"><i class="fas fa-car-side"></i></span>
                 <div class="info-box-content">
                     <span class="info-box-text">Gotowe Radiowozy</span>
-                    <span class="info-box-number" id="status-police">Ładowanie...</span>
+                    <span class="info-box-number" id="status-police">0 / 0</span>
                 </div>
             </div>
         </div>
@@ -42,7 +44,7 @@
                 <span class="info-box-icon"><i class="fas fa-fire-extinguisher"></i></span>
                 <div class="info-box-content">
                     <span class="info-box-text">Dostępne Wozy PSP</span>
-                    <span class="info-box-number" id="status-fire">Ładowanie...</span>
+                    <span class="info-box-number" id="status-fire">0 / 0</span>
                 </div>
             </div>
         </div>
@@ -77,8 +79,12 @@
                                 </div>
                             </div>
                         </div>
-                        <input type="hidden" id="incLocationId">
-                        <small id="location-status" class="text-muted">Sprawdzanie połączenia z bazą...</small>
+                        <div class="form-group">
+                            <label>Lokalizacja (Placówka)</label>
+                            <select id="incLocationId" class="form-control" required>
+                                <option value="">Ładowanie placówek...</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="card-footer">
                         <button type="submit" class="btn btn-danger btn-block font-weight-bold" id="btn-submit-incident">
@@ -100,14 +106,14 @@
                         <thead class="bg-secondary">
                             <tr>
                                 <th style="width: 15%">Numer</th>
-                                <th style="width: 40%">Opis</th>
+                                <th style="width: 35%">Opis</th>
                                 <th style="width: 15%">Priorytet</th>
-                                <th style="width: 15%">Status</th>
-                                <th style="width: 15%" class="text-right">Akcje</th>
+                                <th style="width: 10%">Status</th>
+                                <th style="width: 25%" class="text-right">Akcje</th>
                             </tr>
                         </thead>
                         <tbody id="incidents-table-body">
-                            <tr><td colspan="5" class="text-center">Inicjalizacja systemu...</td></tr>
+                            <tr><td colspan="5" class="text-center p-4">Inicjalizacja systemu...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -121,7 +127,6 @@
         <h2 class="text-warning font-weight-bold m-0"><i class="fas fa-users-cog mr-2"></i> Panel Zarządzania Kadrami 112</h2>
         <button class="btn btn-outline-light" onclick="window.location.hash='';"><i class="fas fa-arrow-left"></i> Powrót do Operacji</button>
     </div>
-
     <div class="row">
         <div class="col-12">
             <div class="card card-outline card-warning mb-4 shadow">
@@ -144,8 +149,10 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label>ID Placówki Nadrzędnej</label>
-                            <input type="text" id="regEncId" class="form-control" placeholder="GUID placówki">      
+                            <label>Placówka Nadrzędna</label>
+                            <select id="regEncId" class="form-control">
+                                <option value="">Ładowanie...</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -155,7 +162,6 @@
                     </button>
                 </div>
             </div>
-
             <div class="card card-dark shadow">
                 <div class="card-header border-0">
                     <h3 class="card-title m-0"><i class="fas fa-id-badge"></i> Aktywny personel CPR</h3>
@@ -171,6 +177,53 @@
                             </tr>
                         </thead>
                         <tbody id="operators-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="centers-panel" class="d-none fade-panel">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-warning font-weight-bold m-0"><i class="fas fa-hospital mr-2"></i> Zarządzanie Placówkami CPR</h2>
+        <button class="btn btn-outline-light" onclick="window.location.hash='';"><i class="fas fa-arrow-left"></i> Wróć do operacji</button>
+    </div>
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card card-outline card-warning shadow">
+                <div class="card-header"><h3 class="card-title text-bold">Nowa Placówka</h3></div>
+                <form id="createCenterForm">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Nazwa placówki</label>
+                            <input type="text" id="centerName" class="form-control" placeholder="np. CPR Warszawa" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Region / Lokalizacja</label>
+                            <input type="text" id="centerRegion" class="form-control" placeholder="np. Mazowieckie" required>
+                        </div>
+                    </div>
+                    <div class="card-footer text-right">
+                        <button type="submit" class="btn btn-warning text-bold">Dodaj Placówkę</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="card card-dark shadow">
+                <div class="card-header"><h3 class="card-title m-0">Lista Placówek w Systemie</h3></div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-valign-middle m-0">
+                        <thead>
+                            <tr>
+                                <th>Nazwa</th>
+                                <th>Region</th>
+                                <th>ID (GUID)</th>
+                                <th class="text-right">Zarządzanie</th>
+                            </tr>
+                        </thead>
+                        <tbody id="centers-table-body"></tbody>
                     </table>
                 </div>
             </div>
@@ -228,9 +281,9 @@
                     <div class="form-group">
                         <label>Poziom Zagrożenia (Severity)</label>
                         <select id="editIncidentPriority" class="form-control">
-                            <option value="Wysoki">Wysoki (Zagrożenie życia)</option>
-                            <option value="Średni">Średni (Wymagana interwencja)</option>
-                            <option value="Niski">Niski (Informacyjne)</option>
+                            <option value="Wysoki">Wysoki</option>
+                            <option value="Średni">Średni</option>
+                            <option value="Niski">Niski</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -285,40 +338,47 @@
 
         document.addEventListener("DOMContentLoaded", async function () {
             if (!token) {
-                alert("Sesja wygasła. Zaloguj się ponownie.");
-                window.location.href = "/Auth/Login";
+                window.location.href = "/AuthView/Login";
                 return;
             }
             try {
-                autoLoadIds(); 
+                await loadCentersToSelect();
                 checkAdminVisibility(); 
                 await refreshAll();
                 window.addEventListener('hashchange', togglePanels);
+                togglePanels();
             } catch (err) {
-                console.error("Błąd inicjalizacji:", err);
+                console.error("Błąd podczas ładowania strony:", err);
             }
         });
 
         document.getElementById('incPhoto')?.addEventListener('change', function(e){
-            var fileName = e.target.files[0] ? e.target.files[0].name : "Wybierz zdjęcie...";
-            document.getElementById('incPhotoLabel').innerText = fileName;
+            document.getElementById('incPhotoLabel').innerText = e.target.files[0] ? e.target.files[0].name : "Wybierz plik...";
         });
 
         document.getElementById('editIncPhoto')?.addEventListener('change', function(e){
-            var fileName = e.target.files[0] ? e.target.files[0].name : "Wybierz nowe zdjęcie...";
-            document.getElementById('editIncPhotoLabel').innerText = fileName;
+            document.getElementById('editIncPhotoLabel').innerText = e.target.files[0] ? e.target.files[0].name : "Wybierz nowe zdjęcie...";
         });
 
-        function autoLoadIds() {
-            const myDatabaseId = "019d265c-6776-714f-ba19-c7fbd31480dc";
-            const incLocInput = document.getElementById('incLocationId');
-            const regEncInput = document.getElementById('regEncId');
-            if (incLocInput) incLocInput.value = myDatabaseId;
-            if (regEncInput) regEncInput.value = myDatabaseId;
-            const statusLabel = document.getElementById('location-status');
-            if (statusLabel) {
-                statusLabel.textContent = "System połączony z główną placówką";
-                statusLabel.className = "text-success font-weight-bold";
+        async function loadCentersToSelect() {
+            const selectReg = document.getElementById('regEncId');
+            const selectLoc = document.getElementById('incLocationId');
+            try {
+                const response = await fetch('/api/Enc', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.length === 0) {
+                        const empty = '<option value="">Brak placówek w bazie</option>';
+                        if(selectReg) selectReg.innerHTML = empty;
+                        if(selectLoc) selectLoc.innerHTML = empty;
+                        return;
+                    }
+                    const options = data.map(c => `<option value="${c.id}">${c.name} (${c.region})</option>`).join('');
+                    if(selectReg) selectReg.innerHTML = options;
+                    if(selectLoc) selectLoc.innerHTML = options;
+                }
+            } catch (e) {
+                console.error("Błąd pobierania placówek:", e);
             }
         }
 
@@ -336,11 +396,7 @@
                     const available = data.filter(a => a.isAvailable === true).length;
                     document.getElementById('status-medic').textContent = `${available} / ${data.length}`;
                 }
-                document.getElementById('status-police').textContent = "0 / 0";
-                document.getElementById('status-fire').textContent = "0 / 0";
-            } catch (e) {
-                console.error("Błąd Dashboardu:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function loadIncidents() {
@@ -355,54 +411,311 @@
                         tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted p-4">Brak aktywnych zgłoszeń.</td></tr>';
                         return;
                     }
+                    
                     const payload = JSON.parse(atob(token.split('.')[1]));
                     const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
                     const rolesArray = Array.isArray(role) ? role : [role];
                     const isAdmin = rolesArray.includes('Admin') || rolesArray.includes('Admin112');
 
                     tableBody.innerHTML = incidents.map(inc => {
-                        let badgeColor = inc.severity === 'Wysoki' ? 'danger' : (inc.severity === 'Średni' ? 'warning' : 'info');
-                        const photoIcon = inc.photoUrl ? `<a href="${inc.photoUrl}" target="_blank" class="incident-photo-link ml-2" title="Pokaż dowód wizualny"><i class="fas fa-image fa-lg"></i></a>` : "";
+                        let bc = inc.severity === 'Wysoki' ? 'danger' : (inc.severity === 'Średni' ? 'warning' : 'info');
+                        const pi = inc.photoUrl ? `<a href="${inc.photoUrl}" target="_blank" class="incident-photo-link ml-2"><i class="fas fa-image fa-lg"></i></a>` : "";
                         return `
                         <tr>
                             <td class="align-middle font-weight-bold text-primary">${inc.incidentNumber || inc.id.substring(0,8)}</td>
-                            <td class="align-middle">${inc.description} ${photoIcon}</td>
-                            <td class="align-middle"><span class="badge bg-${badgeColor}">${inc.severity}</span></td>
+                            <td class="align-middle">${inc.description} ${pi}</td>
+                            <td class="align-middle"><span class="badge bg-${bc}">${inc.severity}</span></td>
                             <td class="align-middle font-weight-bold">${inc.status}</td>
                             <td class="align-middle text-right">
-                                <button class="btn btn-xs btn-info shadow-sm" onclick="openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')"><i class="fas fa-edit"></i></button>
-                                <button class="btn btn-xs btn-success ml-1 shadow-sm" onclick="openDispatchModal('${inc.id}')"><i class="fas fa-ambulance"></i></button>
-                                ${isAdmin ? `<button class="btn btn-xs btn-danger ml-1 shadow-sm" onclick="deleteIncident('${inc.id}')"><i class="fas fa-trash"></i></button>` : ''}
+                                <div class="btn-group">
+                                    <button class="btn btn-xs btn-info" onclick="openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-xs btn-primary ml-1" onclick="startOperation('${inc.id}', 'police')" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
+                                    <button class="btn btn-xs btn-danger ml-1" onclick="startOperation('${inc.id}', 'fire')" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
+                                    <button class="btn btn-xs btn-success ml-1" onclick="openDispatchModal('${inc.id}')" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
+                                    ${isAdmin ? `<button class="btn btn-xs btn-outline-danger ml-1" onclick="deleteIncident('${inc.id}')"><i class="fas fa-trash"></i></button>` : ''}
+                                </div>
                             </td>
                         </tr>`;
                     }).join('');
                 }
+            } catch (e) { console.error(e); }
+        }
+
+        async function startOperation(incidentId, serviceType) {
+            let url = "";
+            let bodyData = { incidentId: incidentId };
+
+            if (serviceType === 'police') {
+                url = "/api/Dispatch/police/start";
+            } else if (serviceType === 'fire') {
+                url = "/api/Dispatch/fire/start";
+            } else {
+                return;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + token, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (response.ok) {
+                    await refreshAll();
+                } else {
+                    const err = await response.json();
+                    alert("Błąd startu operacji: " + (err.message || "Błąd serwera"));
+                }
             } catch (e) {
-                console.error("Błąd ładowania listy:", e);
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Błąd połączenia.</td></tr>';
+                console.error(e);
             }
         }
 
         document.getElementById('createIncidentForm')?.addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-submit-incident');
+            const locSelect = document.getElementById('incLocationId');
+            
+            if (!locSelect || !locSelect.value) {
+                alert("Proszę wybrać lokalizację placówki!");
+                return;
+            }
+
             btn.disabled = true;
             const formData = new FormData();
             formData.append('Description', document.getElementById('incDescription').value);
             formData.append('Severity', document.getElementById('incSeverity').value);
-            formData.append('LocationId', document.getElementById('incLocationId').value);
+            formData.append('LocationId', locSelect.value);
+            
             const fileInput = document.getElementById('incPhoto');
-            if (fileInput.files[0]) formData.append('photo', fileInput.files[0]);
+            if (fileInput && fileInput.files[0]) formData.append('photo', fileInput.files[0]);
+
             try {
                 const response = await fetch('/api/CPR112/Incidents', {
                     method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + token },
                     body: formData
                 });
+
                 if (response.ok) {
                     document.getElementById('incDescription').value = '';
-                    fileInput.value = '';
-                    document.getElementById('incPhotoLabel').innerText = "Wybierz zdjęcie...";
+                    if(fileInput) fileInput.value = '';
+                    document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
+                    await refreshAll();
+                } else {
+                    const err = await response.json();
+                    alert("Błąd: " + (err.title || err.message || "Niepoprawne dane zgłoszenia."));
+                }
+            } catch (e) { 
+                console.error(e); 
+                alert("Błąd połączenia z serwerem.");
+            } finally { 
+                btn.disabled = false; 
+            }
+        });
+
+        async function loadOperators() {
+            const tableBody = document.getElementById('operators-table-body');
+            if(!tableBody) return;
+            try {
+                const response = await fetch('/api/Operators', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    const data = await response.json();
+                    tableBody.innerHTML = data.map(o => {
+                        let bs = (o.rank === 'Admin112' || o.rank === 'Admin') ? "background-color: #dc3545; color: white;" : (o.rank === 'Dyspozytor112' ? "background-color: #343a40; color: white;" : "background-color: #6c757d; color: white;");
+                        return `
+                        <tr>
+                            <td class="align-middle"><i class="fas fa-user-circle text-secondary mr-2"></i> <b>${o.firstName} ${o.lastName}</b></td>
+                            <td class="align-middle"><span class="badge p-2 shadow-sm" style="${bs} min-width: 100px; display: inline-block;">${o.rank}</span></td>
+                            <td class="align-middle font-italic">${o.stationNumber}</td>
+                            <td class="align-middle text-right">
+                                <button class="btn btn-sm btn-outline-info mr-1" onclick="openEditRankModal('${o.id}', '${o.rank}')">Ranga</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteOperator('${o.id}')"><i class="fas fa-trash-alt"></i></button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function registerNewOperator() {
+            const dto = { 
+                firstName: document.getElementById('regFirstName').value, 
+                lastName: document.getElementById('regLastName').value, 
+                stationNumber: document.getElementById('regStation').value, 
+                email: document.getElementById('regEmail').value, 
+                rank: document.getElementById('regRank').value, 
+                encId: document.getElementById('regEncId').value 
+            };
+            try {
+                const response = await fetch('/api/Operators', { 
+                    method: 'POST', 
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(dto) 
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Konto utworzone! Hasło tymczasowe: ${result.temporaryPassword}`);
+                    loadOperators();
+                } else {
+                    const err = await response.json();
+                    alert("Błąd: " + (err.message || "Nie udało się zarejestrować operatora."));
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadCenters() {
+            const tableBody = document.getElementById('centers-table-body');
+            try {
+                const response = await fetch('/api/Enc', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    const data = await response.json();
+                    tableBody.innerHTML = data.map(c => `
+                        <tr>
+                            <td class="align-middle"><b>${c.name}</b></td>
+                            <td class="align-middle">${c.region || 'Brak'}</td>
+                            <td class="align-middle"><small class="text-muted">${c.id}</small></td>
+                            <td class="text-right align-middle">
+                                <button class="btn btn-xs btn-outline-danger" onclick="deleteCenter('${c.id}')"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>`).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        document.getElementById('createCenterForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dto = { 
+                name: document.getElementById('centerName').value, 
+                region: document.getElementById('centerRegion').value 
+            };
+            try {
+                const response = await fetch('/api/Enc', { 
+                    method: 'POST', 
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(dto) 
+                });
+                if (response.ok) {
+                    document.getElementById('centerName').value = '';
+                    document.getElementById('centerRegion').value = '';
+                    await loadCenters();
+                    await loadCentersToSelect();
+                }
+            } catch (e) { console.error(e); }
+        });
+
+        async function deleteCenter(id) {
+            if (confirm("Usunąć tę placówkę? Operacja jest nieodwracalna.")) {
+                await fetch(`/api/Enc/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+                await loadCenters();
+                await loadCentersToSelect();
+            }
+        }
+
+        async function deleteIncident(id) {
+            if (confirm("Usunąć zgłoszenie?")) {
+                const response = await fetch(`/api/CPR112/Incidents/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    await refreshAll();
+                }
+            }
+        }
+
+        async function deleteOperator(id) {
+            if (confirm("Usunąć operatora?")) {
+                await fetch(`/api/Operators/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+                await loadOperators();
+            }
+        }
+
+        function openEditRankModal(id, r) {
+            document.getElementById('editOperatorId').value = id;
+            document.getElementById('editOperatorRank').value = r;
+            $('#rankModal').modal('show');
+        }
+
+        document.getElementById('changeRankForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const newRank = document.getElementById('editOperatorRank').value;
+            const id = document.getElementById('editOperatorId').value;
+            try {
+                const res = await fetch(`/api/Operators/${id}/rank`, { 
+                    method: 'PUT', 
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ newRank }) 
+                });
+                if (res.ok) {
+                    $('#rankModal').modal('hide');
+                    loadOperators();
+                }
+            } catch (error) { console.error(error); }
+        });
+
+        function checkAdminVisibility() {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
+                const rolesArray = Array.isArray(role) ? role : [role];
+                if (rolesArray.includes('Admin') || rolesArray.includes('Admin112')) { 
+                    togglePanels(); 
+                }
+            } catch (e) { }
+        }
+
+        function togglePanels() {
+            const h = window.location.hash;
+            const ip = document.getElementById('incidents-panel');
+            const op = document.getElementById('operators-panel');
+            const cp = document.getElementById('centers-panel');
+            if(!ip || !op || !cp) return;
+
+            ip.classList.add('d-none'); op.classList.add('d-none'); cp.classList.add('d-none');
+
+            if (h === '#admin-operator-section') { 
+                op.classList.remove('d-none'); 
+                loadOperators(); 
+            } 
+            else if (h === '#admin-centers-section') { 
+                cp.classList.remove('d-none'); 
+                loadCenters(); 
+            }
+            else { 
+                ip.classList.remove('d-none'); 
+                refreshAll(); 
+            }
+        }
+
+        function openEditModal(id, status, priority) {
+            document.getElementById('editIncidentId').value = id;
+            document.getElementById('editIncidentStatus').value = status;
+            document.getElementById('editIncidentPriority').value = priority;
+            document.getElementById('editIncPhoto').value = '';
+            document.getElementById('editIncPhotoLabel').innerText = "Wybierz nowe zdjęcie...";
+            $('#statusModal').modal('show'); 
+        }
+
+        document.getElementById('changeStatusForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-status');
+            btn.disabled = true;
+            const id = document.getElementById('editIncidentId').value;
+            const fd = new FormData();
+            fd.append('NewStatus', document.getElementById('editIncidentStatus').value);
+            fd.append('NewSeverity', document.getElementById('editIncidentPriority').value);
+            const fi = document.getElementById('editIncPhoto');
+            if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);
+
+            try {
+                const response = await fetch(`/api/CPR112/Incidents/${id}/status`, { 
+                    method: 'PUT', 
+                    headers: { 'Authorization': 'Bearer ' + token }, 
+                    body: fd 
+                });
+                if (response.ok) {
+                    $('#statusModal').modal('hide');
                     await refreshAll();
                 }
             } catch (e) { console.error(e); } finally { btn.disabled = false; }
@@ -429,7 +742,9 @@
                             <td class="align-middle"><b>${amb.licensePlate}</b></td>
                             <td class="align-middle"><span class="badge badge-warning">${typeMap[amb.type] || amb.type}</span></td>
                             <td class="align-middle"><small>${amb.hospitalId.substring(0,8)}...</small></td>
-                            <td class="text-right align-middle"><button class="btn btn-sm btn-success font-weight-bold" onclick="confirmDispatch('${amb.id}')">WYŚLIJ</button></td>
+                            <td class="text-right align-middle">
+                                <button class="btn btn-sm btn-success font-weight-bold shadow-sm" onclick="confirmDispatch('${amb.id}')">WYŚLIJ</button>
+                            </td>
                         </tr>`).join('');
                 }
             } catch (e) { console.error(e); }
@@ -444,162 +759,12 @@
                 });
                 if (response.ok) {
                     $('#dispatchAmbulanceModal').modal('hide');
-                    alert("Zadysponowano.");
                     await refreshAll();
+                } else {
+                    const err = await response.json();
+                    alert("Błąd: " + (err.message || "Nie udało się zadysponować karetki."));
                 }
             } catch (e) { console.error(e); }
-        }
-
-async function loadOperators() {
-            const tableBody = document.getElementById('operators-table-body');
-            if(!tableBody) return;
-            try {
-                const response = await fetch('/api/Operators', { headers: { 'Authorization': 'Bearer ' + token } });
-                if (response.ok) {
-                    const data = await response.json();
-                    tableBody.innerHTML = data.map(o => {
-                        let badgeStyle = "";
-                        
-                        if (o.rank === 'Admin112' || o.rank === 'Admin') {
-                            badgeStyle = "background-color: #dc3545; color: white;";
-                        } else if (o.rank === 'Dyspozytor112') {
-                            badgeStyle = "background-color: #343a40; color: white;";
-                        } else {
-                            badgeStyle = "background-color: #6c757d; color: white;";
-                        }
-
-                        return `
-                        <tr>
-                            <td class="align-middle"><i class="fas fa-user-circle text-secondary mr-2"></i> <b>${o.firstName} ${o.lastName}</b></td>
-                            <td class="align-middle">
-                                <span class="badge p-2 shadow-sm" style="${badgeStyle} min-width: 100px; display: inline-block;">
-                                    ${o.rank}
-                                </span>
-                            </td>
-                            <td class="align-middle font-italic">${o.stationNumber}</td>
-                            <td class="align-middle text-right">
-                                <button class="btn btn-sm btn-outline-info mr-1" onclick="openEditRankModal('${o.id}', '${o.rank}')">Ranga</button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteOperator('${o.id}')"><i class="fas fa-trash-alt"></i></button>
-                            </td>
-                        </tr>`;
-                    }).join('');
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function registerNewOperator() {
-            const dto = { 
-                firstName: document.getElementById('regFirstName').value, 
-                lastName: document.getElementById('regLastName').value, 
-                stationNumber: document.getElementById('regStation').value, 
-                email: document.getElementById('regEmail').value, 
-                rank: document.getElementById('regRank').value, 
-                encId: document.getElementById('regEncId').value 
-            };
-            try {
-                const response = await fetch('/api/Operators', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dto)
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    alert(`Hasło: ${result.temporaryPassword}`);
-                    loadOperators();
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        function openEditRankModal(id, r) {
-            document.getElementById('editOperatorId').value = id;
-            document.getElementById('editOperatorRank').value = r;
-            $('#rankModal').modal('show');
-        }
-
-        document.getElementById('changeRankForm')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const newRank = document.getElementById('editOperatorRank').value;
-            const id = document.getElementById('editOperatorId').value;
-            try {
-                await fetch(`/api/Operators/${id}/rank`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ newRank })
-                });
-                $('#rankModal').modal('hide');
-                loadOperators();
-            } catch (error) { console.error(error); }
-        });
-
-        function checkAdminVisibility() {
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
-                const rolesArray = Array.isArray(role) ? role : [role];
-                if (rolesArray.includes('Admin') || rolesArray.includes('Admin112')) {
-                    togglePanels(); 
-                    loadOperators();
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        function togglePanels() {
-            const hash = window.location.hash;
-            const incPanel = document.getElementById('incidents-panel');
-            const opPanel = document.getElementById('operators-panel');
-            if (hash === '#admin-operator-section') {
-                incPanel.classList.add('d-none');
-                opPanel.classList.remove('d-none');
-            } else {
-                incPanel.classList.remove('d-none');
-                opPanel.classList.add('d-none');
-            }
-        }
-
-        function openEditModal(id, status, priority) {
-            document.getElementById('editIncidentId').value = id;
-            document.getElementById('editIncidentStatus').value = status;
-            document.getElementById('editIncidentPriority').value = priority;
-            document.getElementById('editIncPhoto').value = '';
-            document.getElementById('editIncPhotoLabel').innerText = "Wybierz nowe zdjęcie...";
-            $('#statusModal').modal('show'); 
-        }
-
-        document.getElementById('changeStatusForm')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btn-save-status');
-            const id = document.getElementById('editIncidentId').value;
-            btn.disabled = true;
-            const formData = new FormData();
-            formData.append('NewStatus', document.getElementById('editIncidentStatus').value);
-            formData.append('NewSeverity', document.getElementById('editIncidentPriority').value);
-            const fileInput = document.getElementById('editIncPhoto');
-            if (fileInput.files[0]) formData.append('newPhoto', fileInput.files[0]);
-            try {
-                const response = await fetch(`/api/CPR112/Incidents/${id}/status`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + token },
-                    body: formData
-                });
-                if (response.ok) {
-                    $('#statusModal').modal('hide');
-                    await refreshAll();
-                }
-            } catch (e) { console.error(e); } finally { btn.disabled = false; }
-        });
-
-        async function deleteIncident(id) {
-            if (confirm("Usunąć?")) {
-                await fetch(`/api/CPR112/Incidents/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
-                await refreshAll();
-            }
-        }
-
-        async function deleteOperator(id) {
-            if (confirm("Usunąć?")) {
-                await fetch(`/api/Operators/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
-                loadOperators();
-            }
         }
     </script>
 }

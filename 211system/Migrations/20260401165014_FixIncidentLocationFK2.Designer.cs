@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using _211system.Data;
@@ -11,9 +12,11 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    partial class _211DbContextModelSnapshot : ModelSnapshot
+    [Migration("20260401165014_FixIncidentLocationFK2")]
+    partial class FixIncidentLocationFK2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -117,15 +120,6 @@ namespace _211system.Migrations
                     b.Property<string>("IncidentNumber")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("IsFireActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsMedicalActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsPoliceActive")
-                        .HasColumnType("boolean");
 
                     b.Property<Guid>("LocationId")
                         .HasColumnType("uuid");
