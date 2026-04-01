@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260325185401_AddAvatarUrl")]
-    partial class AddAvatarUrl
+    [Migration("20260401143745_UpdateAmbulanceStatus")]
+    partial class UpdateAmbulanceStatus
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -745,8 +745,14 @@ namespace _211system.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CurrentIncidentId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("HospitalId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("LicensePlate")
                         .IsRequired()
@@ -917,6 +923,11 @@ namespace _211system.Migrations
                     b.Property<string>("ParaAccountId")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("Rank")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("Specialization")
                         .IsRequired()

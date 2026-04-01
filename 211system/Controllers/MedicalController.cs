@@ -25,7 +25,7 @@ namespace _211system.Controllers
         }
 
         [HttpGet("hospitals")]
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetAllHospitals()
         {
             var result = await _medicalService.GetAllHospitalsAsync();
@@ -49,7 +49,7 @@ namespace _211system.Controllers
         }
 
         [HttpPost("operations/start")]
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> StartOperation([FromQuery] Guid paramedicId, [FromQuery] Guid reportId)
         {
             await _medicalService.StartMedicalOperationAsync(paramedicId, reportId);
@@ -64,6 +64,7 @@ namespace _211system.Controllers
             return Ok("Zakończono akcję medyczną.");
         }
 
+
         [HttpPost("ambulances")]
         [Authorize(Roles = "Admin, Kierownik Szpitala")]
         public async Task<IActionResult> CreateAmbulance([FromBody] CreateAmbulanceDto dto)
@@ -73,11 +74,26 @@ namespace _211system.Controllers
         }
 
         [HttpGet("ambulances")]
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetAllAmbulances()
         {
             var result = await _medicalService.GetAllAmbulancesAsync();
             return Ok(result);
+        }
+
+        [HttpGet("ambulances/available")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Kierownik Szpitala")]
+        public async Task<IActionResult> GetAvailableAmbulances()
+        {
+            var result = await _medicalService.GetAvailableAmbulancesAsync();
+            return Ok(result);
+        }
+        [HttpPut("ambulances/{ambulanceId}/assign/{incidentId}")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> AssignAmbulanceToIncident(Guid ambulanceId, Guid incidentId)
+        {
+            await _medicalService.AssignAmbulanceToIncidentAsync(ambulanceId, incidentId);
+            return Ok("Karetka została zadysponowana do zgłoszenia.");
         }
     }
 }

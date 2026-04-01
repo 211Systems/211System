@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using _211system.Models;
+using _211system.Models.Interfaces;
 
 namespace _211system.Controllers
 {
@@ -16,19 +17,33 @@ namespace _211system.Controllers
     {
         private readonly IIncidentService _incidentService;
         private readonly _211DbContext _context;
+        private readonly IBlobStorageService _blobStorageService;
 
-
-        public IncidentsController(IIncidentService incidentService, _211DbContext context)
+        public IncidentsController(IIncidentService incidentService, _211DbContext context, IBlobStorageService blobStorageService)
         {
             _incidentService = incidentService;
             _context = context;
+            _blobStorageService = blobStorageService;
         }
 
         [HttpPost]
-        public async Task<ActionResult<IncidentDto>> CreateIncident([FromBody] CreateIncidentDto dto)
+        public async Task<ActionResult<IncidentDto>> CreateIncident([FromForm] CreateIncidentDto dto, IFormFile? photo)
         {
-            var result = await _incidentService.CreateIncidentAsync(dto);
-            return Ok(result);
+            try
+            {
+                if (photo != null && photo.Length > 0)
+                {
+                    var photoUrl = await _blobStorageService.UploadAsync(photo, "incidents");
+                    dto.PhotoUrl = photoUrl;
+                }
+
+                var result = await _incidentService.CreateIncidentAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd podczas tworzenia zgłoszenia.", error = ex.Message });
+            }
         }
 
         [HttpGet]
@@ -56,11 +71,10 @@ namespace _211system.Controllers
         }
 
         [HttpPut("{id}/status")]
-        public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangeIncidentStatusDto dto)
+        public async Task<IActionResult> ChangeStatus(Guid id, [FromForm] ChangeIncidentStatusDto dto, IFormFile? newPhoto)
         {
             try
             {
-
                 var ApplicationUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (ApplicationUserId == null)
                     return Unauthorized("Brak autoryzacji (niewłaściwy lub brakujący token).");
@@ -69,6 +83,17 @@ namespace _211system.Controllers
                     .FirstOrDefaultAsync(o => o.OpAccountId == ApplicationUserId);
 
                 Guid operatorId = currentOperator?.Id ?? Guid.Empty;
+
+                if (newPhoto != null && newPhoto.Length > 0)
+                {
+                    var incident = await _context.Incidents.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+                    if (incident != null && !string.IsNullOrEmpty(incident.PhotoUrl))
+                    {
+                        await _blobStorageService.DeleteAsync(incident.PhotoUrl, "incidents");
+                    }
+
+                    dto.NewPhotoUrl = await _blobStorageService.UploadAsync(newPhoto, "incidents");
+                }
 
                 await _incidentService.ChangeIncidentStatusAsync(id, operatorId, dto);
 
@@ -91,16 +116,21 @@ namespace _211system.Controllers
             try
             {
                 var incident = await _context.Incidents.FindAsync(id);
-                
+
                 if (incident == null)
                 {
                     return NotFound(new { message = "Nie znaleziono zgłoszenia o podanym ID." });
                 }
 
+                if (!string.IsNullOrEmpty(incident.PhotoUrl))
+                {
+                    await _blobStorageService.DeleteAsync(incident.PhotoUrl, "incidents");
+                }
+
                 _context.Incidents.Remove(incident);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Zgłoszenie zostało trwale usunięte z bazy." });
+                return Ok(new { message = "Zgłoszenie zostało trwale usunięte z bazy (wraz z załącznikiem)." });
             }
             catch (Exception ex)
             {

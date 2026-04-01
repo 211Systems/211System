@@ -9,6 +9,7 @@ namespace _211system.DTOs.CPR112
         public string Severity { get; set; } = string.Empty; 
         public Guid LocationId { get; set; }
         public Guid? OperatorId { get; set; }
+        public string? PhotoUrl { get; set; } 
     }
 
     public class IncidentDto : CreateIncidentDto
@@ -19,10 +20,11 @@ namespace _211system.DTOs.CPR112
         public DateTime ReportedAt { get; set; }
     }
 
-   public class ChangeIncidentStatusDto
-{
-    public string NewStatus { get; set; } = string.Empty;
-    public string NewSeverity { get; set; } = string.Empty;
-    public Guid OperatorId { get; set; }
-}
+    public class ChangeIncidentStatusDto
+    {
+        public string NewStatus { get; set; } = string.Empty;
+        public string NewSeverity { get; set; } = string.Empty;
+        public Guid OperatorId { get; set; }
+        public string? NewPhotoUrl { get; set; }
+    }
 }
