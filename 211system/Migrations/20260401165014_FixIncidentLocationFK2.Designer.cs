@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260325204901_AddAvata")]
-    partial class AddAvata
+    [Migration("20260401165014_FixIncidentLocationFK2")]
+    partial class FixIncidentLocationFK2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -127,6 +127,9 @@ namespace _211system.Migrations
                     b.Property<Guid?>("OperatorId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("ReportDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -145,31 +148,6 @@ namespace _211system.Migrations
                     b.HasIndex("OperatorId");
 
                     b.ToTable("Incidents");
-                });
-
-            modelBuilder.Entity("CPR112.Models.Location", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<double>("Latitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("Longitude")
-                        .HasColumnType("double precision");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Locations");
                 });
 
             modelBuilder.Entity("CPR112.Models.NasaFlarePoint", b =>
@@ -745,8 +723,14 @@ namespace _211system.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CurrentIncidentId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("HospitalId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("LicensePlate")
                         .IsRequired()
@@ -918,6 +902,11 @@ namespace _211system.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Rank")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("Specialization")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1008,7 +997,7 @@ namespace _211system.Migrations
 
             modelBuilder.Entity("CPR112.Models.Incident", b =>
                 {
-                    b.HasOne("CPR112.Models.Location", "Location")
+                    b.HasOne("CPR112.Models.Enc", "Location")
                         .WithMany()
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Restrict)

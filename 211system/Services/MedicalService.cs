@@ -10,12 +10,13 @@ namespace _211system.Services
     {
         private readonly _211DbContext _context;
         private readonly IAuthService _authService;
+
         public MedicalService(_211DbContext context, IAuthService authService)
         {
             _context = context;
             _authService = authService;
         }
-
+        
         public async Task<HospitalDto> CreateHospitalAsync(CreateHospitalDto dto)
         {
             var hospital = new Hospital
@@ -29,10 +30,10 @@ namespace _211system.Services
             await _context.SaveChangesAsync();
             return new HospitalDto { Id = hospital.Id, Name = hospital.Name, HasSOR = hospital.HasSOR, Address = hospital.Address };
         }
+
         public async Task<IEnumerable<HospitalDto>> GetAllHospitalsAsync()
         {
             var hospitals = await _context.Hospitals.ToListAsync();
-
             return hospitals.Select(h => new HospitalDto
             {
                 Id = h.Id,
@@ -41,7 +42,7 @@ namespace _211system.Services
                 Address = h.Address
             });
         }
-
+        
         public async Task<IEnumerable<ParamedicDto>> GetAllParamedicsAsync()
         {
             var paramedics = await _context.Paramedics
@@ -61,6 +62,7 @@ namespace _211system.Services
                 Email = p.ParaAccount?.Email ?? "Brak"
             });
         }
+
         public async Task<ParamedicDto> CreateParamedicAsync(CreateParamedicDto dto)
         {
             var accountResult = await _authService.CreateTemporaryAccountAsync(dto.Email, dto.Rank);
@@ -94,6 +96,85 @@ namespace _211system.Services
             };
         }
 
+        public async Task<AmbulanceDto> CreateAmbulanceAsync(CreateAmbulanceDto dto)
+        {
+            var ambulance = new Ambulance
+            {
+                Type = dto.Type,
+                LicensePlate = dto.LicensePlate,
+                HospitalId = dto.HospitalId,
+                IsAvailable = true
+            };
+
+            await _context.Ambulances.AddAsync(ambulance);
+            await _context.SaveChangesAsync();
+
+            return new AmbulanceDto
+            {
+                Id = ambulance.Id,
+                Type = ambulance.Type,
+                LicensePlate = ambulance.LicensePlate,
+                HospitalId = ambulance.HospitalId,
+                IsAvailable = ambulance.IsAvailable
+            };
+        }
+
+        public async Task<IEnumerable<AmbulanceDto>> GetAllAmbulancesAsync()
+        {
+            var ambulances = await _context.Ambulances.ToListAsync();
+            return ambulances.Select(a => new AmbulanceDto
+            {
+                Id = a.Id,
+                Type = a.Type,
+                LicensePlate = a.LicensePlate,
+                HospitalId = a.HospitalId,
+                IsAvailable = a.IsAvailable
+            });
+        }
+        
+        public async Task<IEnumerable<AmbulanceDto>> GetAvailableAmbulancesAsync()
+        {
+            var available = await _context.Ambulances
+                .Where(a => a.IsAvailable == true)
+                .ToListAsync();
+
+            return available.Select(a => new AmbulanceDto
+            {
+                Id = a.Id,
+                Type = a.Type,
+                LicensePlate = a.LicensePlate,
+                HospitalId = a.HospitalId,
+                IsAvailable = true
+            });
+        }
+        
+        public async Task AssignAmbulanceToIncidentAsync(Guid ambulanceId, Guid incidentId)
+        {
+            var ambulance = await _context.Ambulances.FindAsync(ambulanceId);
+            if (ambulance == null) throw new ArgumentException("Karetka nie istnieje.");
+
+            if (!ambulance.IsAvailable) 
+                throw new InvalidOperationException("Ta karetka jest już w trakcie innej akcji.");
+            
+            ambulance.IsAvailable = false;
+            ambulance.CurrentIncidentId = incidentId; 
+            
+            var incident = await _context.Incidents.FindAsync(incidentId);
+            if (incident != null)
+            {
+                incident.IsMedicalActive = true; 
+                
+                if (incident.Status == "Nowe")
+                {
+                    incident.Status = "W toku";
+                }
+                _context.Incidents.Update(incident);
+            }
+
+            _context.Ambulances.Update(ambulance);
+            await _context.SaveChangesAsync();
+        }
+        
         public async Task<Guid> StartMedicalOperationAsync(Guid paramedicId, Guid reportId)
         {
             var paramedicExists = await _context.Paramedics.AnyAsync(p => p.Id == paramedicId);
@@ -122,45 +203,27 @@ namespace _211system.Services
         {
             var operation = await _context.MedicalOperations.FindAsync(operationId);
             if (operation == null) throw new ArgumentException("Nie znaleziono takiej operacji.");
+            
             if (operation.EndTime != null)
             {
                 throw new InvalidOperationException("Ta akcja została już wcześniej zakończona.");
             }
+            
             operation.EndTime = DateTime.UtcNow;
             _context.MedicalOperations.Update(operation);
+            
+            var ambulances = await _context.Ambulances
+                .Where(a => a.CurrentIncidentId == operation.ReportId)
+                .ToListAsync();
+                
+            foreach(var amb in ambulances)
+            {
+                amb.IsAvailable = true;
+                amb.CurrentIncidentId = null;
+                _context.Ambulances.Update(amb);
+            }
+
             await _context.SaveChangesAsync();
-        }
-        public async Task<AmbulanceDto> CreateAmbulanceAsync(CreateAmbulanceDto dto)
-        {
-            var ambulance = new Ambulance
-            {
-                Type = dto.Type,
-                LicensePlate = dto.LicensePlate,
-                HospitalId = dto.HospitalId
-            };
-
-            await _context.Ambulances.AddAsync(ambulance);
-            await _context.SaveChangesAsync();
-
-            return new AmbulanceDto
-            {
-                Id = ambulance.Id,
-                Type = ambulance.Type,
-                LicensePlate = ambulance.LicensePlate,
-                HospitalId = ambulance.HospitalId
-            };
-        }
-
-        public async Task<IEnumerable<AmbulanceDto>> GetAllAmbulancesAsync()
-        {
-            var ambulances = await _context.Ambulances.ToListAsync();
-            return ambulances.Select(a => new AmbulanceDto
-            {
-                Id = a.Id,
-                Type = a.Type,
-                LicensePlate = a.LicensePlate,
-                HospitalId = a.HospitalId
-            });
         }
     }
 }

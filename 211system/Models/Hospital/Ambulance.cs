@@ -22,5 +22,8 @@ namespace _211system.Models.Hospital
         public virtual Hospital Hospital { get; set; }
 
         public virtual ICollection<AmbulanceEquipment> Equipment { get; set; } = new List<AmbulanceEquipment>();
+
+        public bool IsAvailable { get; set; } = true;
+        public Guid? CurrentIncidentId { get; set; }
     }
 }

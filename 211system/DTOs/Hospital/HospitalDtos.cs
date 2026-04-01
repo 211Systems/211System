@@ -24,6 +24,7 @@ namespace _211system.DTOs.Hospital
     public class AmbulanceDto : CreateAmbulanceDto
     {
         public Guid Id { get; set; }
+        public bool IsAvailable { get; set; } 
     }
 
     public class CreateParamedicDto
@@ -32,17 +33,15 @@ namespace _211system.DTOs.Hospital
         public string LastName { get; set; }
         public string LicenseNumber { get; set; }
         public string Specialization { get; set; }
-        public string ParaAccountId { get; set; }
         public string Email { get; set; }
         public string Rank { get; set; }
         public Guid HospitalId { get; set; }
+        public string ParaAccountId { get; set; }
     }
 
     public class ParamedicDto : CreateParamedicDto
     {
         public Guid Id { get; set; }
-        public string ParaAccountId { get; set; }
-
-        public string TemporaryPassword { get; set; }
+        public string? TemporaryPassword { get; set; }
     }
 }

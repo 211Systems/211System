@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260326074914_AddParamedicRank")]
-    partial class AddParamedicRank
+    [Migration("20260401142838_migracja4")]
+    partial class migracja4
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
