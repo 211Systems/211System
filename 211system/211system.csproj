@@ -28,7 +28,6 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\dist\.astro\" />
-    <Folder Include="wwwroot\admindemo\" />
   </ItemGroup>
 
 </Project>

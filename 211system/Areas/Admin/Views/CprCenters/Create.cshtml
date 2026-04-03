@@ -33,40 +33,17 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/api-form-handler.js"></script>
     <script>
-        document.getElementById('createCprForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const token = localStorage.getItem('jwt');
-            const errorMsg = document.getElementById('form-error');
-
-            const requestData = {
+        setupApiFormSubmit({
+            formId: 'createCprForm',
+            apiUrl: '/api/Cpr',
+            redirectUrl: '/Admin/CprCenters',
+            defaultErrorMsg: 'Błąd podczas dodawania centrum.',
+            buildPayload: () => ({
                 name: document.getElementById('name').value,
                 region: document.getElementById('region').value
-            };
-
-            try {
-                const response = await fetch('/api/Cpr', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                if (response.ok) {
-                    window.location.href = '/Admin/CprCenters';
-                } else {
-                    const errorData = await response.json();
-                    errorMsg.textContent = errorData.message || "Błąd podczas dodawania centrum.";
-                    errorMsg.classList.remove('d-none');
-                }
-            } catch (error) {
-                errorMsg.textContent = "Błąd połączenia z serwerem.";
-                errorMsg.classList.remove('d-none');
-                console.error(error);
-            }
+            })
         });
     </script>
 }

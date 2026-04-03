@@ -97,123 +97,39 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/api-details-handler.js"></script>
     <script>
-        const departmentId = "@departmentId";
-        const token = localStorage.getItem('jwt');
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            await loadDepartmentDetails();
-            await loadStaff();
-        });
-
-        async function loadDepartmentDetails() {
-            try {
-                const response = await fetch('/api/Medical/hospitals', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (response.ok) {
-                    const depts = await response.json();
-                    const myDept = depts.find(d => d.id === departmentId || d.Id === departmentId);
-
-                    if (myDept) {
-                        document.getElementById('dept-name').textContent = myDept.name || myDept.Name;
-                        document.getElementById('dept-address').textContent = myDept.address || myDept.Address;
-
-                        const hasSOR = myDept.hasSOR !== undefined ? myDept.hasSOR : myDept.HasSOR;
-                        document.getElementById('dept-sor').innerHTML = hasSOR
-                            ? '<span class="badge bg-success">Posiada SOR</span>'
-                            : '<span class="badge bg-danger">Brak SOR</span>';
-                    } else {
-                        document.getElementById('dept-name').textContent = "Nie znaleziono Szpitala";
-                    }
-                }
-            } catch (error) { console.error("Błąd pobierania szpitala:", error); }
-        }
-
-        async function loadStaff() {
-            const tableBody = document.getElementById('staff-table-body');
-            try {
-                const response = await fetch('/api/Medical/paramedics', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (response.ok) {
-                    const allStaff = await response.json();
-                    const myStaff = allStaff.filter(p => p.hospitalId === departmentId || p.HospitalId === departmentId);
-
-                    tableBody.innerHTML = '';
-                    if(myStaff.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Brak przypisanego personelu.</td></tr>';
-                        return;
-                    }
-
-                    myStaff.forEach(p => {
-                        const row = `<tr>
-                            <td><span class="badge bg-success">${p.specialization || p.Specialization}</span></td>
-                            <td>${p.name || p.Name} ${p.lastName || p.LastName}</td>
-                            <td>${p.licenseNumber || p.LicenseNumber}</td>
-                            <td>${p.email || p.Email}</td>
-                        </tr>`;
-                        tableBody.insertAdjacentHTML('beforeend', row);
-                    });
-                }
-            } catch (error) { console.error("Błąd pobierania personelu:", error); }
-        }
-
-        document.getElementById('addStaffForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const btnSubmit = document.getElementById('btn-submit-staff');
-            const errorMsg = document.getElementById('staff-error');
-            const successAlert = document.getElementById('generated-password-alert');
-
-            btnSubmit.disabled = true;
-            errorMsg.classList.add('d-none');
-
-            const requestData = {
+        setupDepartmentDetails({
+            departmentId: "@departmentId",
+            endpoints: {
+                department: '/api/Medical/hospitals',
+                staff: '/api/Medical/paramedics',
+                addStaff: '/api/Medical/paramedics'
+            },
+            foreignKeyField: 'hospitalId',
+            emptyStaffColspan: 4,
+            renderDepartment: (dept) => {
+                document.getElementById('dept-name').textContent = dept.name || dept.Name;
+                document.getElementById('dept-address').textContent = dept.address || dept.Address;
+                const hasSOR = dept.hasSOR !== undefined ? dept.hasSOR : dept.HasSOR;
+                document.getElementById('dept-sor').innerHTML = hasSOR
+                    ? '<span class="badge bg-success">Posiada SOR</span>'
+                    : '<span class="badge bg-danger">Brak SOR</span>';
+            },
+            renderStaffRow: (p) => `<tr>
+                <td><span class="badge bg-success">${p.specialization || p.Specialization}</span></td>
+                <td>${p.name || p.Name} ${p.lastName || p.LastName}</td>
+                <td>${p.licenseNumber || p.LicenseNumber}</td>
+                <td>${p.email || p.Email}</td>
+            </tr>`,
+            buildStaffPayload: () => ({
                 name: document.getElementById('staffName').value,
                 lastName: document.getElementById('staffSurname').value,
                 email: document.getElementById('staffEmail').value,
                 licenseNumber: document.getElementById('staffLicense').value,
                 specialization: document.getElementById('staffSpecialization').value,
-                hospitalId: departmentId
-            };
-
-            try {
-                const response = await fetch('/api/Medical/paramedics', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-
-                    document.getElementById('temp-password-display').textContent = result.password || result.temporaryPassword || "Temp!234";
-
-                    successAlert.classList.remove('d-none');
-                    btnSubmit.classList.add('d-none');
-
-                    await loadStaff();
-                } else {
-                    const errorData = await response.json();
-                    console.error(errorData);
-
-                    if(errorData.errors) {
-                        errorMsg.innerHTML = Object.values(errorData.errors).join("<br/>");
-                    } else {
-                        errorMsg.textContent = errorData.message || "Błąd walidacji lub serwera.";
-                    }
-                    errorMsg.classList.remove('d-none');
-                    btnSubmit.disabled = false;
-                }
-            } catch (error) {
-                errorMsg.textContent = "Błąd połączenia z serwerem.";
-                errorMsg.classList.remove('d-none');
-                btnSubmit.disabled = false;
-            }
+                hospitalId: "@departmentId"
+            })
         });
     </script>
 }
