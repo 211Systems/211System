@@ -10,10 +10,12 @@ namespace _211system.Models.Hospital
 
         [Required]
         [MaxLength(100)]
-        public string ItemName { get; set; }
+        public string Name { get; set; }
 
         [Required]
         public Guid AmbulanceId { get; set; }
+
+        public int Quantity { get; set; }
 
         [ForeignKey(nameof(AmbulanceId))]
         public virtual Ambulance Ambulance { get; set; }

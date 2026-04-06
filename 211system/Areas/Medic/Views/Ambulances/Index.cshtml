@@ -5,7 +5,7 @@
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="m-0 text-success"><i class="fas fa-ambulance"></i> Zarządzanie Flotą Ambulansów</h1>
-        <a href="/Medic/Ambulances/Create" class="btn btn-success"><i class="fas fa-plus"></i> Dodaj Karetkę</a>
+        <a href="/Medic/Ambulances/Create" class="btn btn-success d-none" id="btn-add-ambulance"><i class="fas fa-plus"></i> Dodaj Karetkę</a>
     </div>
 </div>
 
@@ -38,10 +38,121 @@
     </div>
 </div>
 
+<div class="modal fade" id="editAmbulanceModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark"><i class="fas fa-edit"></i> Edytuj Karetkę</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editAmbulanceForm">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-amb-id">
+                    <div class="form-group">
+                        <label>Numer Rejestracyjny</label>
+                        <input type="text" id="edit-amb-plate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Typ Ambulansu</label>
+                        <select id="edit-amb-type" class="form-control" required>
+                            <option value="0">S - Specjalistyczna</option>
+                            <option value="1">T - Transportowa</option>
+                            <option value="2">P - Podstawowa</option>
+                            <option value="3">N - Neonatologiczna</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="equipmentModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title"><i class="fas fa-medkit"></i> Wyposażenie Karetki</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Nazwa Sprzętu</th>
+                            <th style="width: 100px;" class="text-center">Ilość</th>
+                            <th style="width: 80px;" class="text-right">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eq-table-body">
+                        <tr><td colspan="3" class="text-center">Ładowanie wyposażenia...</td></tr>
+                    </tbody>
+                </table>
+                <hr>
+                <form id="addEqForm" class="d-none">
+                    <input type="hidden" id="eq-amb-id">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <input type="text" id="eq-name" class="form-control form-control-sm" placeholder="Nazwa sprzętu (np. Defibrylator)" required>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" id="eq-qty" class="form-control form-control-sm" placeholder="Ilość" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-info btn-block"><i class="fas fa-plus"></i> Dodaj</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
         const token = localStorage.getItem('jwt');
+
+        window.currentUserRoles = [];
+        window.currentUserEmail = "";
+        window.myHospitalId = null;
+
+        if (token) {
+            try {
+                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const decoded = JSON.parse(window.atob(base64));
+                let role = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                window.currentUserRoles = Array.isArray(role) ? role : [role];
+                window.currentUserEmail = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decoded.email || "";
+            } catch (e) {}
+        }
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            const isAdmin = window.currentUserRoles.includes("Admin");
+            const isKierownik = window.currentUserRoles.includes("Kierownik Szpitala");
+
+            if (isAdmin || isKierownik) {
+                document.getElementById('btn-add-ambulance').classList.remove('d-none');
+            }
+
+            if (isKierownik && !isAdmin) {
+                try {
+                    const paramRes = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + token } });
+                    if (paramRes.ok) {
+                        const pList = await paramRes.json();
+                        const myRec = pList.find(p => p.email === window.currentUserEmail || p.Email === window.currentUserEmail);
+                        if (myRec) window.myHospitalId = myRec.hospitalId || myRec.HospitalId;
+                    }
+                } catch (e) { console.error(e); }
+            }
+        });
 
         window.assignAmbulance = async function(ambulanceId) {
             const incidentId = prompt("Wprowadź ID zgłoszenia 112 (GUID):");
@@ -96,9 +207,22 @@
                     ? '<span class="badge bg-success">Dostępna</span>'
                     : '<span class="badge bg-danger">W akcji</span>';
 
-                const actionBtn = isAvailable
-                    ? `<button class="btn btn-xs btn-primary" onclick="window.assignAmbulance('${amb.id || amb.Id}')">Zadysponuj</button>`
-                    : `<button class="btn btn-xs btn-secondary" disabled>Zajęta</button>`;
+                let actionBtn = isAvailable
+                    ? `<button class="btn btn-xs btn-primary mr-1" onclick="window.assignAmbulance('${amb.id || amb.Id}')">Zadysponuj</button>`
+                    : `<button class="btn btn-xs btn-secondary mr-1" disabled>Zajęta</button>`;
+
+                const hId = amb.hospitalId || amb.HospitalId;
+                const isAdmin = window.currentUserRoles.includes("Admin");
+                const isKierownik = window.currentUserRoles.includes("Kierownik Szpitala");
+                const canManage = isAdmin || (isKierownik && hId === window.myHospitalId);
+
+                if (canManage) {
+                    actionBtn += `
+                        <button onclick="window.openEqModal('${amb.id || amb.Id}', ${canManage})" class="btn btn-xs btn-info mr-1" title="Wyposażenie"><i class="fas fa-medkit"></i></button>
+                        <button onclick="window.openEditModal('${amb.id || amb.Id}', '${amb.licensePlate || amb.LicensePlate}', ${typeVal})" class="btn btn-xs btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.deleteAmbulance('${amb.id || amb.Id}')" class="btn btn-xs btn-danger" title="Usuń"><i class="fas fa-trash"></i></button>
+                    `;
+                }
 
                 return `
                     <tr>
@@ -107,10 +231,118 @@
                         <td><span class="badge bg-warning text-dark">${typeBadge}</span></td>
                         <td><i class="fas fa-hospital text-muted mr-1"></i> ${amb.hospitalName}</td>
                         <td>${statusBadge}</td>
-                        <td>${actionBtn}</td>
+                        <td style="white-space: nowrap;">${actionBtn}</td>
                     </tr>
                 `;
             }
         });
+
+        window.deleteAmbulance = async function(id) {
+            if (!confirm("Czy na pewno chcesz wyrejestrować tę karetkę?")) return;
+            try {
+                const res = await fetch(`/api/Medical/ambulances/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) window.location.reload();
+                else alert("Błąd podczas usuwania karetki.");
+            } catch (e) { alert("Błąd sieci."); }
+        }
+
+        window.openEditModal = function(id, plate, type) {
+            document.getElementById('edit-amb-id').value = id;
+            document.getElementById('edit-amb-plate').value = plate;
+            document.getElementById('edit-amb-type').value = type;
+            $('#editAmbulanceModal').modal('show');
+        }
+
+        document.getElementById('editAmbulanceForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-amb-id').value;
+            const data = {
+                licensePlate: document.getElementById('edit-amb-plate').value,
+                type: parseInt(document.getElementById('edit-amb-type').value)
+            };
+
+            try {
+                const res = await fetch(`/api/Medical/ambulances/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    $('#editAmbulanceModal').modal('hide');
+                    window.location.reload();
+                } else alert("Błąd podczas edycji.");
+            } catch(e) { alert("Błąd sieci."); }
+        });
+
+        window.openEqModal = function(ambulanceId, canManage) {
+            document.getElementById('eq-amb-id').value = ambulanceId;
+            const addForm = document.getElementById('addEqForm');
+            
+            if (canManage) addForm.classList.remove('d-none');
+            else addForm.classList.add('d-none');
+
+            window.loadEquipment(ambulanceId, canManage);
+            $('#equipmentModal').modal('show');
+        }
+
+        window.loadEquipment = async function(ambulanceId, canManage) {
+            const tbody = document.getElementById('eq-table-body');
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">Ładowanie...</td></tr>';
+            try {
+                const res = await fetch(`/api/Medical/ambulances/${ambulanceId}/equipment`, { headers: { 'Authorization': 'Bearer ' + token }});
+                if (res.ok) {
+                    const eqList = await res.json();
+                    tbody.innerHTML = '';
+                    if (eqList.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Brak wyposażenia.</td></tr>';
+                        return;
+                    }
+                    eqList.forEach(eq => {
+                        const eId = eq.id || eq.Id;
+                        let delBtn = '';
+                        if (canManage) {
+                            delBtn = `<button onclick="window.deleteEq('${eId}', '${ambulanceId}')" class="btn btn-xs btn-danger"><i class="fas fa-times"></i></button>`;
+                        }
+                        tbody.insertAdjacentHTML('beforeend', `<tr>
+                            <td>${eq.name || eq.Name}</td>
+                            <td class="text-center"><b>${eq.quantity || eq.Quantity}</b></td>
+                            <td class="text-right">${delBtn}</td>
+                        </tr>`);
+                    });
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        document.getElementById('addEqForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const ambulanceId = document.getElementById('eq-amb-id').value;
+            const data = {
+                name: document.getElementById('eq-name').value,
+                quantity: parseInt(document.getElementById('eq-qty').value)
+            };
+
+            try {
+                const res = await fetch(`/api/Medical/ambulances/${ambulanceId}/equipment`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    document.getElementById('eq-name').value = '';
+                    document.getElementById('eq-qty').value = '1';
+                    await window.loadEquipment(ambulanceId, true);
+                }
+            } catch(e) { alert("Błąd sieci."); }
+        });
+
+        window.deleteEq = async function(eqId, ambulanceId) {
+            try {
+                const res = await fetch(`/api/Medical/equipment/${eqId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }});
+                if (res.ok) await window.loadEquipment(ambulanceId, true);
+            } catch(e) { alert("Błąd sieci."); }
+        }
     </script>
 }

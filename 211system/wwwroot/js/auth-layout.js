@@ -1,12 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", updateLayoutBasedOnAuth);
-
-window.addEventListener("pageshow", function (event) {
-    if (event.persisted || !localStorage.getItem('jwt')) {
-        updateLayoutBasedOnAuth();
-    }
-});
-
-function updateLayoutBasedOnAuth() {
+﻿function updateLayoutBasedOnAuth() {
     const token = localStorage.getItem('jwt');
     const currentPath = window.location.pathname.toLowerCase();
     const isAuthPage = currentPath.includes('/authview');
@@ -57,19 +49,51 @@ function updateLayoutBasedOnAuth() {
 
         const homeLink = document.getElementById('nav-home-link');
 
+        const menuMedicManager = document.getElementById('menu-medic-manager');
+        const menuMedicWorker = document.getElementById('menu-medic-worker');
+        const linkHospitals = document.getElementById('link-hospitals');
+        const linkAmbulances = document.getElementById('link-ambulances');
+        const linkOperations = document.getElementById('link-operations');
+
+        const isHomePage = currentPath === '/' || currentPath === '/medic/home/index' || currentPath === '/medic/home';
+
 
         if (role === "Admin") {
             if (document.getElementById('menu-admin')) document.getElementById('menu-admin').classList.remove('d-none');
+            if (menuMedicManager) menuMedicManager.classList.remove('d-none');
+            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
+            if (linkHospitals) linkHospitals.classList.remove('d-none');
+            if (linkAmbulances) linkAmbulances.classList.remove('d-none');
+            if (linkOperations) linkOperations.classList.remove('d-none');
+
             if (homeLink) homeLink.href = '/Admin/Home/Index';
+            if (isHomePage) window.location.href = '/Admin/Home/Index';
         }
         else if (role === "Kierownik Szpitala") {
-            if (document.getElementById('menu-medic-manager')) document.getElementById('menu-medic-manager').classList.remove('d-none');
-            if (document.getElementById('menu-medic-worker')) document.getElementById('menu-medic-worker').classList.remove('d-none');
-            if (homeLink) homeLink.href = '/Medic/Home/Index';
+            if (menuMedicManager) menuMedicManager.classList.remove('d-none');
+            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
+            if (linkHospitals) linkHospitals.classList.remove('d-none');
+            if (linkAmbulances) linkAmbulances.classList.remove('d-none');
+            if (linkOperations) linkOperations.classList.remove('d-none');
+
+            if (homeLink) homeLink.href = '/Medic/Hospitals'; 
+            if (isHomePage) window.location.href = '/Medic/Hospitals'; 
         }
-        else if (role === "Medyk" || role === "Lekarz") {
-            if (document.getElementById('menu-medic-worker')) document.getElementById('menu-medic-worker').classList.remove('d-none');
-            if (homeLink) homeLink.href = '/Medic/Home/Index';
+        else if (role === "Lekarz") {
+            if (menuMedicManager) menuMedicManager.classList.remove('d-none');
+            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
+            if (linkHospitals) linkHospitals.classList.remove('d-none');
+            if (linkOperations) linkOperations.classList.remove('d-none');
+
+            if (homeLink) homeLink.href = '/Medic/Hospitals'; 
+            if (isHomePage) window.location.href = '/Medic/Hospitals'; 
+        }
+        else if (role === "Medyk") {
+            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
+            if (linkOperations) linkOperations.classList.remove('d-none');
+
+            if (homeLink) homeLink.href = '/Medic/Operations'; 
+            if (isHomePage) window.location.href = '/Medic/Operations'; 
         }
         else if (role === "Inspektor" || role === "Komendant") {
             if (document.getElementById('menu-police-manager')) document.getElementById('menu-police-manager').classList.remove('d-none');
@@ -92,54 +116,6 @@ function updateLayoutBasedOnAuth() {
     } else {
         document.getElementById('auth-logged-in').classList.add('d-none');
         document.getElementById('auth-logged-out').classList.remove('d-none');
-        document.getElementById('nav-user-name').textContent = "Niezalogowany";
-    }
-
-    const homeLink = document.getElementById('nav-home-link');
-
-    const menuMedicManager = document.getElementById('menu-medic-manager');
-    const menuMedicWorker = document.getElementById('menu-medic-worker');
-    const linkHospitals = document.getElementById('link-hospitals');
-    const linkAmbulances = document.getElementById('link-ambulances');
-    const linkOperations = document.getElementById('link-operations');
-
-    if (role === "Admin" || role === "Kierownik Szpitala") {
-        if (menuMedicManager) menuMedicManager.classList.remove('d-none');
-        if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
-        if (linkHospitals) linkHospitals.classList.remove('d-none');
-        if (linkAmbulances) linkAmbulances.classList.remove('d-none');
-        if (linkOperations) linkOperations.classList.remove('d-none');
-        if (homeLink) homeLink.href = '/Medic/Home/Index';
-    }
-    else if (role === "Lekarz") {
-        if (menuMedicManager) menuMedicManager.classList.remove('d-none');
-        if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
-        if (linkHospitals) linkHospitals.classList.remove('d-none');
-        if (linkOperations) linkOperations.classList.remove('d-none');
-        if (homeLink) homeLink.href = '/Medic/Home/Index';
-    }
-    else if (role === "Medyk") {
-        if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
-        if (linkOperations) linkOperations.classList.remove('d-none');
-        if (homeLink) homeLink.href = '/Medic/Home/Index';
-    }
-}
-
-function logout() {
-    localStorage.removeItem('jwt');
-    window.location.href = '/AuthView/Login';
-}
-
-function parseJwt(token) {
-    try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-
-        return JSON.parse(jsonPayload);
-    } catch (e) {
-        return null;
+        if (document.getElementById('nav-user-name')) document.getElementById('nav-user-name').textContent = "Niezalogowany";
     }
 }

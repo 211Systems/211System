@@ -225,5 +225,118 @@ namespace _211system.Services
 
             await _context.SaveChangesAsync();
         }
+        public async Task DeleteHospitalAsync(Guid id)
+        {
+            var hospital = await _context.Hospitals.FindAsync(id);
+            if (hospital != null)
+            {
+                _context.Hospitals.Remove(hospital);
+                await _context.SaveChangesAsync();
+            }
+        }
+        public async Task DeleteParamedicAsync(Guid id)
+        {
+            var paramedic = await _context.Paramedics.FindAsync(id);
+            if (paramedic != null)
+            {
+                _context.Paramedics.Remove(paramedic);
+                await _context.SaveChangesAsync();
+            }
+        }
+        public async Task UpdateAmbulanceAsync(Guid id, UpdateAmbulanceDto dto)
+        {
+            var ambulance = await _context.Ambulances.FindAsync(id);
+            if (ambulance == null) throw new ArgumentException("Karetka nie istnieje.");
+
+            ambulance.LicensePlate = dto.LicensePlate;
+            ambulance.Type = dto.Type;
+
+            _context.Ambulances.Update(ambulance);
+            await _context.SaveChangesAsync();
+        }
+        public async Task DeleteEquipmentAsync(Guid id)
+        {
+            var eq = await _context.AmbulanceEquipments.FindAsync(id);
+            if (eq != null)
+            {
+                _context.AmbulanceEquipments.Remove(eq);
+                await _context.SaveChangesAsync();
+            }
+        }
+        public async Task UpdateHospitalAsync(Guid id, UpdateHospitalDto dto)
+        {
+            var hospital = await _context.Hospitals.FindAsync(id);
+            if (hospital == null) throw new ArgumentException("Szpital nie istnieje.");
+
+            hospital.Name = dto.Name;
+            hospital.Address = dto.Address;
+            hospital.HasSOR = dto.HasSOR;
+
+            _context.Hospitals.Update(hospital);
+            await _context.SaveChangesAsync();
+        }
+        public async Task DeleteAmbulanceAsync(Guid id)
+        {
+            var ambulance = await _context.Ambulances.FindAsync(id);
+            if (ambulance != null)
+            {
+                _context.Ambulances.Remove(ambulance);
+                await _context.SaveChangesAsync();
+            }
+        }
+        public async Task<AmbulanceEquipmentDto> AddEquipmentAsync(Guid ambulanceId, CreateAmbulanceEquipmentDto dto)
+        {
+            var equipment = new AmbulanceEquipment
+            {
+                Name = dto.Name,
+                Quantity = dto.Quantity,
+                AmbulanceId = ambulanceId
+            };
+
+            await _context.AmbulanceEquipments.AddAsync(equipment);
+            await _context.SaveChangesAsync();
+
+            return new AmbulanceEquipmentDto { Id = equipment.Id, Name = equipment.Name, Quantity = equipment.Quantity, AmbulanceId = equipment.AmbulanceId };
+        }
+
+        public async Task<IEnumerable<AmbulanceEquipmentDto>> GetEquipmentAsync(Guid ambulanceId)
+        {
+            var eq = await _context.AmbulanceEquipments.Where(e => e.AmbulanceId == ambulanceId).ToListAsync();
+            return eq.Select(e => new AmbulanceEquipmentDto { Id = e.Id, Name = e.Name, Quantity = e.Quantity, AmbulanceId = e.AmbulanceId });
+        }
+
+        public async Task UpdateParamedicAsync(Guid id, UpdateParamedicDto dto)
+        {
+            var paramedic = await _context.Paramedics.FindAsync(id);
+            if (paramedic == null) throw new ArgumentException("Pracownik nie istnieje w bazie.");
+
+            paramedic.Name = dto.Name;
+            paramedic.LastName = dto.LastName;
+            paramedic.LicenseNumber = dto.LicenseNumber;
+            paramedic.Rank = dto.Rank;
+
+            _context.Paramedics.Update(paramedic);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<MedicalOperationDto>> GetAllOperationsAsync()
+        {
+            var operations = await _context.MedicalOperations
+                .Include(o => o.Paramedic)
+                .OrderByDescending(o => o.StartTime)
+                .ToListAsync();
+
+            return operations.Select(o => new MedicalOperationDto
+            {
+                Id = o.Id,
+                ParamedicId = o.ParamedicId ?? Guid.Empty,
+
+                ParamedicName = o.Paramedic != null ? $"{o.Paramedic.Name} {o.Paramedic.LastName}" : "Nieznany Ratownik",
+                ReportId = o.ReportId,
+                StartTime = o.StartTime ?? DateTime.MinValue,
+
+                EndTime = o.EndTime
+            });
+        }
     }
 }

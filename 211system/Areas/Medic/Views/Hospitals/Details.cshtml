@@ -13,6 +13,16 @@
                         <b>Adres</b> <a class="float-right" id="hosp-address">...</a>
                     </li>
                 </ul>
+
+                <div id="admin-hospital-actions" class="d-none mb-3">
+                    <button class="btn btn-warning btn-block mb-2" data-toggle="modal" data-target="#editHospitalModal">
+                        <b><i class="fas fa-edit"></i> Edytuj Szpital</b>
+                    </button>
+                    <button class="btn btn-danger btn-block" onclick="window.deleteHospital()">
+                        <b><i class="fas fa-trash"></i> Usuń Szpital</b>
+                    </button>
+                </div>
+
                 <a href="/Medic/Hospitals" class="btn btn-success btn-block"><b>Wróć do listy</b></a>
             </div>
         </div>
@@ -35,10 +45,11 @@
                             <th>Nr Prawa Wyk. Zawodu</th>
                             <th>Specjalizacja</th>
                             <th>Email</th>
+                            <th class="text-right">Akcje</th>
                         </tr>
                     </thead>
-                    <tbody id="paramedics-table-body">
-                        <tr><td colspan="5" class="text-center">Ładowanie personelu...</td></tr>
+                    <tbody id="staff-table-body">
+                        <tr><td colspan="6" class="text-center">Ładowanie personelu...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -83,11 +94,85 @@
                         <h5><i class="icon fas fa-check"></i> Konto aktywne!</h5>
                         Tymczasowe hasło pracownika: <strong id="temp-password-display" style="font-size: 1.2em;"></strong>
                     </div>
-                    <p id="form-error" class="text-danger d-none"></p>
+                    <p id="staff-error" class="text-danger d-none"></p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
-                    <button type="submit" class="btn btn-success" id="btn-submit">Dodaj do systemu</button>
+                    <button type="submit" class="btn btn-success" id="btn-submit-staff">Dodaj do systemu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editHospitalModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark"><i class="fas fa-hospital-alt"></i> Edytuj Placówkę</h5>
+                <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editHospitalForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nazwa Placówki</label>
+                        <input type="text" id="editHospName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Adres</label>
+                        <input type="text" id="editHospAddress" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Czy posiada oddział SOR?</label>
+                        <select id="editHospSor" class="form-control" required>
+                            <option value="true">TAK</option>
+                            <option value="false">NIE</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editParamedicModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark"><i class="fas fa-user-edit"></i> Edytuj Pracownika</h5>
+                <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editParamedicForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editEmpId">
+                    <div class="form-group">
+                        <label>Imię</label>
+                        <input type="text" id="editEmpName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nazwisko</label>
+                        <input type="text" id="editEmpLastName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nr Prawa Wykonywania Zawodu</label>
+                        <input type="text" id="editEmpLicense" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Rola (Hierarchia)</label>
+                        <select id="editEmpRole" class="form-control" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
                 </div>
             </form>
         </div>
@@ -98,6 +183,7 @@
     <script src="~/js/api-details-handler.js"></script>
     <script>
         const currHospitalId = window.location.pathname.split('/').filter(Boolean).pop();
+        const token = localStorage.getItem('jwt');
 
         setupDepartmentDetails({
             departmentId: currHospitalId,
@@ -107,28 +193,57 @@
                 addStaff: '/api/Medical/paramedics'
             },
             foreignKeyField: 'hospitalId',
-            emptyStaffColspan: 5,
+            emptyStaffColspan: 6,
             addStaffFormId: 'addParamedicForm',
 
-            onInit: (decodedToken) => {
+            onInit: async (decodedToken) => {
                 if (!decodedToken) return;
 
                 let roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
                 const roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                const email = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
 
+                const isAdmin = roles.includes("Admin");
+                const isKierownik = roles.includes("Kierownik Szpitala");
+                const isLekarz = roles.includes("Lekarz");
+
+                if (isAdmin) {
+                    document.getElementById('admin-hospital-actions').classList.remove('d-none');
+                }
+
+                const btnOpenModal = document.getElementById('btn-open-modal');
+                if (isAdmin) {
+                    if (btnOpenModal) btnOpenModal.classList.remove('d-none');
+                } else if (isKierownik || isLekarz) {
+
+                    try {
+                        const res = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + token } });
+                        if (res.ok) {
+                            const allStaff = await res.json();
+                            const myRecord = allStaff.find(s => s.email === email || s.Email === email);
+                            if (myRecord && (myRecord.hospitalId === currHospitalId || myRecord.HospitalId === currHospitalId)) {
+                                if (btnOpenModal) btnOpenModal.classList.remove('d-none');
+                            }
+                        }
+                    } catch (e) { console.error(e); }
+                }
+
+                // 3. Uzupełnienie opcji w polach wyboru ról
                 const roleSelect = document.getElementById('staffRole');
-                if (roles.includes("Admin") || roles.includes("Kierownik Szpitala")) {
-                    if (roleSelect) {
-                        roleSelect.innerHTML = `
-                            <option value="Kierownik Szpitala">Kierownik Szpitala</option>
-                            <option value="Lekarz">Lekarz</option>
-                            <option value="Medyk">Medyk</option>
-                        `;
-                    }
-                } else if (roles.includes("Lekarz")) {
-                    if (roleSelect) {
-                        roleSelect.innerHTML = `<option value="Medyk">Medyk</option>`;
-                    }
+                const editRoleSelect = document.getElementById('editEmpRole');
+
+                if (isAdmin || isKierownik) {
+                    const opts = `
+                        <option value="Kierownik Szpitala">Kierownik Szpitala</option>
+                        <option value="Lekarz">Lekarz</option>
+                        <option value="Medyk">Medyk</option>
+                    `;
+                    if (roleSelect) roleSelect.innerHTML = opts;
+                    if (editRoleSelect) editRoleSelect.innerHTML = opts;
+                } else if (isLekarz) {
+                    const opts = `<option value="Medyk">Medyk</option>`;
+                    if (roleSelect) roleSelect.innerHTML = opts;
+                    if (editRoleSelect) editRoleSelect.innerHTML = opts;
                 }
             },
 
@@ -140,6 +255,13 @@
                 document.getElementById('hosp-sor').innerHTML = hasSor
                     ? '<span class="badge bg-danger">Posiada oddział SOR</span>'
                     : '<span class="badge bg-secondary">Brak oddziału SOR</span>';
+
+                const editHospName = document.getElementById('editHospName');
+                if(editHospName) {
+                    editHospName.value = dept.name || dept.Name;
+                    document.getElementById('editHospAddress').value = dept.address || dept.Address;
+                    document.getElementById('editHospSor').value = hasSor ? "true" : "false";
+                }
             },
 
             renderStaffRow: (p, decodedToken, allStaff) => {
@@ -161,20 +283,20 @@
                     isMyHospital = true;
                 }
 
-                const btnOpenModal = document.getElementById('btn-open-modal');
-                if ((isAdmin || isKierownik) || (isLekarz && isMyHospital)) {
-                    if (btnOpenModal) btnOpenModal.classList.remove('d-none');
-                }
-
                 const firstName = p.name || p.Name;
                 const lastName = p.lastName || p.LastName;
                 const employeeRank = p.rank || p.Rank || "Medyk";
+                const pLicense = p.licenseNumber || p.LicenseNumber;
+                const pId = p.id || p.Id;
                 const fallbackAvatar = `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff`;
                 const avatarSrc = p.avatarUrl || p.AvatarUrl || fallbackAvatar;
 
-                let deleteBtn = '';
+                let actionBtns = '';
                 if (isAdmin || isKierownik || (isLekarz && isMyHospital && employeeRank === "Medyk")) {
-                    deleteBtn = `<button onclick="alert('Usunięcie w przyszłości')" class="btn btn-sm btn-danger float-right ml-2" title="Zwolnij"><i class="fas fa-user-times"></i></button>`;
+                    actionBtns = `
+                        <button onclick="window.openEditEmpModal('${pId}', '${firstName}', '${lastName}', '${pLicense}', '${employeeRank}')" class="btn btn-sm btn-warning mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.deleteParamedic('${pId}')" class="btn btn-sm btn-danger" title="Zwolnij"><i class="fas fa-user-times"></i></button>
+                    `;
                 }
 
                 return `
@@ -186,9 +308,10 @@
                             <b>${firstName} ${lastName}</b><br/>
                             <small class="text-warning font-weight-bold">${employeeRank}</small>
                         </td>
-                        <td class="align-middle">${p.licenseNumber || p.LicenseNumber}</td>
+                        <td class="align-middle">${pLicense}</td>
                         <td class="align-middle"><span class="badge bg-success">${p.specialization || p.Specialization || "Medycyna"}</span></td>
-                        <td class="align-middle">${p.email || p.Email} ${deleteBtn}</td>
+                        <td class="align-middle">${p.email || p.Email}</td>
+                        <td class="align-middle text-right" style="white-space: nowrap;">${actionBtns}</td>
                     </tr>
                 `;
             },
@@ -206,6 +329,83 @@
                     paraAccountId: "Zostanie-Wygenerowane-W-Backendzie"
                 };
             }
+        });
+
+        window.deleteHospital = async function() {
+            if (!confirm("UWAGA! Czy na pewno chcesz usunąć całą placówkę? Zostaną usunięci wszyscy pracownicy i karetki!")) return;
+            try {
+                const response = await fetch(`/api/Medical/hospitals/${currHospitalId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) window.location.href = '/Medic/Hospitals';
+                else alert("Błąd usuwania placówki. Najpierw usuń powiązane dane (karetki/pracownicy).");
+            } catch (error) { alert("Błąd sieci."); }
+        };
+
+        window.deleteParamedic = async function(id) {
+            if (!confirm("Czy na pewno chcesz zwolnić tego pracownika? Operacja jest nieodwracalna!")) return;
+            try {
+                const response = await fetch(`/api/Medical/paramedics/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (response.ok) window.location.reload();
+                else alert("Błąd! Pracownik może być w trakcie akcji.");
+            } catch (error) { alert("Błąd sieci."); }
+        };
+
+        window.openEditEmpModal = function(id, name, lastName, license, rank) {
+            document.getElementById('editEmpId').value = id;
+            document.getElementById('editEmpName').value = name;
+            document.getElementById('editEmpLastName').value = lastName;
+            document.getElementById('editEmpLicense').value = license;
+            document.getElementById('editEmpRole').value = rank;
+            $('#editParamedicModal').modal('show');
+        };
+
+        document.getElementById('editParamedicForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editEmpId').value;
+            const data = {
+                name: document.getElementById('editEmpName').value,
+                lastName: document.getElementById('editEmpLastName').value,
+                licenseNumber: document.getElementById('editEmpLicense').value,
+                rank: document.getElementById('editEmpRole').value
+            };
+
+            try {
+                const response = await fetch(`/api/Medical/paramedics/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (response.ok) {
+                    $('#editParamedicModal').modal('hide');
+                    window.location.reload();
+                } else alert("Błąd edycji pracownika.");
+            } catch (error) { alert("Błąd sieci."); }
+        });
+
+        document.getElementById('editHospitalForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('editHospName').value,
+                address: document.getElementById('editHospAddress').value,
+                hasSOR: document.getElementById('editHospSor').value === "true"
+            };
+
+            try {
+                const response = await fetch(`/api/Medical/hospitals/${currHospitalId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (response.ok) {
+                    $('#editHospitalModal').modal('hide');
+                    window.location.reload();
+                } else alert("Błąd edycji placówki.");
+            } catch (error) { alert("Błąd sieci."); }
         });
     </script>
 }
