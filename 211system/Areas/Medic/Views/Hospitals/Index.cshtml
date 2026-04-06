@@ -5,7 +5,7 @@
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="m-0 text-success"><i class="fas fa-hospital"></i> Lista Szpitalów</h1>
-        <a href="/Medic/Hospitals/Create" class="btn btn-success"><i class="fas fa-plus"></i> Dodaj Szpital</a>
+        <a href="/Medic/Hospitals/Create" class="btn btn-success d-none" id="btn-add-hospital"><i class="fas fa-plus"></i> Dodaj Szpital</a>
     </div>
 </div>
 
@@ -40,6 +40,20 @@
 @section Scripts {
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const token = localStorage.getItem('jwt');
+            if (token) {
+                const decoded = window.parseJwt(token);
+                if (decoded) {
+                    let roleClaim = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                    let roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                    if (roles.includes("Admin")) {
+                        document.getElementById('btn-add-hospital').classList.remove('d-none');
+                    }
+                }
+            }
+        });
+
         setupCustomList({
             tableBodyId: 'hospitals-table-body',
             colspan: 5,

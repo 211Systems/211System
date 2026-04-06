@@ -18,5 +18,20 @@ namespace _211system.Services
 
         Task<IEnumerable<AmbulanceDto>> GetAvailableAmbulancesAsync();
         Task AssignAmbulanceToIncidentAsync(Guid ambulanceId, Guid incidentId);
+        Task UpdateHospitalAsync(Guid id, UpdateHospitalDto dto);
+        Task DeleteHospitalAsync(Guid id);
+
+        Task DeleteParamedicAsync(Guid id);
+
+        Task UpdateAmbulanceAsync(Guid id, UpdateAmbulanceDto dto);
+        Task DeleteAmbulanceAsync(Guid id);
+
+        Task<AmbulanceEquipmentDto> AddEquipmentAsync(Guid ambulanceId, CreateAmbulanceEquipmentDto dto);
+        Task<IEnumerable<AmbulanceEquipmentDto>> GetEquipmentAsync(Guid ambulanceId);
+        Task DeleteEquipmentAsync(Guid id);
+
+        Task UpdateParamedicAsync(Guid id, UpdateParamedicDto dto);
+
+        Task<IEnumerable<MedicalOperationDto>> GetAllOperationsAsync();
     }
 }

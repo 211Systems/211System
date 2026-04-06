@@ -21,11 +21,18 @@ namespace _211system.Controllers
         }
 
         [HttpPost("hospitals")]
-        [Authorize(Roles = "Admin, Kierownik Szpitala")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateHospital([FromBody] CreateHospitalDto dto)
         {
-            var result = await _medicalService.CreateHospitalAsync(dto);
-            return Ok(result);
+            try
+            {
+                var result = await _medicalService.CreateHospitalAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("hospitals")]
@@ -36,12 +43,42 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
+        [HttpPut("hospitals/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateHospital(Guid id, [FromBody] UpdateHospitalDto dto)
+        {
+            try
+            {
+                await _medicalService.UpdateHospitalAsync(id, dto);
+                return Ok(new { message = "Zaktualizowano szpital." }); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("hospitals/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteHospital(Guid id)
+        {
+            await _medicalService.DeleteHospitalAsync(id);
+            return Ok(new { message = "Usunięto szpital." });
+        }
+
         [HttpPost("paramedics")]
         [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
         public async Task<IActionResult> CreateParamedic([FromBody] CreateParamedicDto dto)
         {
-            var result = await _medicalService.CreateParamedicAsync(dto);
-            return Ok(result);
+            try
+            {
+                var result = await _medicalService.CreateParamedicAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("paramedics")]
@@ -50,6 +87,29 @@ namespace _211system.Controllers
         {
             var result = await _medicalService.GetAllParamedicsAsync();
             return Ok(result);
+        }
+
+        [HttpPut("paramedics/{id}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
+        public async Task<IActionResult> UpdateParamedic(Guid id, [FromBody] UpdateParamedicDto dto)
+        {
+            try
+            {
+                await _medicalService.UpdateParamedicAsync(id, dto);
+                return Ok(new { message = "Zaktualizowano dane pracownika." });
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("paramedics/{id}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
+        public async Task<IActionResult> DeleteParamedic(Guid id)
+        {
+            await _medicalService.DeleteParamedicAsync(id);
+            return Ok(new { message = "Zwolniono pracownika." });
         }
 
         [HttpPost("operations/start")]
@@ -84,16 +144,24 @@ namespace _211system.Controllers
             if (incident != null)
             {
                 incident.IsMedicalActive = false;
-                
+
                 if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
                 {
                     incident.Status = "Zakończone";
                 }
-                
+
                 await _context.SaveChangesAsync();
             }
 
             return Ok("Zakończono akcję medyczną.");
+        }
+
+        [HttpGet("operations")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        public async Task<IActionResult> GetAllOperations()
+        {
+            var result = await _medicalService.GetAllOperationsAsync();
+            return Ok(result);
         }
 
         [HttpPost("ambulances")]
@@ -112,6 +180,22 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
+        [HttpPut("ambulances/{id}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
+        public async Task<IActionResult> UpdateAmbulance(Guid id, [FromBody] UpdateAmbulanceDto dto)
+        {
+            await _medicalService.UpdateAmbulanceAsync(id, dto);
+            return Ok(new { message = "Zaktualizowano karetkę." });
+        }
+
+        [HttpDelete("ambulances/{id}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
+        public async Task<IActionResult> DeleteAmbulance(Guid id)
+        {
+            await _medicalService.DeleteAmbulanceAsync(id);
+            return Ok(new { message = "Usunięto karetkę." });
+        }
+
         [HttpGet("ambulances/available")]
         [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Kierownik Szpitala")]
         public async Task<IActionResult> GetAvailableAmbulances()
@@ -125,7 +209,31 @@ namespace _211system.Controllers
         public async Task<IActionResult> AssignAmbulanceToIncident(Guid ambulanceId, Guid incidentId)
         {
             await _medicalService.AssignAmbulanceToIncidentAsync(ambulanceId, incidentId);
-            return Ok("Karetka została zadysponowana do zgłoszenia.");
+            return Ok(new { message = "Karetka została zadysponowana do zgłoszenia." });
+        }
+
+        [HttpPost("ambulances/{ambulanceId}/equipment")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
+        public async Task<IActionResult> AddEquipment(Guid ambulanceId, [FromBody] CreateAmbulanceEquipmentDto dto)
+        {
+            var result = await _medicalService.AddEquipmentAsync(ambulanceId, dto);
+            return Ok(result);
+        }
+
+        [HttpGet("ambulances/{ambulanceId}/equipment")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        public async Task<IActionResult> GetEquipment(Guid ambulanceId)
+        {
+            var result = await _medicalService.GetEquipmentAsync(ambulanceId);
+            return Ok(result);
+        }
+
+        [HttpDelete("equipment/{id}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala")]
+        public async Task<IActionResult> DeleteEquipment(Guid id)
+        {
+            await _medicalService.DeleteEquipmentAsync(id);
+            return Ok(new { message = "Usunięto sprzęt." });
         }
     }
 }
