@@ -46,116 +46,42 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/api-form-handler.js"></script>
+    <script src="~/js/api-department-loader.js"></script>
     <script>
-        const token = localStorage.getItem('jwt');
-
-        function parseJwt(token) {
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                return JSON.parse(window.atob(base64));
-            } catch (e) { return null; }
-        }
-
-        let currentUserRoles = [];
-        let currentUserEmail = "";
-        
-        if (token) {
-            const decodedToken = parseJwt(token);
-            if (decodedToken) {
-                let role = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
-                currentUserRoles = Array.isArray(role) ? role : [role];
-                currentUserEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
-            }
-        }
-
         document.addEventListener("DOMContentLoaded", async function () {
-            if (!currentUserRoles.includes("Admin") && !currentUserRoles.includes("Kierownik Szpitala")) {
-                window.location.href = '/Medic/Ambulances';
-                return;
-            }
 
-            const hospSelect = document.getElementById('hospitalId');
-            const submitBtn = document.querySelector('button[type="submit"]');
+            await loadDepartmentsForDropdown({
+                selectElementId: 'hospitalId',
+                allowedRoles: ["Admin", "Kierownik Szpitala"],
+                fallbackUrl: '/Medic/Ambulances',
+                departmentsApiUrl: '/api/Medical/hospitals',
+                staffApiUrl: '/api/Medical/paramedics',
+                foreignKeyField: 'hospitalId'
+            });
 
-            try {
-                const hospResponse = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + token } });
-                let hospitals = await hospResponse.json();
+            setupApiFormSubmit({
+                formId: 'createAmbulanceForm',
+                apiUrl: '/api/Medical/ambulances',
+                redirectUrl: '/Medic/Ambulances',
+                defaultErrorMsg: 'Błąd podczas dodawania karetki.',
+                buildPayload: () => {
+                    const hospId = document.getElementById('hospitalId').value;
 
-
-                if (!currentUserRoles.includes("Admin") && currentUserRoles.includes("Kierownik Szpitala")) {
-                    const paramResponse = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + token } });
-                    const paramedics = await paramResponse.json();
-                    
-                    const myRecord = paramedics.find(p => p.email === currentUserEmail || p.Email === currentUserEmail);
-                    if (myRecord) {
-                        const myHospitalId = myRecord.hospitalId || myRecord.HospitalId;
-                        hospitals = hospitals.filter(h => (h.id || h.Id) === myHospitalId);
-                    } else {
-                        hospitals = [];
+                    if (!hospId) {
+                        const errorMsg = document.getElementById('form-error');
+                        errorMsg.textContent = "Musisz wybrać szpital!";
+                        errorMsg.classList.remove('d-none');
+                        throw new Error("Validation failed - brak szpitala");
                     }
+
+                    return {
+                        licensePlate: document.getElementById('licensePlate').value,
+                        type: parseInt(document.getElementById('type').value),
+                        hospitalId: hospId
+                    };
                 }
-                hospSelect.innerHTML = ''; 
-
-                if (hospitals.length === 0) {
-                    hospSelect.innerHTML = '<option value="">Brak przypisanego szpitala (Brak uprawnień)</option>';
-                    submitBtn.disabled = true;
-                } else {
-                    if (currentUserRoles.includes("Admin")) {
-                        hospSelect.innerHTML = '<option value="">Wybierz szpital z listy...</option>';
-                    }
-                    
-                    hospitals.forEach(h => {
-                        const opt = document.createElement('option');
-                        opt.value = h.id || h.Id;
-                        opt.textContent = h.name || h.Name;
-                        hospSelect.appendChild(opt);
-                    });
-                }
-            } catch (error) {
-                console.error("Błąd ładowania szpitali", error);
-            }
-        });
-
-        document.getElementById('createAmbulanceForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const errorMsg = document.getElementById('form-error');
-            const hospId = document.getElementById('hospitalId').value;
-
-            if (!hospId) {
-                errorMsg.textContent = "Musisz wybrać szpital!";
-                errorMsg.classList.remove('d-none');
-                return;
-            }
-            
-            const requestData = {
-                licensePlate: document.getElementById('licensePlate').value,
-                type: parseInt(document.getElementById('type').value),
-                hospitalId: hospId
-            };
-
-            try {
-                const response = await fetch('/api/Medical/ambulances', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                if (response.ok) {
-                    window.location.href = '/Medic/Ambulances';
-                } else {
-                    const errorData = await response.json();
-                    errorMsg.textContent = errorData.message || "Błąd podczas dodawania karetki.";
-                    errorMsg.classList.remove('d-none');
-                }
-            } catch (error) {
-                errorMsg.textContent = "Błąd połączenia z serwerem.";
-                errorMsg.classList.remove('d-none');
-            }
+            });
         });
     </script>
 }

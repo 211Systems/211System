@@ -38,100 +38,66 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/api-custom-list-handler.js"></script>
     <script>
-        function parseJwt(token) {
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                return JSON.parse(window.atob(base64));
-            } catch (e) { return null; }
-        }
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            const tableBody = document.getElementById('hospitals-table-body');
-            const token = localStorage.getItem('jwt');
-
-            let currentUserRoles = [];
-            let currentUserEmail = "";
-            if (token) {
-                const decoded = parseJwt(token);
+        setupCustomList({
+            tableBodyId: 'hospitals-table-body',
+            colspan: 5,
+            emptyMessage: 'Brak przypisanych placówek w systemie.',
+            loadData: async (jwt) => {
+                const decoded = window.parseJwt(jwt);
+                let roles = [];
+                let email = "";
                 if (decoded) {
-                    let role = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
-                    currentUserRoles = Array.isArray(role) ? role : [role];
-                    currentUserEmail = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decoded.email || "";
+                    let roleClaim = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                    roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                    email = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decoded.email || "";
                 }
-            }
 
-            try {
-                const response = await fetch('/api/Medical/hospitals', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                const response = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                if (!response.ok) throw new Error("Błąd pobierania placówek");
+                let hospitals = await response.json();
 
-                if (response.ok) {
-                    let hospitals = await response.json();
+                if (!roles.includes("Admin")) {
+                    const paramResponse = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                    if (paramResponse.ok) {
+                        const paramedics = await paramResponse.json();
+                        const myRecord = paramedics.find(p => p.email === email || p.Email === email);
 
-                    if (!currentUserRoles.includes("Admin")) {
-                        try {
-                            const paramResponse = await fetch('/api/Medical/paramedics', {
-                                headers: { 'Authorization': 'Bearer ' + token }
-                            });
-                            
-                            if (paramResponse.ok) {
-                                const paramedics = await paramResponse.json();
-                                const myRecord = paramedics.find(p => p.email === currentUserEmail || p.Email === currentUserEmail);
-                                
-                                if (myRecord) {
-                                    const myHospitalId = myRecord.hospitalId || myRecord.HospitalId;
+                        if (myRecord) {
+                            const myHospitalId = myRecord.hospitalId || myRecord.HospitalId;
+                            hospitals = hospitals.filter(h => (h.id || h.Id) === myHospitalId);
 
-                                    hospitals = hospitals.filter(h => (h.id || h.Id) === myHospitalId);
-
-                                    if (hospitals.length === 1) {
-                                        window.location.href = `/Medic/Hospitals/Details/${myHospitalId}`;
-                                        return;
-                                    }
-                                } else {
-                                    hospitals = [];
-                                }
+                            if (hospitals.length === 1) {
+                                window.location.href = `/Medic/Hospitals/Details/${myHospitalId}`;
+                                return null;
                             }
-                        } catch (e) { console.error("Błąd podczas sprawdzania przynależności:", e); }
+                        } else {
+                            hospitals = [];
+                        }
                     }
-                    tableBody.innerHTML = '';
-
-                    if (hospitals.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Brak przypisanych placówek w systemie.</td></tr>';
-                        return;
-                    }
-
-                    hospitals.forEach((hosp, index) => {
-                        const sorBadge = hosp.hasSOR || hosp.HasSOR
-                            ? '<span class="badge bg-danger">TAK</span>'
-                            : '<span class="badge bg-secondary">NIE</span>';
-
-                        const row = `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td><b>${hosp.name || hosp.Name}</b></td>
-                                <td>${hosp.address || hosp.Address}</td>
-                                <td class="text-center">${sorBadge}</td>
-                                <td class="text-center">
-                                    <a href="/Medic/Hospitals/Details/${hosp.id || hosp.Id}" class="btn btn-sm btn-success" title="Szczegóły">
-                                        <i class="fas fa-stethoscope"></i> Zarządzaj
-                                    </a>
-                                </td>
-                            </tr>
-                        `;
-                        tableBody.insertAdjacentHTML('beforeend', row);
-                    });
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Błąd autoryzacji lub serwera.</td></tr>';
                 }
-            } catch (error) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Błąd połączenia z API.</td></tr>';
-                console.error(error);
+                return hospitals;
+            },
+            renderRow: (hosp, index) => {
+                const hasSOR = hosp.hasSOR !== undefined ? hosp.hasSOR : hosp.HasSOR;
+                const sorBadge = hasSOR
+                    ? '<span class="badge bg-danger">TAK</span>'
+                    : '<span class="badge bg-secondary">NIE</span>';
+
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><b>${hosp.name || hosp.Name}</b></td>
+                        <td>${hosp.address || hosp.Address}</td>
+                        <td class="text-center">${sorBadge}</td>
+                        <td class="text-center">
+                            <a href="/Medic/Hospitals/Details/${hosp.id || hosp.Id}" class="btn btn-sm btn-success" title="Szczegóły">
+                                <i class="fas fa-stethoscope"></i> Zarządzaj
+                            </a>
+                        </td>
+                    </tr>
+                `;
             }
         });
     </script>

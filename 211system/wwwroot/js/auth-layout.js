@@ -29,9 +29,8 @@ function updateLayoutBasedOnAuth() {
         document.getElementById('profile-email').textContent = email;
         document.getElementById('profile-role').textContent = role;
 
-        // Ochrona tras
         if (currentPath.includes('/admin') && role !== "Admin") {
-            alert("To jest strefa zarezerwowana tylko dla Głównego Administratora systemu!");
+            alert("To jest strefa tylko dla Głównego Administratora systemu!");
             window.location.href = '/';
             return;
         }
@@ -58,7 +57,7 @@ function updateLayoutBasedOnAuth() {
 
         const homeLink = document.getElementById('nav-home-link');
 
-        // Odkrywanie menu
+
         if (role === "Admin") {
             if (document.getElementById('menu-admin')) document.getElementById('menu-admin').classList.remove('d-none');
             if (homeLink) homeLink.href = '/Admin/Home/Index';
@@ -84,7 +83,6 @@ function updateLayoutBasedOnAuth() {
         else if (role === "Strazak" || role === "Kapitan" || role === "Naczelnik") {
             if (homeLink) homeLink.href = '/Fire/Home/Index';
         }
-        // TUTAJ WSTAWIAMY ZAKTUALIZOWANY FRAGMENT:
         else if (role === "Admin112" || role === "Dyspozytor112") {
             if (document.getElementById('menu-dispatch')) document.getElementById('menu-dispatch').classList.remove('d-none');
             if (homeLink) homeLink.href = '/Dispatch/Home/Index';

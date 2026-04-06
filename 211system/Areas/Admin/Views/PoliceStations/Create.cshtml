@@ -37,41 +37,18 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/api-form-handler.js"></script>
     <script>
-        document.getElementById('createDepartmentForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const token = localStorage.getItem('jwt');
-            const errorMsg = document.getElementById('form-error');
-
-            const requestData = {
+        setupApiFormSubmit({
+            formId: 'createDepartmentForm',
+            apiUrl: '/api/Police/departments',
+            redirectUrl: '/Admin/PoliceStations',
+            defaultErrorMsg: 'Błąd podczas dodawania komendy.',
+            buildPayload: () => ({
                 name: document.getElementById('name').value,
                 address: document.getElementById('address').value,
                 district: document.getElementById('district').value
-            };
-
-            try {
-                const response = await fetch('/api/Police/departments', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                if (response.ok) {
-                    window.location.href = '/Admin/PoliceStations';
-                } else {
-                    const errorData = await response.json();
-                    errorMsg.textContent = errorData.message || "Błąd podczas dodawania komendy.";
-                    errorMsg.classList.remove('d-none');
-                }
-            } catch (error) {
-                errorMsg.textContent = "Błąd połączenia z serwerem.";
-                errorMsg.classList.remove('d-none');
-                console.error(error);
-            }
+            })
         });
     </script>
 }

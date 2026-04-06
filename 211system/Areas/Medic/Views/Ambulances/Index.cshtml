@@ -39,103 +39,78 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/api-custom-list-handler.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", async function () {
-            const tableBody = document.getElementById('ambulances-table-body');
-            const token = localStorage.getItem('jwt');
+        const token = localStorage.getItem('jwt');
 
-            async function loadTable() {
-                try {
-                    const hospResponse = await fetch('/api/Medical/hospitals', {
-                        headers: { 'Authorization': 'Bearer ' + token }
-                    });
-                    let hospitals = [];
-                    if(hospResponse.ok) {
-                        hospitals = await hospResponse.json();
-                    }
-                    const ambResponse = await fetch('/api/Medical/ambulances', {
-                        headers: { 'Authorization': 'Bearer ' + token }
-                    });
+        window.assignAmbulance = async function(ambulanceId) {
+            const incidentId = prompt("Wprowadź ID zgłoszenia 112 (GUID):");
+            if (!incidentId) return;
 
-                    if (ambResponse.ok) {
-                        const ambulances = await ambResponse.json();
-                        tableBody.innerHTML = '';
+            try {
+                const response = await fetch(`/api/Medical/ambulances/${ambulanceId}/assign/${incidentId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
 
-                        if (ambulances.length === 0) {
-                            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak karetek w systemie.</td></tr>';
-                            return;
-                        }
-
-                        const typeMap = {
-                            0: "S (Specjalistyczna)",
-                            1: "T (Transportowa)",
-                            2: "P (Podstawowa)",
-                            3: "N (Neonatologiczna)"
-                        };
-
-                        ambulances.forEach((amb, index) => {
-                            const hospId = amb.hospitalId || amb.HospitalId;
-                            const myHosp = hospitals.find(h => h.id === hospId || h.Id === hospId);
-                            const hospName = myHosp ? (myHosp.name || myHosp.Name) : "Nieznany szpital";
-
-                            const typeVal = amb.type !== undefined ? amb.type : amb.Type;
-                            const typeBadge = typeMap[typeVal] || typeVal;
-
-                            const isAvailable = amb.isAvailable !== undefined ? amb.isAvailable : amb.IsAvailable;
-                            const statusBadge = isAvailable 
-                                ? '<span class="badge bg-success">Dostępna</span>' 
-                                : '<span class="badge bg-danger">W akcji</span>';
-
-                            // PRZYCISK AKCJI
-                            const actionBtn = isAvailable 
-                                ? `<button class="btn btn-xs btn-primary" onclick="assignAmbulance('${amb.id || amb.Id}')">Zadysponuj</button>` 
-                                : `<button class="btn btn-xs btn-secondary" disabled>Zajęta</button>`;
-
-                            const row = `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td><b>${amb.licensePlate || amb.LicensePlate}</b></td>
-                                    <td><span class="badge bg-warning text-dark">${typeBadge}</span></td>
-                                    <td><i class="fas fa-hospital text-muted mr-1"></i> ${hospName}</td>
-                                    <td>${statusBadge}</td>
-                                    <td>${actionBtn}</td>
-                                </tr>
-                            `;
-                            tableBody.insertAdjacentHTML('beforeend', row);
-                        });
-                    } else {
-                        tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd autoryzacji lub serwera.</td></tr>';
-                    }
-                } catch (error) {
-                    tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd połączenia z API.</td></tr>';
-                    console.error(error);
+                if (response.ok) {
+                    alert("Karetka została pomyślnie zadysponowana!");
+                    window.location.reload();
+                } else {
+                    const errMsg = await response.text();
+                    alert("Błąd: " + errMsg);
                 }
+            } catch (e) {
+                console.error(e);
+                alert("Wystąpił błąd połączenia.");
             }
+        };
 
-            window.assignAmbulance = async function(ambulanceId) {
-                const incidentId = prompt("Wprowadź ID zgłoszenia 112 (GUID):");
-                if (!incidentId) return;
+        setupCustomList({
+            tableBodyId: 'ambulances-table-body',
+            colspan: 6,
+            emptyMessage: 'Brak karetek w systemie.',
+            loadData: async (jwt) => {
+                const hospRes = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                const hospitals = hospRes.ok ? await hospRes.json() : [];
 
-                try {
-                    const response = await fetch(`/api/Medical/ambulances/${ambulanceId}/assign/${incidentId}`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Bearer ' + token }
-                    });
+                const ambRes = await fetch('/api/Medical/ambulances', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                if (!ambRes.ok) throw new Error("Błąd pobierania karetek");
 
-                    if (response.ok) {
-                        alert("Karetka została pomyślnie zadysponowana!");
-                        loadTable();
-                    } else {
-                        const errMsg = await response.text();
-                        alert("Błąd: " + errMsg);
-                    }
-                } catch (e) {
-                    console.error(e);
-                    alert("Wystąpił błąd połączenia.");
-                }
-            };
+                const ambulances = await ambRes.json();
 
-            loadTable();
+                return ambulances.map(amb => {
+                    const hId = amb.hospitalId || amb.HospitalId;
+                    const hosp = hospitals.find(h => h.id === hId || h.Id === hId);
+                    amb.hospitalName = hosp ? (hosp.name || hosp.Name) : "Nieznany szpital";
+                    return amb;
+                });
+            },
+            renderRow: (amb, index) => {
+                const typeMap = { 0: "S (Specjalistyczna)", 1: "T (Transportowa)", 2: "P (Podstawowa)", 3: "N (Neonatologiczna)" };
+                const typeVal = amb.type !== undefined ? amb.type : amb.Type;
+                const typeBadge = typeMap[typeVal] || typeVal;
+
+                const isAvailable = amb.isAvailable !== undefined ? amb.isAvailable : amb.IsAvailable;
+                const statusBadge = isAvailable
+                    ? '<span class="badge bg-success">Dostępna</span>'
+                    : '<span class="badge bg-danger">W akcji</span>';
+
+                const actionBtn = isAvailable
+                    ? `<button class="btn btn-xs btn-primary" onclick="window.assignAmbulance('${amb.id || amb.Id}')">Zadysponuj</button>`
+                    : `<button class="btn btn-xs btn-secondary" disabled>Zajęta</button>`;
+
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><b>${amb.licensePlate || amb.LicensePlate}</b></td>
+                        <td><span class="badge bg-warning text-dark">${typeBadge}</span></td>
+                        <td><i class="fas fa-hospital text-muted mr-1"></i> ${amb.hospitalName}</td>
+                        <td>${statusBadge}</td>
+                        <td>${actionBtn}</td>
+                    </tr>
+                `;
+            }
         });
     </script>
 }

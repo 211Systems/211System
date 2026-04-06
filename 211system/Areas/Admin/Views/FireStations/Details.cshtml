@@ -101,119 +101,36 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/api-details-handler.js"></script>
     <script>
-        const departmentId = "@departmentId";
-        const token = localStorage.getItem('jwt');
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            await loadDepartmentDetails();
-            await loadStaff();
-        });
-
-        async function loadDepartmentDetails() {
-            try {
-                const response = await fetch('/api/Fire/departments', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (response.ok) {
-                    const depts = await response.json();
-                    const myDept = depts.find(d => d.id === departmentId || d.Id === departmentId);
-
-                    if (myDept) {
-                        document.getElementById('dept-name').textContent = myDept.name || myDept.Name;
-                        document.getElementById('dept-district').textContent = myDept.district || myDept.District;
-                        document.getElementById('dept-address').textContent = myDept.address || myDept.Address;
-                    } else {
-                        document.getElementById('dept-name').textContent = "Nie znaleziono Jednostki";
-                    }
-                }
-            } catch (error) { console.error("Błąd pobierania jednostki:", error); }
-        }
-
-        async function loadStaff() {
-            const tableBody = document.getElementById('staff-table-body');
-            try {
-                const response = await fetch('/api/Fire/firemen', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (response.ok) {
-                    const allStaff = await response.json();
-                    const myStaff = allStaff.filter(p => p.fDepartmentId === departmentId || p.FDepartmentId === departmentId);
-
-                    tableBody.innerHTML = '';
-                    if(myStaff.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Brak przypisanego personelu.</td></tr>';
-                        return;
-                    }
-
-                    myStaff.forEach(p => {
-                        const row = `<tr>
-                            <td><span class="badge bg-danger">${p.rank || p.Rank}</span></td>
-                            <td>${p.name || p.Name} ${p.surname || p.Surname}</td>
-                            <td>${p.badgeNumber || p.BadgeNumber}</td>
-                            <td>${p.email || p.Email}</td>
-                        </tr>`;
-                        tableBody.insertAdjacentHTML('beforeend', row);
-                    });
-                }
-            } catch (error) { console.error("Błąd pobierania personelu:", error); }
-        }
-
-        document.getElementById('addStaffForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const btnSubmit = document.getElementById('btn-submit-staff');
-            const errorMsg = document.getElementById('staff-error');
-            const successAlert = document.getElementById('generated-password-alert');
-
-            btnSubmit.disabled = true;
-            errorMsg.classList.add('d-none');
-
-            const requestData = {
+        setupDepartmentDetails({
+            departmentId: "@departmentId",
+            endpoints: {
+                department: '/api/Fire/departments',
+                staff: '/api/Fire/firemen',
+                addStaff: '/api/Fire/firemen'
+            },
+            foreignKeyField: 'fDepartmentId',
+            emptyStaffColspan: 4,
+            renderDepartment: (dept) => {
+                document.getElementById('dept-name').textContent = dept.name || dept.Name;
+                document.getElementById('dept-district').textContent = dept.district || dept.District;
+                document.getElementById('dept-address').textContent = dept.address || dept.Address;
+            },
+            renderStaffRow: (p) => `<tr>
+                <td><span class="badge bg-danger">${p.rank || p.Rank}</span></td>
+                <td>${p.name || p.Name} ${p.surname || p.Surname}</td>
+                <td>${p.badgeNumber || p.BadgeNumber}</td>
+                <td>${p.email || p.Email}</td>
+            </tr>`,
+            buildStaffPayload: () => ({
                 name: document.getElementById('staffName').value,
                 surname: document.getElementById('staffSurname').value,
                 email: document.getElementById('staffEmail').value,
                 badgeNumber: document.getElementById('staffBadge').value,
                 rank: document.getElementById('staffRank').value,
-                fDepartmentId: departmentId
-            };
-
-            try {
-                const response = await fetch('/api/Fire/firemen', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-
-                    document.getElementById('temp-password-display').textContent = result.password || result.temporaryPassword || "Temp!234";
-
-                    successAlert.classList.remove('d-none');
-                    btnSubmit.classList.add('d-none');
-
-                    await loadStaff();
-                } else {
-                    const errorData = await response.json();
-                    console.error(errorData);
-
-                    if(errorData.errors) {
-                        errorMsg.innerHTML = Object.values(errorData.errors).join("<br/>");
-                    } else {
-                        errorMsg.textContent = errorData.message || "Błąd walidacji lub serwera.";
-                    }
-                    errorMsg.classList.remove('d-none');
-                    btnSubmit.disabled = false;
-                }
-            } catch (error) {
-                errorMsg.textContent = "Błąd połączenia z serwerem.";
-                errorMsg.classList.remove('d-none');
-                btnSubmit.disabled = false;
-            }
+                fDepartmentId: "@departmentId"
+            })
         });
     </script>
 }
