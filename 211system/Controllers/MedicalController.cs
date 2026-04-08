@@ -168,8 +168,19 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala")]
         public async Task<IActionResult> CreateAmbulance([FromBody] CreateAmbulanceDto dto)
         {
-            var result = await _medicalService.CreateAmbulanceAsync(dto);
-            return Ok(result);
+            try
+            {
+                var result = await _medicalService.CreateAmbulanceAsync(dto);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("ambulances")]
@@ -184,8 +195,19 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala")]
         public async Task<IActionResult> UpdateAmbulance(Guid id, [FromBody] UpdateAmbulanceDto dto)
         {
-            await _medicalService.UpdateAmbulanceAsync(id, dto);
-            return Ok(new { message = "Zaktualizowano karetkę." });
+            try
+            {
+                await _medicalService.UpdateAmbulanceAsync(id, dto);
+                return Ok(new { message = "Zaktualizowano karetkę." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("ambulances/{id}")]
@@ -208,8 +230,15 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
         public async Task<IActionResult> AssignAmbulanceToIncident(Guid ambulanceId, Guid incidentId)
         {
-            await _medicalService.AssignAmbulanceToIncidentAsync(ambulanceId, incidentId);
-            return Ok(new { message = "Karetka została zadysponowana do zgłoszenia." });
+            try
+            {
+                await _medicalService.AssignAmbulanceToIncidentAsync(ambulanceId, incidentId);
+                return Ok(new { message = "Karetka została zadysponowana do zgłoszenia." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("ambulances/{ambulanceId}/equipment")]
@@ -221,7 +250,7 @@ namespace _211system.Controllers
         }
 
         [HttpGet("ambulances/{ambulanceId}/equipment")]
-        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetEquipment(Guid ambulanceId)
         {
             var result = await _medicalService.GetEquipmentAsync(ambulanceId);

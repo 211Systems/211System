@@ -19,6 +19,7 @@ namespace _211system.DTOs.Hospital
         public AmbulanceType Type { get; set; }
         public string LicensePlate { get; set; }
         public Guid HospitalId { get; set; }
+        public Guid? ParamedicId { get; set; }
     }
 
     public class AmbulanceDto : CreateAmbulanceDto
