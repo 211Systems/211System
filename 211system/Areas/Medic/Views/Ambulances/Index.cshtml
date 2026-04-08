@@ -23,13 +23,14 @@
                             <th>Numer Rejestracyjny</th>
                             <th>Typ Karetki</th>
                             <th>Przypisany Szpital</th>
+                            <th>Przypisany Ratownik</th>
                             <th>Status</th>
                             <th>Akcja</th>
                         </tr>
                     </thead>
                     <tbody id="ambulances-table-body">
                         <tr>
-                            <td colspan="6" class="text-center">Ładowanie danych...</td>
+                            <td colspan="7" class="text-center">Ładowanie danych...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -50,6 +51,7 @@
             <form id="editAmbulanceForm">
                 <div class="modal-body">
                     <input type="hidden" id="edit-amb-id">
+                    <input type="hidden" id="edit-amb-hosp-id">
                     <div class="form-group">
                         <label>Numer Rejestracyjny</label>
                         <input type="text" id="edit-amb-plate" class="form-control" required>
@@ -61,6 +63,12 @@
                             <option value="1">T - Transportowa</option>
                             <option value="2">P - Podstawowa</option>
                             <option value="3">N - Neonatologiczna</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Przypisany Ratownik</label>
+                        <select id="edit-amb-paramedic" class="form-control">
+                            <option value="">Brak przypisania</option>
                         </select>
                     </div>
                 </div>
@@ -123,6 +131,7 @@
         window.currentUserRoles = [];
         window.currentUserEmail = "";
         window.myHospitalId = null;
+        window.paramedicsList = [];
 
         if (token) {
             try {
@@ -179,11 +188,14 @@
 
         setupCustomList({
             tableBodyId: 'ambulances-table-body',
-            colspan: 6,
+            colspan: 7,
             emptyMessage: 'Brak karetek w systemie.',
             loadData: async (jwt) => {
                 const hospRes = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + jwt } });
                 const hospitals = hospRes.ok ? await hospRes.json() : [];
+
+                const paramRes = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                window.paramedicsList = paramRes.ok ? await paramRes.json() : [];
 
                 const ambRes = await fetch('/api/Medical/ambulances', { headers: { 'Authorization': 'Bearer ' + jwt } });
                 if (!ambRes.ok) throw new Error("Błąd pobierania karetek");
@@ -194,6 +206,11 @@
                     const hId = amb.hospitalId || amb.HospitalId;
                     const hosp = hospitals.find(h => h.id === hId || h.Id === hId);
                     amb.hospitalName = hosp ? (hosp.name || hosp.Name) : "Nieznany szpital";
+                    
+                    const pId = amb.paramedicId || amb.ParamedicId;
+                    const param = window.paramedicsList.find(p => p.id === pId || p.Id === pId);
+                    amb.paramedicName = param ? `${param.name || param.Name} ${param.lastName || param.LastName}` : "Brak";
+                    
                     return amb;
                 });
             },
@@ -212,6 +229,7 @@
                     : `<button class="btn btn-xs btn-secondary mr-1" disabled>Zajęta</button>`;
 
                 const hId = amb.hospitalId || amb.HospitalId;
+                const pId = amb.paramedicId || amb.ParamedicId || '';
                 const isAdmin = window.currentUserRoles.includes("Admin");
                 const isKierownik = window.currentUserRoles.includes("Kierownik Szpitala");
                 const canManage = isAdmin || (isKierownik && hId === window.myHospitalId);
@@ -219,7 +237,7 @@
                 if (canManage) {
                     actionBtn += `
                         <button onclick="window.openEqModal('${amb.id || amb.Id}', ${canManage})" class="btn btn-xs btn-info mr-1" title="Wyposażenie"><i class="fas fa-medkit"></i></button>
-                        <button onclick="window.openEditModal('${amb.id || amb.Id}', '${amb.licensePlate || amb.LicensePlate}', ${typeVal})" class="btn btn-xs btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.openEditModal('${amb.id || amb.Id}', '${amb.licensePlate || amb.LicensePlate}', ${typeVal}, '${pId}', '${hId}')" class="btn btn-xs btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
                         <button onclick="window.deleteAmbulance('${amb.id || amb.Id}')" class="btn btn-xs btn-danger" title="Usuń"><i class="fas fa-trash"></i></button>
                     `;
                 }
@@ -230,6 +248,7 @@
                         <td><b>${amb.licensePlate || amb.LicensePlate}</b></td>
                         <td><span class="badge bg-warning text-dark">${typeBadge}</span></td>
                         <td><i class="fas fa-hospital text-muted mr-1"></i> ${amb.hospitalName}</td>
+                        <td><i class="fas fa-user-md text-muted mr-1"></i> ${amb.paramedicName}</td>
                         <td>${statusBadge}</td>
                         <td style="white-space: nowrap;">${actionBtn}</td>
                     </tr>
@@ -249,19 +268,38 @@
             } catch (e) { alert("Błąd sieci."); }
         }
 
-        window.openEditModal = function(id, plate, type) {
+        window.openEditModal = function(id, plate, type, paramedicId, hospitalId) {
             document.getElementById('edit-amb-id').value = id;
             document.getElementById('edit-amb-plate').value = plate;
             document.getElementById('edit-amb-type').value = type;
+            document.getElementById('edit-amb-hosp-id').value = hospitalId;
+            
+            const pSelect = document.getElementById('edit-amb-paramedic');
+            pSelect.innerHTML = '<option value="">Brak przypisania</option>';
+            
+            if (window.paramedicsList) {
+                window.paramedicsList.filter(p => (p.hospitalId || p.HospitalId) === hospitalId).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id || p.Id;
+                    opt.textContent = `${p.name || p.Name} ${p.lastName || p.LastName}`;
+                    pSelect.appendChild(opt);
+                });
+            }
+            pSelect.value = paramedicId || "";
+
             $('#editAmbulanceModal').modal('show');
         }
 
         document.getElementById('editAmbulanceForm')?.addEventListener('submit', async function(e) {
             e.preventDefault();
             const id = document.getElementById('edit-amb-id').value;
+            const pVal = document.getElementById('edit-amb-paramedic').value;
+            
             const data = {
                 licensePlate: document.getElementById('edit-amb-plate').value,
-                type: parseInt(document.getElementById('edit-amb-type').value)
+                type: parseInt(document.getElementById('edit-amb-type').value),
+                hospitalId: document.getElementById('edit-amb-hosp-id').value,
+                paramedicId: pVal ? pVal : null
             };
 
             try {

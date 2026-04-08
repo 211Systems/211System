@@ -33,6 +33,13 @@
                         </select>
                     </div>
                     
+                    <div class="form-group">
+                        <label for="paramedicId">Przypisz Ratownika</label>
+                        <select class="form-control" id="paramedicId" required>
+                            <option value="">-- Wybierz najpierw szpital --</option>
+                        </select>
+                    </div>
+                    
                     <p id="form-error" class="text-danger d-none mt-3"></p>
                 </div>
 
@@ -49,6 +56,9 @@
     <script src="~/js/api-form-handler.js"></script>
     <script src="~/js/api-department-loader.js"></script>
     <script>
+        const token = localStorage.getItem('jwt');
+        let allParamedics = [];
+
         document.addEventListener("DOMContentLoaded", async function () {
 
             await loadDepartmentsForDropdown({
@@ -60,6 +70,38 @@
                 foreignKeyField: 'hospitalId'
             });
 
+            if (token) {
+                try {
+                    const res = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + token } });
+                    if (res.ok) {
+                        allParamedics = await res.json();
+                    }
+                } catch (e) {}
+            }
+
+            document.getElementById('hospitalId').addEventListener('change', function () {
+                const selectedHospitalId = this.value;
+                const paramSelect = document.getElementById('paramedicId');
+                
+                paramSelect.innerHTML = '<option value="">-- Wybierz ratownika --</option>';
+
+                if (!selectedHospitalId) return;
+
+                const filteredParamedics = allParamedics.filter(p => (p.hospitalId || p.HospitalId) === selectedHospitalId);
+
+                if (filteredParamedics.length === 0) {
+                    paramSelect.innerHTML = '<option value="">Brak ratowników w tym szpitalu</option>';
+                    return;
+                }
+
+                filteredParamedics.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id || p.Id;
+                    opt.textContent = `${p.name || p.Name} ${p.lastName || p.LastName}`;
+                    paramSelect.appendChild(opt);
+                });
+            });
+
             setupApiFormSubmit({
                 formId: 'createAmbulanceForm',
                 apiUrl: '/api/Medical/ambulances',
@@ -67,6 +109,7 @@
                 defaultErrorMsg: 'Błąd podczas dodawania karetki.',
                 buildPayload: () => {
                     const hospId = document.getElementById('hospitalId').value;
+                    const paramId = document.getElementById('paramedicId').value;
 
                     if (!hospId) {
                         const errorMsg = document.getElementById('form-error');
@@ -74,11 +117,19 @@
                         errorMsg.classList.remove('d-none');
                         throw new Error("Validation failed - brak szpitala");
                     }
+                    
+                    if (!paramId) {
+                        const errorMsg = document.getElementById('form-error');
+                        errorMsg.textContent = "Musisz przypisać ratownika!";
+                        errorMsg.classList.remove('d-none');
+                        throw new Error("Validation failed - brak ratownika");
+                    }
 
                     return {
                         licensePlate: document.getElementById('licensePlate').value,
                         type: parseInt(document.getElementById('type').value),
-                        hospitalId: hospId
+                        hospitalId: hospId,
+                        paramedicId: paramId
                     };
                 }
             });

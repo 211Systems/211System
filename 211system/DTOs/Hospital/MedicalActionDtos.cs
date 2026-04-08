@@ -9,10 +9,11 @@ namespace _211system.DTOs.Hospital
         public bool HasSOR { get; set; }
     }
 
-    public class UpdateAmbulanceDto
+public class UpdateAmbulanceDto
     {
         public string LicensePlate { get; set; }
         public AmbulanceType Type { get; set; }
+        public Guid? ParamedicId { get; set; }
     }
 
     public class CreateAmbulanceEquipmentDto

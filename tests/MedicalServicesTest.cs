@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Moq;
 using System;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
 using _211system.Models;
@@ -29,7 +30,10 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            
             var paramedicId = Guid.NewGuid();
             var reportId = Guid.NewGuid();
 
@@ -59,7 +63,10 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            
             var paramedicId = Guid.NewGuid();
 
             context.Paramedics.Add(new Paramedic
@@ -94,7 +101,10 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            
             var operationId = Guid.NewGuid();
 
             context.MedicalOperations.Add(new MedicalOperation
@@ -118,7 +128,9 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
 
             context.Hospitals.AddRange(
                 new Hospital { Id = Guid.NewGuid(), Name = "Szpital A", Address = "Adres A", HasSOR = true },
@@ -138,8 +150,9 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
 
-            var service = new MedicalService(context, mockAuthService.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
 
             var accountId = Guid.NewGuid().ToString();
             var account = new ApplicationUser { Id = accountId, Email = "ratownik@szpital.pl" };
@@ -170,14 +183,17 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
 
             var hospitalId = Guid.NewGuid();
             var dto = new _211system.DTOs.Hospital.CreateAmbulanceDto
             {
                 Type = AmbulanceType.S,
                 LicensePlate = "GD 12345",
-                HospitalId = hospitalId
+                HospitalId = hospitalId,
+                ParamedicId = null
             };
 
             var result = await service.CreateAmbulanceAsync(dto);
@@ -196,7 +212,9 @@ namespace tests
         {
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
-            var service = new MedicalService(context, mockAuthService.Object);
+            var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+            
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
 
             context.Ambulances.AddRange(
                 new Ambulance { Id = Guid.NewGuid(), Type = AmbulanceType.P, LicensePlate = "POZ 111", HospitalId = Guid.NewGuid() },

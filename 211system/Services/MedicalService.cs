@@ -1,8 +1,11 @@
-﻿using _211system.Data;
+﻿using System.Text;
+using System.Text.Json;
+using _211system.Data;
 using _211system.DTOs.Hospital;
 using _211system.Models.Hospital;
 using _211system.Models.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using CPR112.Models;
 
 namespace _211system.Services
 {
@@ -10,13 +13,15 @@ namespace _211system.Services
     {
         private readonly _211DbContext _context;
         private readonly IAuthService _authService;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public MedicalService(_211DbContext context, IAuthService authService)
+        public MedicalService(_211DbContext context, IAuthService authService, IHttpClientFactory httpClientFactory)
         {
             _context = context;
             _authService = authService;
+            _httpClientFactory = httpClientFactory;
         }
-        
+
         public async Task<HospitalDto> CreateHospitalAsync(CreateHospitalDto dto)
         {
             var hospital = new Hospital
@@ -98,11 +103,21 @@ namespace _211system.Services
 
         public async Task<AmbulanceDto> CreateAmbulanceAsync(CreateAmbulanceDto dto)
         {
+            if (dto.ParamedicId.HasValue)
+            {
+                bool isAlreadyAssigned = await _context.Ambulances.AnyAsync(a => a.ParamedicId == dto.ParamedicId.Value);
+                if (isAlreadyAssigned)
+                {
+                    throw new InvalidOperationException("Ten ratownik jest już przypisany do innej karetki.");
+                }
+            }
+
             var ambulance = new Ambulance
             {
                 Type = dto.Type,
                 LicensePlate = dto.LicensePlate,
                 HospitalId = dto.HospitalId,
+                ParamedicId = dto.ParamedicId,
                 IsAvailable = true
             };
 
@@ -115,7 +130,8 @@ namespace _211system.Services
                 Type = ambulance.Type,
                 LicensePlate = ambulance.LicensePlate,
                 HospitalId = ambulance.HospitalId,
-                IsAvailable = ambulance.IsAvailable
+                IsAvailable = ambulance.IsAvailable,
+                ParamedicId = ambulance.ParamedicId
             };
         }
 
@@ -128,7 +144,8 @@ namespace _211system.Services
                 Type = a.Type,
                 LicensePlate = a.LicensePlate,
                 HospitalId = a.HospitalId,
-                IsAvailable = a.IsAvailable
+                IsAvailable = a.IsAvailable,
+                ParamedicId = a.ParamedicId
             });
         }
         
@@ -144,13 +161,17 @@ namespace _211system.Services
                 Type = a.Type,
                 LicensePlate = a.LicensePlate,
                 HospitalId = a.HospitalId,
-                IsAvailable = true
+                IsAvailable = true,
+                ParamedicId = a.ParamedicId
             });
         }
         
         public async Task AssignAmbulanceToIncidentAsync(Guid ambulanceId, Guid incidentId)
         {
-            var ambulance = await _context.Ambulances.FindAsync(ambulanceId);
+            var ambulance = await _context.Ambulances
+                .Include(a => a.Paramedic)
+                .FirstOrDefaultAsync(a => a.Id == ambulanceId);
+
             if (ambulance == null) throw new ArgumentException("Karetka nie istnieje.");
 
             if (!ambulance.IsAvailable) 
@@ -172,9 +193,80 @@ namespace _211system.Services
             }
 
             _context.Ambulances.Update(ambulance);
+
+            if (ambulance.ParamedicId.HasValue)
+            {
+                var isBusy = await _context.MedicalOperations
+                    .AnyAsync(m => m.ParamedicId == ambulance.ParamedicId.Value && m.EndTime == null);
+
+                if (!isBusy)
+                {
+                    var operation = new MedicalOperation
+                    {
+                        ParamedicId = ambulance.ParamedicId.Value,
+                        ReportId = incidentId,
+                        StartTime = DateTime.UtcNow
+                    };
+                    await _context.MedicalOperations.AddAsync(operation);
+                }
+            }
+
             await _context.SaveChangesAsync();
+
+            if (incident != null)
+            {
+                await NotifyMedicalEndpointAsync(ambulance, incident);
+            }
         }
         
+        private async Task NotifyMedicalEndpointAsync(Ambulance ambulance, Incident incident)
+        {
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                
+                var payload = new
+                {
+                    IncidentId = incident.Id,
+                    IncidentNumber = incident.IncidentNumber ?? "Brak",
+                    Description = incident.Description,
+                    Severity = incident.Severity,
+                    DispatchTime = DateTime.UtcNow,
+                    AssignedAmbulance = new 
+                    {
+                        AmbulanceId = ambulance.Id,
+                        LicensePlate = ambulance.LicensePlate,
+                        Type = ambulance.Type.ToString(),
+                        HospitalId = ambulance.HospitalId,
+                        Crew = ambulance.Paramedic != null ? new 
+                        {
+                            ParamedicId = ambulance.Paramedic.Id,
+                            FirstName = ambulance.Paramedic.Name,
+                            LastName = ambulance.Paramedic.LastName,
+                            LicenseNumber = ambulance.Paramedic.LicenseNumber,
+                            Rank = ambulance.Paramedic.Rank
+                        } : null
+                    }
+                };
+
+                var jsonPayload = JsonSerializer.Serialize(payload);
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                string targetEndpoint = "https://twoj-system.pl/api/medical-receptor/dispatch"; 
+
+                var response = await client.PostAsync(targetEndpoint, content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Szpital nie odebrał powiadomienia! Status: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Awaria komunikacji ze szpitalem: {ex.Message}");
+            }
+        }
+
         public async Task<Guid> StartMedicalOperationAsync(Guid paramedicId, Guid reportId)
         {
             var paramedicExists = await _context.Paramedics.AnyAsync(p => p.Id == paramedicId);
@@ -223,8 +315,22 @@ namespace _211system.Services
                 _context.Ambulances.Update(amb);
             }
 
+            var incident = await _context.Incidents.FindAsync(operation.ReportId);
+            if (incident != null)
+            {
+                incident.IsMedicalActive = false;
+                
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+                
+                _context.Incidents.Update(incident);
+            }
+
             await _context.SaveChangesAsync();
         }
+
         public async Task DeleteHospitalAsync(Guid id)
         {
             var hospital = await _context.Hospitals.FindAsync(id);
@@ -234,26 +340,56 @@ namespace _211system.Services
                 await _context.SaveChangesAsync();
             }
         }
+
         public async Task DeleteParamedicAsync(Guid id)
         {
             var paramedic = await _context.Paramedics.FindAsync(id);
             if (paramedic != null)
             {
+                var operations = await _context.MedicalOperations.Where(o => o.ParamedicId == id).ToListAsync();
+                if (operations.Any())
+                {
+                    _context.MedicalOperations.RemoveRange(operations);
+                }
+
+                var ambulances = await _context.Ambulances.Where(a => a.ParamedicId == id).ToListAsync();
+                foreach (var amb in ambulances)
+                {
+                    amb.ParamedicId = null;
+                    if (amb.CurrentIncidentId.HasValue)
+                    {
+                        amb.IsAvailable = true;
+                        amb.CurrentIncidentId = null;
+                    }
+                }
+
                 _context.Paramedics.Remove(paramedic);
                 await _context.SaveChangesAsync();
             }
         }
+
         public async Task UpdateAmbulanceAsync(Guid id, UpdateAmbulanceDto dto)
         {
             var ambulance = await _context.Ambulances.FindAsync(id);
             if (ambulance == null) throw new ArgumentException("Karetka nie istnieje.");
 
+            if (dto.ParamedicId.HasValue)
+            {
+                bool isAlreadyAssigned = await _context.Ambulances.AnyAsync(a => a.ParamedicId == dto.ParamedicId.Value && a.Id != id);
+                if (isAlreadyAssigned)
+                {
+                    throw new InvalidOperationException("Ten ratownik jest już przypisany do innej karetki.");
+                }
+            }
+
             ambulance.LicensePlate = dto.LicensePlate;
             ambulance.Type = dto.Type;
+            ambulance.ParamedicId = dto.ParamedicId;
 
             _context.Ambulances.Update(ambulance);
             await _context.SaveChangesAsync();
         }
+
         public async Task DeleteEquipmentAsync(Guid id)
         {
             var eq = await _context.AmbulanceEquipments.FindAsync(id);
@@ -263,6 +399,7 @@ namespace _211system.Services
                 await _context.SaveChangesAsync();
             }
         }
+
         public async Task UpdateHospitalAsync(Guid id, UpdateHospitalDto dto)
         {
             var hospital = await _context.Hospitals.FindAsync(id);
@@ -275,15 +412,40 @@ namespace _211system.Services
             _context.Hospitals.Update(hospital);
             await _context.SaveChangesAsync();
         }
+
         public async Task DeleteAmbulanceAsync(Guid id)
         {
             var ambulance = await _context.Ambulances.FindAsync(id);
             if (ambulance != null)
             {
+                if (ambulance.CurrentIncidentId.HasValue && ambulance.ParamedicId.HasValue)
+                {
+                    var activeOperations = await _context.MedicalOperations
+                        .Where(o => o.ParamedicId == ambulance.ParamedicId.Value && o.ReportId == ambulance.CurrentIncidentId.Value)
+                        .ToListAsync();
+                        
+                    if (activeOperations.Any())
+                    {
+                        _context.MedicalOperations.RemoveRange(activeOperations);
+                    }
+
+                    var incident = await _context.Incidents.FindAsync(ambulance.CurrentIncidentId.Value);
+                    if (incident != null)
+                    {
+                        incident.IsMedicalActive = false;
+                        if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                        {
+                            incident.Status = "Zakończone";
+                        }
+                        _context.Incidents.Update(incident);
+                    }
+                }
+
                 _context.Ambulances.Remove(ambulance);
                 await _context.SaveChangesAsync();
             }
         }
+
         public async Task<AmbulanceEquipmentDto> AddEquipmentAsync(Guid ambulanceId, CreateAmbulanceEquipmentDto dto)
         {
             var equipment = new AmbulanceEquipment

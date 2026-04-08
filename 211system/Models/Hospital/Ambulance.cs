@@ -24,6 +24,12 @@ namespace _211system.Models.Hospital
         public virtual ICollection<AmbulanceEquipment> Equipment { get; set; } = new List<AmbulanceEquipment>();
 
         public bool IsAvailable { get; set; } = true;
+        
         public Guid? CurrentIncidentId { get; set; }
+
+        public Guid? ParamedicId { get; set; }
+
+        [ForeignKey(nameof(ParamedicId))]
+        public virtual Paramedic Paramedic { get; set; }
     }
 }

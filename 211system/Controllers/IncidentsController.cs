@@ -131,7 +131,7 @@ namespace _211system.Controllers
         }
 
 
-       [HttpDelete("{id}")]
+        [HttpDelete("{id}")]
         [Authorize(Roles = "Admin112, Admin")]
         public async Task<IActionResult> DeleteIncident(Guid id)
         {
@@ -140,6 +140,15 @@ namespace _211system.Controllers
                 var incident = await _context.Incidents.FindAsync(id);
                 if (incident == null) 
                     return NotFound(new { message = "Nie znaleziono zgłoszenia." });
+
+                var operations = await _context.MedicalOperations
+                    .Where(o => o.ReportId == id)
+                    .ToListAsync();
+
+                if (operations.Any())
+                {
+                    _context.MedicalOperations.RemoveRange(operations);
+                }
 
                 var ambulances = await _context.Ambulances
                     .Where(a => a.CurrentIncidentId == id)
@@ -165,7 +174,7 @@ namespace _211system.Controllers
                 await _context.SaveChangesAsync();
 
                 return Ok(new { 
-                    message = "Zgłoszenie usunięte, jednostki zwolnione.", 
+                    message = "Zgłoszenie usunięte, jednostki i akcje medyczne zwolnione.", 
                     releasedCount = ambulances.Count 
                 });
             }
