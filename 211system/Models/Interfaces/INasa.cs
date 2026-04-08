@@ -4,6 +4,6 @@ namespace _211system.Models.Interfaces
 {
     public interface INasaService
     {
-        Task<NasaFetchResultDto> FetchFireDataAndCreateIncidentsAsync();
+        Task<NasaFetchResultDto> FetchFireDataAndCreateIncidentsAsync(bool isdemo = false);
     }
 }

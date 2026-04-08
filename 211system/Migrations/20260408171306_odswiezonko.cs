@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class migracja4 : Migration
+    public partial class odswiezonko : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -91,21 +91,6 @@ namespace _211system.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Hospitals", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Locations",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Address = table.Column<string>(type: "text", nullable: false),
-                    City = table.Column<string>(type: "text", nullable: false),
-                    Latitude = table.Column<double>(type: "double precision", nullable: false),
-                    Longitude = table.Column<double>(type: "double precision", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Locations", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -351,26 +336,6 @@ namespace _211system.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Ambulances",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Type = table.Column<int>(type: "integer", nullable: false),
-                    LicensePlate = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    HospitalId = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Ambulances", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Ambulances_Hospitals_HospitalId",
-                        column: x => x.HospitalId,
-                        principalTable: "Hospitals",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "HospitalWards",
                 columns: table => new
                 {
@@ -478,16 +443,20 @@ namespace _211system.Migrations
                     Severity = table.Column<string>(type: "text", nullable: false),
                     ReportDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
+                    PhotoUrl = table.Column<string>(type: "text", nullable: true),
                     LocationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    OperatorId = table.Column<Guid>(type: "uuid", nullable: true)
+                    OperatorId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsPoliceActive = table.Column<bool>(type: "boolean", nullable: false),
+                    IsFireActive = table.Column<bool>(type: "boolean", nullable: false),
+                    IsMedicalActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Incidents", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Incidents_Locations_LocationId",
+                        name: "FK_Incidents_Encs_LocationId",
                         column: x => x.LocationId,
-                        principalTable: "Locations",
+                        principalTable: "Encs",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -517,22 +486,31 @@ namespace _211system.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "AmbulanceEquipments",
+                name: "Ambulances",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ItemName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    AmbulanceId = table.Column<Guid>(type: "uuid", nullable: false)
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    LicensePlate = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    HospitalId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "boolean", nullable: false),
+                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ParamedicId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_AmbulanceEquipments", x => x.Id);
+                    table.PrimaryKey("PK_Ambulances", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_AmbulanceEquipments_Ambulances_AmbulanceId",
-                        column: x => x.AmbulanceId,
-                        principalTable: "Ambulances",
+                        name: "FK_Ambulances_Hospitals_HospitalId",
+                        column: x => x.HospitalId,
+                        principalTable: "Hospitals",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Ambulances_Paramedics_ParamedicId",
+                        column: x => x.ParamedicId,
+                        principalTable: "Paramedics",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -722,6 +700,26 @@ namespace _211system.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "AmbulanceEquipments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    AmbulanceId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Quantity = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AmbulanceEquipments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AmbulanceEquipments_Ambulances_AmbulanceId",
+                        column: x => x.AmbulanceId,
+                        principalTable: "Ambulances",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "GivenMedicines",
                 columns: table => new
                 {
@@ -757,6 +755,11 @@ namespace _211system.Migrations
                 name: "IX_Ambulances_HospitalId",
                 table: "Ambulances",
                 column: "HospitalId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Ambulances_ParamedicId",
+                table: "Ambulances",
+                column: "ParamedicId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -1012,10 +1015,10 @@ namespace _211system.Migrations
                 name: "Patients");
 
             migrationBuilder.DropTable(
-                name: "Paramedics");
+                name: "PoliceCars");
 
             migrationBuilder.DropTable(
-                name: "PoliceCars");
+                name: "Paramedics");
 
             migrationBuilder.DropTable(
                 name: "FireDepartments");
@@ -1031,9 +1034,6 @@ namespace _211system.Migrations
 
             migrationBuilder.DropTable(
                 name: "Hospitals");
-
-            migrationBuilder.DropTable(
-                name: "Locations");
 
             migrationBuilder.DropTable(
                 name: "Operators112");
