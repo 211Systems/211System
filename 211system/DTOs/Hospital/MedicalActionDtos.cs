@@ -45,4 +45,13 @@ public class UpdateAmbulanceDto
         public DateTime StartTime { get; set; }
         public DateTime? EndTime { get; set; }
     }
+    public class IncidentDetailsMedicDto
+    {
+        public string IncidentNumber { get; set; }
+        public string Description { get; set; }
+        public string Severity { get; set; }
+        public string Status { get; set; }
+        public DateTime ReportDate { get; set; }
+        public string Address { get; set; }
+    }
 }

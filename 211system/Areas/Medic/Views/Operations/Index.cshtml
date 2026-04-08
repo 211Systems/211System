@@ -1,11 +1,10 @@
 ﻿@{
     ViewData["Title"] = "Akcje Medyczne";
 }
-
 <div class="card card-danger card-outline dark-mode">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title m-0"><i class="fas fa-heartbeat"></i> Dziennik Akcji Ratunkowych</h3>
-        <button class="btn btn-sm btn-danger ml-auto" data-toggle="modal" data-target="#startOperationModal">
+        <button class="btn btn-sm btn-danger ml-auto d-none" id="btn-start-operation" data-toggle="modal" data-target="#startOperationModal">
             <i class="fas fa-play"></i> Rozpocznij Akcję
         </button>
     </div>
@@ -54,6 +53,42 @@
     </div>
 </div>
 
+<div class="modal fade" id="incidentDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Szczegóły Zgłoszenia 112</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group list-group-unbordered text-dark mb-3">
+                    <li class="list-group-item bg-light">
+                        <b>Numer:</b> <a class="float-right text-info" id="det-number">...</a>
+                    </li>
+                    <li class="list-group-item bg-light">
+                        <b>Priorytet:</b> <a class="float-right" id="det-severity">...</a>
+                    </li>
+                    <li class="list-group-item bg-light">
+                        <b>Status:</b> <a class="float-right" id="det-status">...</a>
+                    </li>
+                    <li class="list-group-item bg-light">
+                        <b>Lokalizacja:</b> <span class="float-right text-muted" id="det-address">...</span>
+                    </li>
+                </ul>
+                <div class="alert alert-secondary text-dark">
+                    <strong>Opis zdarzenia:</strong><br/>
+                    <span id="det-desc">...</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         const token = localStorage.getItem('jwt');
@@ -67,12 +102,15 @@
         }
 
         let currentUserEmail = "";
+        let currentUserRoles = [];
         let myParamedicId = null;
 
         if (token) {
             const decodedToken = parseJwt(token);
             if (decodedToken) {
                 currentUserEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
+                let roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
+                currentUserRoles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
             }
         }
 
@@ -84,6 +122,7 @@
                     const myRecord = paramedics.find(p => p.email === currentUserEmail || p.Email === currentUserEmail);
                     if (myRecord) {
                         myParamedicId = myRecord.id || myRecord.Id;
+                        document.getElementById('btn-start-operation').classList.remove('d-none');
                     }
                 }
             } catch (error) { console.error("Błąd uwierzytelniania pracownika:", error); }
@@ -115,21 +154,25 @@
                             : '<span class="badge bg-success border-success blink_me">Aktywna</span>';
 
                         const opParamedicId = op.paramedicId || op.ParamedicId;
-                        let actions = "";
+                        const reportId = op.reportId || op.ReportId;
+                        
+                        let actions = `<button onclick="window.showIncidentDetails('${reportId}')" class="btn btn-sm btn-info mr-1" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>`;
 
-                        if (!isFinished && myParamedicId === opParamedicId) {
-                            actions = `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ Akcję</button>`;
+                        const isAdminOrManager = currentUserRoles.includes("Admin") || currentUserRoles.includes("Kierownik Szpitala");
+
+                        if (!isFinished && (myParamedicId === opParamedicId || isAdminOrManager)) {
+                            actions += `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ Akcję</button>`;
                         } else if (!isFinished) {
-                            actions = `<span class="text-muted small">Brak dostępu</span>`;
+                            actions += `<span class="text-muted small ml-2">Tylko podgląd</span>`;
                         }
 
                         const row = `<tr>
                             <td>${startStr}</td>
                             <td>${endStr}</td>
-                            <td><small class="text-muted">${op.reportId || op.ReportId}</small></td>
+                            <td><small class="text-muted">${reportId}</small></td>
                             <td><b>${op.paramedicName || op.ParamedicName}</b></td>
                             <td>${statusBadge}</td>
-                            <td class="text-right">${actions}</td>
+                            <td class="text-right" style="white-space: nowrap;">${actions}</td>
                         </tr>`;
                         
                         tableBody.insertAdjacentHTML('beforeend', row);
@@ -139,6 +182,32 @@
                 console.error(error);
                 tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd połączenia z serwerem.</td></tr>';
             }
+        }
+
+        window.showIncidentDetails = async function(incidentId) {
+            try {
+                const response = await fetch(`/api/Medical/incidents/${incidentId}`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('det-number').textContent = data.incidentNumber;
+                    document.getElementById('det-desc').textContent = data.description;
+                    document.getElementById('det-address').textContent = data.address;
+                    document.getElementById('det-status').textContent = data.status;
+
+                    const severityEl = document.getElementById('det-severity');
+                    severityEl.textContent = data.severity;
+                    severityEl.className = "float-right badge " + 
+                        (data.severity === 'Wysoki' ? 'bg-danger' : 
+                        (data.severity === 'Średni' ? 'bg-warning' : 'bg-info'));
+
+                    $('#incidentDetailsModal').modal('show');
+                } else {
+                    alert("Brak dostępu lub zgłoszenie zostało usunięte.");
+                }
+            } catch (e) { alert("Błąd sieci przy pobieraniu szczegółów."); }
         }
 
         document.getElementById('startOperationForm').addEventListener('submit', async function(e) {
