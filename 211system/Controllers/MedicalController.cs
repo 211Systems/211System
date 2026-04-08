@@ -264,5 +264,26 @@ namespace _211system.Controllers
             await _medicalService.DeleteEquipmentAsync(id);
             return Ok(new { message = "Usunięto sprzęt." });
         }
+        [HttpGet("incidents/{id}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk")]
+        public async Task<IActionResult> GetIncidentDetailsForMedic(Guid id)
+        {
+            var incidentDetails = await _context.Incidents
+                .Where(i => i.Id == id)
+                .Select(i => new IncidentDetailsMedicDto
+                {
+                    IncidentNumber = i.IncidentNumber,
+                    Description = i.Description,
+                    Severity = i.Severity,
+                    Status = i.Status,
+                    ReportDate = i.ReportDate,
+                    Address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Brak dokładnej lokalizacji"
+                })
+                .FirstOrDefaultAsync();
+
+            if (incidentDetails == null) return NotFound(new { message = "Nie znaleziono zgłoszenia." });
+
+            return Ok(incidentDetails);
+        }
     }
 }
