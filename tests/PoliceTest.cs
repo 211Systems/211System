@@ -4,6 +4,10 @@ using _211system.Models.Interfaces;
 using _211system.Models.Services;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using System;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace tests;
@@ -34,7 +38,8 @@ public class PoliceTest
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var policeService = new PoliceService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
 
         var dto = new CreatePDepartmentDto
         {
@@ -56,7 +61,8 @@ public class PoliceTest
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var policeService = new PoliceService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
 
         var departmentDto = new CreatePDepartmentDto { Name = "KPP Test", Address = "Test", District = "Test" };
         var department = await policeService.CreateDepartmentAsync(departmentDto);
@@ -84,7 +90,8 @@ public class PoliceTest
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var policeService = new PoliceService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
 
         var policemanDto = new CreatePolicemanDto
         {
@@ -105,7 +112,8 @@ public class PoliceTest
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var policeService = new PoliceService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
 
         await policeService.CreateDepartmentAsync(new CreatePDepartmentDto { Name = "K1", Address = "A1", District = "D1" });
         await policeService.CreateDepartmentAsync(new CreatePDepartmentDto { Name = "K2", Address = "A2", District = "D2" });

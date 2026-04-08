@@ -1,4 +1,11 @@
-﻿using _211system.Data;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using _211system.Data;
 using _211system.Models.Dtos.Fire;
 using _211system.Models.Interfaces;
 using _211system.Services;
@@ -11,11 +18,13 @@ namespace _211system.Models.Services
     {
         private readonly _211DbContext _context;
         private readonly IAuthService _authService;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public FireService(_211DbContext context, IAuthService authService)
+        public FireService(_211DbContext context, IAuthService authService, IHttpClientFactory httpClientFactory)
         {
             _context = context;
             _authService = authService;
+            _httpClientFactory = httpClientFactory;
         }
 
         public async Task<FDepartment> CreateDepartmentAsync(CreateFDepartmentDto dto)
@@ -66,6 +75,23 @@ namespace _211system.Models.Services
             var fireman = await _context.Firemen.FindAsync(id);
             if (fireman != null)
             {
+                var operations = await _context.FireOperations.Where(o => o.FiremanId == id).ToListAsync();
+                if (operations.Any())
+                {
+                    _context.FireOperations.RemoveRange(operations);
+                }
+
+                var trucks = await _context.FireTrucks.Where(t => t.FiremanId == id).ToListAsync();
+                foreach (var truck in trucks)
+                {
+                    truck.FiremanId = null;
+                    if (truck.CurrentIncidentId.HasValue)
+                    {
+                        truck.IsAvailable = true;
+                        truck.CurrentIncidentId = null;
+                    }
+                }
+
                 _context.Firemen.Remove(fireman);
                 await _context.SaveChangesAsync();
             }
@@ -74,20 +100,109 @@ namespace _211system.Models.Services
         public async Task<FireTruck> CreateFireTruckAsync(CreateFireTruckDto dto)
         {
             var department = await _context.FireDepartments.FindAsync(dto.FDepartmentId);
+            if (department == null) throw new Exception("Remiza o podanym ID nie istnieje!");
 
-            if (department == null)
-                throw new Exception("Remiza o podanym ID nie istnieje!");
+            if (dto.FiremanId.HasValue)
+            {
+                bool isAlreadyAssigned = await _context.FireTrucks.AnyAsync(t => t.FiremanId == dto.FiremanId.Value);
+                if (isAlreadyAssigned) throw new InvalidOperationException("Ten strażak jest już przypisany do innego wozu.");
+            }
 
             var fireTruck = new FireTruck
             {
                 LicensePlate = dto.LicensePlate,
                 FDepartmentId = dto.FDepartmentId,
-                Department = department
+                Department = department,
+                FiremanId = dto.FiremanId,
+                IsAvailable = true
             };
 
             await _context.FireTrucks.AddAsync(fireTruck);
             await _context.SaveChangesAsync();
             return fireTruck;
+        }
+
+        public async Task AssignFireTruckToIncidentAsync(Guid truckId, Guid incidentId)
+        {
+            var truck = await _context.FireTrucks
+                .Include(t => t.Fireman)
+                .FirstOrDefaultAsync(t => t.Id == truckId);
+
+            if (truck == null) throw new ArgumentException("Wóz strażacki nie istnieje.");
+            if (!truck.IsAvailable) throw new InvalidOperationException("Ten wóz jest już w akcji.");
+
+            truck.IsAvailable = false;
+            truck.CurrentIncidentId = incidentId;
+
+            var incident = await _context.Incidents.FindAsync(incidentId);
+            if (incident != null)
+            {
+                incident.IsFireActive = true;
+                if (incident.Status == "Nowe") incident.Status = "W toku";
+                _context.Incidents.Update(incident);
+            }
+
+            _context.FireTrucks.Update(truck);
+
+            if (truck.FiremanId.HasValue)
+            {
+                var isBusy = await _context.FireOperations
+                    .AnyAsync(o => o.FiremanId == truck.FiremanId.Value && o.EndTime == null);
+
+                if (!isBusy)
+                {
+                    var operation = new FireDepartmentOperation
+                    {
+                        FiremanId = truck.FiremanId.Value,
+                        IncidentId = incidentId,
+                        StartTime = DateTime.UtcNow
+                    };
+                    await _context.FireOperations.AddAsync(operation);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            if (incident != null)
+            {
+                await NotifyFireEndpointAsync(truck, incident);
+            }
+        }
+
+        private async Task NotifyFireEndpointAsync(FireTruck truck, CPR112.Models.Incident incident)
+        {
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                var payload = new
+                {
+                    IncidentId = incident.Id,
+                    IncidentNumber = incident.IncidentNumber ?? "Brak",
+                    Description = incident.Description,
+                    Severity = incident.Severity,
+                    DispatchTime = DateTime.UtcNow,
+                    AssignedUnit = new
+                    {
+                        TruckId = truck.Id,
+                        LicensePlate = truck.LicensePlate,
+                        DepartmentId = truck.FDepartmentId,
+                        Crew = truck.Fireman != null ? new
+                        {
+                            FiremanId = truck.Fireman.Id,
+                            FirstName = truck.Fireman.Name,
+                            LastName = truck.Fireman.Surname,
+                            BadgeNumber = truck.Fireman.BadgeNumber,
+                            Rank = truck.Fireman.Rank
+                        } : null
+                    }
+                };
+
+                var jsonPayload = JsonSerializer.Serialize(payload);
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                string targetEndpoint = "https://straz-pozarna.pl/api/dispatch/receive";
+                await client.PostAsync(targetEndpoint, content);
+            }
+            catch { }
         }
 
         public async Task<IEnumerable<FDepartmentDto>> GetAllDepartmentsAsync()
@@ -124,8 +239,55 @@ namespace _211system.Models.Services
                 {
                     Id = t.Id,
                     LicensePlate = t.LicensePlate,
-                    FDepartmentId = t.FDepartmentId
+                    FDepartmentId = t.FDepartmentId,
+                    IsAvailable = t.IsAvailable,
+                    FiremanId = t.FiremanId
                 }).ToListAsync();
+        }
+
+        public async Task UpdateFireTruckAsync(Guid id, UpdateFireTruckDto dto)
+        {
+            var truck = await _context.FireTrucks.FindAsync(id);
+            if (truck == null) throw new ArgumentException("Wóz strażacki nie istnieje.");
+
+            if (dto.FiremanId.HasValue)
+            {
+                bool isAlreadyAssigned = await _context.FireTrucks.AnyAsync(t => t.FiremanId == dto.FiremanId.Value && t.Id != id);
+                if (isAlreadyAssigned) throw new InvalidOperationException("Ten strażak jest już przypisany do innego wozu.");
+            }
+
+            truck.LicensePlate = dto.LicensePlate;
+            truck.FiremanId = dto.FiremanId;
+
+            _context.FireTrucks.Update(truck);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteFireTruckAsync(Guid id)
+        {
+            var truck = await _context.FireTrucks.FindAsync(id);
+            if (truck != null)
+            {
+                if (truck.CurrentIncidentId.HasValue && truck.FiremanId.HasValue)
+                {
+                    var activeOperations = await _context.FireOperations
+                        .Where(o => o.FiremanId == truck.FiremanId.Value && o.IncidentId == truck.CurrentIncidentId.Value)
+                        .ToListAsync();
+
+                    if (activeOperations.Any()) _context.FireOperations.RemoveRange(activeOperations);
+
+                    var incident = await _context.Incidents.FindAsync(truck.CurrentIncidentId.Value);
+                    if (incident != null)
+                    {
+                        incident.IsFireActive = false;
+                        if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive) incident.Status = "Zakończone";
+                        _context.Incidents.Update(incident);
+                    }
+                }
+
+                _context.FireTrucks.Remove(truck);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }
