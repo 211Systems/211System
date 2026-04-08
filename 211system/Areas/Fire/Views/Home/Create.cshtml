@@ -1,0 +1,138 @@
+@{
+    ViewData["Title"] = "Dodaj Wóz Strażacki";
+}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card card-danger">
+            <div class="card-header">
+                <h3 class="card-title">Rejestracja Nowego Wozu Strażackiego</h3>
+            </div>
+            
+            <form id="createFireTruckForm">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="licensePlate">Numer Rejestracyjny</label>
+                        <input type="text" class="form-control" id="licensePlate" placeholder="np. WPI 998" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="departmentId">Przypisz do Remizy</label>
+                        <select class="form-control" id="departmentId" required>
+                            <option value="">Wybierz remizę z listy...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="firemanId">Przypisz Strażaka (Opcjonalnie)</label>
+                        <select class="form-control" id="firemanId">
+                            <option value="">-- Wybierz najpierw remizę --</option>
+                        </select>
+                    </div>
+                    
+                    <p id="form-error" class="text-danger d-none mt-3"></p>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="/Fire/Trucks" class="btn btn-default">Anuluj</a>
+                    <button type="submit" class="btn btn-danger">Zarejestruj Wóz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = localStorage.getItem('jwt');
+        let allFiremen = [];
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            if (!token) {
+                window.location.href = "/AuthView/Login";
+                return;
+            }
+
+            try {
+                const deptRes = await fetch('/api/Fire/departments', { headers: { 'Authorization': 'Bearer ' + token } });
+                const fireRes = await fetch('/api/Fire/firemen', { headers: { 'Authorization': 'Bearer ' + token } });
+
+                if (deptRes.ok) {
+                    const departments = await deptRes.json();
+                    const deptSelect = document.getElementById('departmentId');
+                    departments.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.id || d.Id;
+                        opt.textContent = d.name || d.Name;
+                        deptSelect.appendChild(opt);
+                    });
+                }
+
+                if (fireRes.ok) {
+                    allFiremen = await fireRes.json();
+                }
+            } catch (e) {}
+
+            document.getElementById('departmentId').addEventListener('change', function () {
+                const selectedDeptId = this.value;
+                const fireSelect = document.getElementById('firemanId');
+                
+                fireSelect.innerHTML = '<option value="">-- Wybierz strażaka (opcjonalnie) --</option>';
+
+                if (!selectedDeptId) return;
+
+                const filteredFiremen = allFiremen.filter(f => (f.fDepartmentId || f.FDepartmentId) === selectedDeptId);
+
+                if (filteredFiremen.length === 0) {
+                    fireSelect.innerHTML = '<option value="">Brak strażaków w tej remizie</option>';
+                    return;
+                }
+
+                filteredFiremen.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id || f.Id;
+                    opt.textContent = `${f.name || f.Name} ${f.surname || f.Surname} (${f.badgeNumber || f.BadgeNumber})`;
+                    fireSelect.appendChild(opt);
+                });
+            });
+
+            document.getElementById('createFireTruckForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const deptId = document.getElementById('departmentId').value;
+                const fireId = document.getElementById('firemanId').value;
+
+                if (!deptId) {
+                    const errorMsg = document.getElementById('form-error');
+                    errorMsg.textContent = "Musisz wybrać remizę!";
+                    errorMsg.classList.remove('d-none');
+                    return;
+                }
+
+                const payload = {
+                    licensePlate: document.getElementById('licensePlate').value,
+                    fDepartmentId: deptId,
+                    firemanId: fireId ? fireId : null
+                };
+
+                try {
+                    const res = await fetch('/api/Fire/firetrucks', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        window.location.href = '/Fire/Trucks'; // Zmień na swój poprawny link powrotu!
+                    } else {
+                        const err = await res.json();
+                        const errorMsg = document.getElementById('form-error');
+                        errorMsg.textContent = err.message || "Błąd podczas dodawania wozu.";
+                        errorMsg.classList.remove('d-none');
+                    }
+                } catch(err) {
+                    alert("Błąd połączenia z serwerem.");
+                }
+            });
+        });
+    </script>
+}

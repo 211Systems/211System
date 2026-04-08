@@ -29,6 +29,13 @@
     {
         public string LicensePlate { get; set; }
         public Guid FDepartmentId { get; set; }
+        public Guid? FiremanId { get; set; }
+    }
+
+    public class UpdateFireTruckDto
+    {
+        public string LicensePlate { get; set; }
+        public Guid? FiremanId { get; set; }
     }
 
     public class FDepartmentDto
@@ -55,5 +62,7 @@
         public Guid Id { get; set; }
         public string LicensePlate { get; set; }
         public Guid FDepartmentId { get; set; }
+        public bool IsAvailable { get; set; }
+        public Guid? FiremanId { get; set; }
     }
 }

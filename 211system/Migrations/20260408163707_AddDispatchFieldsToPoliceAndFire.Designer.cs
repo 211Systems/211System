@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using _211system.Data;
@@ -11,9 +12,11 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    partial class _211DbContextModelSnapshot : ModelSnapshot
+    [Migration("20260408163707_AddDispatchFieldsToPoliceAndFire")]
+    partial class AddDispatchFieldsToPoliceAndFire
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -297,9 +300,6 @@ namespace _211system.Migrations
                     b.Property<Guid>("FDepartmentId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("FiremanId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("IncidentId")
                         .HasColumnType("uuid");
 
@@ -309,8 +309,6 @@ namespace _211system.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FDepartmentId");
-
-                    b.HasIndex("FiremanId");
 
                     b.HasIndex("IncidentId");
 
@@ -633,9 +631,6 @@ namespace _211system.Migrations
                     b.Property<Guid>("PDepartmentId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("PolicemanId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -644,8 +639,6 @@ namespace _211system.Migrations
                     b.HasIndex("IncidentId");
 
                     b.HasIndex("PDepartmentId");
-
-                    b.HasIndex("PolicemanId");
 
                     b.ToTable("PoliceOperations");
                 });
@@ -1085,10 +1078,6 @@ namespace _211system.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("FireDepartment.Fireman", "Fireman")
-                        .WithMany()
-                        .HasForeignKey("FiremanId");
-
                     b.HasOne("CPR112.Models.Incident", "Incident")
                         .WithMany()
                         .HasForeignKey("IncidentId")
@@ -1096,8 +1085,6 @@ namespace _211system.Migrations
                         .IsRequired();
 
                     b.Navigation("Department");
-
-                    b.Navigation("Fireman");
 
                     b.Navigation("Incident");
                 });
@@ -1242,15 +1229,9 @@ namespace _211system.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Police.Policeman", "Policeman")
-                        .WithMany()
-                        .HasForeignKey("PolicemanId");
-
                     b.Navigation("Department");
 
                     b.Navigation("Incident");
-
-                    b.Navigation("Policeman");
                 });
 
             modelBuilder.Entity("Police.Policeman", b =>

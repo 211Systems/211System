@@ -1,4 +1,7 @@
-﻿using _211system.Models.Dtos.Police;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using _211system.Models.Dtos.Police;
 using Police;
 
 namespace _211system.Models.Interfaces
@@ -11,7 +14,11 @@ namespace _211system.Models.Interfaces
         Task<PolicemanCreatedDto> CreatePolicemanAsync(CreatePolicemanDto dto);
         Task<IEnumerable<PolicemanDto>> GetAllPolicemenAsync();
         Task DeletePolicemanAsync(Guid id);
+        
         Task<PoliceCar> CreatePoliceCarAsync(CreatePoliceCarDto dto);
         Task<IEnumerable<PoliceCarDto>> GetAllPoliceCarsAsync();
+        Task UpdatePoliceCarAsync(Guid id, UpdatePoliceCarDto dto);
+        Task DeletePoliceCarAsync(Guid id);
+        Task AssignPoliceCarToIncidentAsync(Guid carId, Guid incidentId);
     }
 }

@@ -1,0 +1,138 @@
+@{
+    ViewData["Title"] = "Dodaj Radiowóz";
+}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Rejestracja Nowego Radiowozu</h3>
+            </div>
+            
+            <form id="createPoliceCarForm">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="licensePlate">Numer Rejestracyjny</label>
+                        <input type="text" class="form-control" id="licensePlate" placeholder="np. WPI 12345" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="departmentId">Przypisz do Komendy</label>
+                        <select class="form-control" id="departmentId" required>
+                            <option value="">Wybierz komendę z listy...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="policemanId">Przypisz Policjanta (Opcjonalnie)</label>
+                        <select class="form-control" id="policemanId">
+                            <option value="">-- Wybierz najpierw komendę --</option>
+                        </select>
+                    </div>
+                    
+                    <p id="form-error" class="text-danger d-none mt-3"></p>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="/Police/Cars" class="btn btn-default">Anuluj</a>
+                    <button type="submit" class="btn btn-primary">Zarejestruj Radiowóz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = localStorage.getItem('jwt');
+        let allPolicemen = [];
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            if (!token) {
+                window.location.href = "/AuthView/Login";
+                return;
+            }
+
+            try {
+                const deptRes = await fetch('/api/Police/departments', { headers: { 'Authorization': 'Bearer ' + token } });
+                const polRes = await fetch('/api/Police/policemen', { headers: { 'Authorization': 'Bearer ' + token } });
+
+                if (deptRes.ok) {
+                    const departments = await deptRes.json();
+                    const deptSelect = document.getElementById('departmentId');
+                    departments.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.id || d.Id;
+                        opt.textContent = d.name || d.Name;
+                        deptSelect.appendChild(opt);
+                    });
+                }
+
+                if (polRes.ok) {
+                    allPolicemen = await polRes.json();
+                }
+            } catch (e) {}
+
+            document.getElementById('departmentId').addEventListener('change', function () {
+                const selectedDeptId = this.value;
+                const polSelect = document.getElementById('policemanId');
+                
+                polSelect.innerHTML = '<option value="">-- Wybierz policjanta (opcjonalnie) --</option>';
+
+                if (!selectedDeptId) return;
+
+                const filteredPolicemen = allPolicemen.filter(p => (p.pDepartmentId || p.PDepartmentId) === selectedDeptId);
+
+                if (filteredPolicemen.length === 0) {
+                    polSelect.innerHTML = '<option value="">Brak funkcjonariuszy w tej komendzie</option>';
+                    return;
+                }
+
+                filteredPolicemen.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id || p.Id;
+                    opt.textContent = `${p.name || p.Name} ${p.surname || p.Surname} (${p.badgeNumber || p.BadgeNumber})`;
+                    polSelect.appendChild(opt);
+                });
+            });
+
+            document.getElementById('createPoliceCarForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const deptId = document.getElementById('departmentId').value;
+                const polId = document.getElementById('policemanId').value;
+
+                if (!deptId) {
+                    const errorMsg = document.getElementById('form-error');
+                    errorMsg.textContent = "Musisz wybrać komendę!";
+                    errorMsg.classList.remove('d-none');
+                    return;
+                }
+
+                const payload = {
+                    licensePlate: document.getElementById('licensePlate').value,
+                    pDepartmentId: deptId,
+                    policemanId: polId ? polId : null
+                };
+
+                try {
+                    const res = await fetch('/api/Police/cars', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        window.location.href = '/Police/Cars'; // Zmień na swój poprawny link powrotu!
+                    } else {
+                        const err = await res.json();
+                        const errorMsg = document.getElementById('form-error');
+                        errorMsg.textContent = err.message || "Błąd podczas dodawania radiowozu.";
+                        errorMsg.classList.remove('d-none');
+                    }
+                } catch(err) {
+                    alert("Błąd połączenia z serwerem.");
+                }
+            });
+        });
+    </script>
+}

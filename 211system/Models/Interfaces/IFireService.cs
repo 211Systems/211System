@@ -12,5 +12,9 @@ namespace _211system.Models.Interfaces
         Task DeleteFiremanAsync(Guid id);
         Task<FireTruck> CreateFireTruckAsync(CreateFireTruckDto dto);
         Task<IEnumerable<FireTruckDto>> GetAllFireTrucksAsync();
+
+        Task UpdateFireTruckAsync(Guid id, UpdateFireTruckDto dto);
+        Task DeleteFireTruckAsync(Guid id);
+        Task AssignFireTruckToIncidentAsync(Guid truckId, Guid incidentId);
     }
 }

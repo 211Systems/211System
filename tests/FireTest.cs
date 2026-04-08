@@ -4,11 +4,15 @@ using _211system.Models.Interfaces;
 using _211system.Models.Services;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using System;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace tests;
 
-public class FireServiceTests
+public class FireTest
 {
     private async Task<_211DbContext> GetDatabaseContext()
     {
@@ -24,7 +28,6 @@ public class FireServiceTests
     private Mock<IAuthService> GetMockAuthService()
     {
         var mock = new Mock<IAuthService>();
-
         mock.Setup(s => s.CreateTemporaryAccountAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(("mock-account-id-123", "Temp9999"));
         return mock;
@@ -35,7 +38,8 @@ public class FireServiceTests
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var fireService = new FireService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var fireService = new FireService(dbContext, authMock.Object, httpMock.Object);
 
         var dto = new CreateFDepartmentDto
         {
@@ -57,7 +61,8 @@ public class FireServiceTests
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var fireService = new FireService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var fireService = new FireService(dbContext, authMock.Object, httpMock.Object);
 
         var departmentDto = new CreateFDepartmentDto { Name = "OSP Test", Address = "Test", District = "Test" };
         var department = await fireService.CreateDepartmentAsync(departmentDto);
@@ -85,7 +90,8 @@ public class FireServiceTests
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var fireService = new FireService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var fireService = new FireService(dbContext, authMock.Object, httpMock.Object);
 
         var firemanDto = new CreateFiremanDto
         {
@@ -106,7 +112,8 @@ public class FireServiceTests
     {
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
-        var fireService = new FireService(dbContext, authMock.Object);
+        var httpMock = new Mock<IHttpClientFactory>();
+        var fireService = new FireService(dbContext, authMock.Object, httpMock.Object);
 
         await fireService.CreateDepartmentAsync(new CreateFDepartmentDto { Name = "JRG 1", Address = "A1", District = "D1" });
         await fireService.CreateDepartmentAsync(new CreateFDepartmentDto { Name = "JRG 2", Address = "A2", District = "D2" });
