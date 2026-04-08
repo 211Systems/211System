@@ -16,8 +16,44 @@
                     <button class="btn btn-success">Szpital (Success)</button>
                     <button class="btn btn-warning">112 (Warning)</button>
                     <button class="btn btn-dark">Ciemny (Dark)</button>
+                    <div class="mb-3">
+                        <button onclick="fetchNasa(false)" class="btn btn-danger">
+                            <i class="fas fa-satellite"></i> Skanuj NASA (LIVE)
+                        </button>
+                        <button onclick="fetchNasa(true)" class="btn btn-warning">
+                            <i class="fas fa-vial"></i> Skanuj NASA (DEMO PREZENTACYJNE)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    async function fetchNasa(isDemo) {
+        const token = window.jwtToken || localStorage.getItem('jwt');
+
+        const url = `/api/Nasa/fetch?isDemo=${isDemo}`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Skanowanie zakończone.\nZnalezione anomalie: ${data.totalAnomaliesDetected}\nWygenerowane incydenty: ${data.incidentsGenerated}`);
+             if(window.refreshAll)
+                window.refreshAll();
+            } else {
+                const err = await response.text();
+                alert("Błąd: " + err);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Błąd sieci!");
+        }
+    }
+</script>

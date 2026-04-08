@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260408145752_AddParamedicToAmbulance")]
-    partial class AddParamedicToAmbulance
+    [Migration("20260408171306_odswiezonko")]
+    partial class odswiezonko
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

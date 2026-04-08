@@ -20,78 +20,88 @@ namespace _211system.Models.Services
             configuration = iConfiguration;
         }
 
-        public async Task<NasaFetchResultDto> FetchFireDataAndCreateIncidentsAsync()
+        public async Task<NasaFetchResultDto> FetchFireDataAndCreateIncidentsAsync(bool isDemo = false)
         {
-            var apiKey = configuration["NasaApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
-                throw new Exception("Brak klucza NASA API!");
-
-            // Pobieramy pierwszą dostępną placówkę z tabeli Encs, aby do niej przypisać pożary z satelity
             var mainEnc = await _context.Encs.FirstOrDefaultAsync();
             if (mainEnc == null)
-                throw new Exception("Błąd: System nie posiada żadnej placówki (Enc) w bazie danych. Nie można przypisać incydentu NASA.");
-
-            string nasaUrl = $"https://firms.modaps.eosdis.nasa.gov/api/country/csv/{apiKey}/VIIRS_SNPP_NRT/POL/1";
-
-            var client = _httpClientFactory.CreateClient();
-            var response = await client.GetAsync(nasaUrl);
-
-            if (!response.IsSuccessStatusCode)
-                throw new Exception($"Błąd połączenia z NASA. Status: {response.StatusCode}");
-
-            var csvData = await response.Content.ReadAsStringAsync();
-            var lines = csvData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                throw new Exception("Błąd: System nie posiada żadnej placówki (Enc) w bazie danych.");
 
             var resultDto = new NasaFetchResultDto();
 
-            foreach (var line in lines.Skip(1))
+            var rawAnomalies = new List<(double Lat, double Lon, double Brightness)>();
+
+            if (isDemo)
             {
-                var columns = line.Split(',');
-                if (columns.Length < 3) continue;
+                rawAnomalies.Add((53.1325, 23.1688, 345.5));
+                rawAnomalies.Add((52.2297, 21.0122, 355.2));
+                rawAnomalies.Add((50.0647, 19.9450, 315.0));
+            }
+            else
+            {
+                var apiKey = configuration["NasaApiKey"];
+                if (string.IsNullOrEmpty(apiKey)) throw new Exception("Brak klucza NASA API!");
 
-                if (!double.TryParse(columns[0], CultureInfo.InvariantCulture, out double latitude)) continue;
-                if (!double.TryParse(columns[1], CultureInfo.InvariantCulture, out double longitude)) continue;
-                if (!double.TryParse(columns[2], CultureInfo.InvariantCulture, out double brightness)) continue;
+                string nasaUrl = $"https://firms.modaps.eosdis.nasa.gov/api/country/csv/{apiKey}/VIIRS_SNPP_NRT/POL/1";
+                var client = _httpClientFactory.CreateClient();
+                var response = await client.GetAsync(nasaUrl);
 
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception($"Błąd połączenia z NASA. Status: {response.StatusCode}");
+
+                var csvData = await response.Content.ReadAsStringAsync();
+                var lines = csvData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var line in lines.Skip(1))
+                {
+                    var columns = line.Split(',');
+                    if (columns.Length < 3) continue;
+
+                    if (double.TryParse(columns[0], CultureInfo.InvariantCulture, out double lat) &&
+                        double.TryParse(columns[1], CultureInfo.InvariantCulture, out double lon) &&
+                        double.TryParse(columns[2], CultureInfo.InvariantCulture, out double bright))
+                    {
+                        rawAnomalies.Add((lat, lon, bright));
+                    }
+                }
+            }
+
+            foreach (var anomaly in rawAnomalies)
+            {
                 var nasaPoint = new NasaFlarePoint
                 {
-                    Latitude = latitude,
-                    Longitude = longitude,
-                    Brightness = brightness,
+                    Latitude = anomaly.Lat,
+                    Longitude = anomaly.Lon,
+                    Brightness = anomaly.Brightness,
                     DetectionDate = DateTime.UtcNow
                 };
 
                 await _context.NasaFlarePoints.AddAsync(nasaPoint);
                 resultDto.TotalAnomaliesDetected++;
 
-                // Jeśli jasność przekracza 330K, generujemy incydent
-                if (brightness > 330)
+                if (anomaly.Brightness > 330)
                 {
                     var randomSuffix = Guid.NewGuid().ToString().Substring(0, 4).ToUpper();
-
                     var incident = new Incident
                     {
                         Id = Guid.NewGuid(),
                         IncidentNumber = $"NASA/{DateTime.UtcNow:yyyyMMdd}/{randomSuffix}",
                         Severity = "Krytyczny",
-                        Description = $"ALARM SATELITARNY: Wykryto anomalię termiczną ({brightness} K). Współrzędne: {latitude}, {longitude}",
+                        Description = $"ALARM SATELITARNY: Wykryto anomalię termiczną ({anomaly.Brightness} K). Współrzędne: {anomaly.Lat}, {anomaly.Lon}",
                         ReportDate = DateTime.UtcNow,
                         Status = "Nowe",
-                        // PRZYPISANIE DO PLACÓWKI (ENC)
                         LocationId = mainEnc.Id,
-                        Location = mainEnc, 
+                        Location = mainEnc,
                         OperatorId = null,
                         PhotoUrl = null
                     };
 
                     await _context.Incidents.AddAsync(incident);
-
                     resultDto.IncidentsGenerated++;
                     resultDto.GeneratedIncidents.Add(new NasaIncidentDto
                     {
-                        Latitude = latitude,
-                        Longitude = longitude,
-                        Brightness = brightness,
+                        Latitude = anomaly.Lat,
+                        Longitude = anomaly.Lon,
+                        Brightness = anomaly.Brightness,
                         Description = incident.Description
                     });
                 }

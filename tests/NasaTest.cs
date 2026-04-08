@@ -54,12 +54,22 @@ public class NasaServiceTests
     public async Task FetchFireData_WithoutApiKey_ShouldThrowException()
     {
         var dbContext = await GetDatabaseContext();
+
+        dbContext.Encs.Add(new CPR112.Models.Enc
+        {
+            Id = Guid.NewGuid(),
+            Name = "Testowe Centrum CPR",
+            Region = "Mazowieckie"
+        });
+        await dbContext.SaveChangesAsync();
+
         var emptyConfig = new ConfigurationBuilder().Build();
         var fakeClientFactory = new FakeHttpClientFactory(new HttpClient());
 
         var nasaService = new NasaService(dbContext, fakeClientFactory, emptyConfig);
 
         var exception = await Assert.ThrowsAsync<Exception>(() => nasaService.FetchFireDataAndCreateIncidentsAsync());
+
         Assert.Contains("Brak klucza NASA API", exception.Message);
     }
 

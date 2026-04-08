@@ -16,12 +16,11 @@ public class NasaController : ControllerBase
     }
 
     [HttpPost("fetch")]
-    public async Task<IActionResult> FetchNasaData()
+    public async Task<IActionResult> FetchNasaData([FromQuery] bool isDemo = false)
     {
         try
         {
-            var result = await _nasaService.FetchFireDataAndCreateIncidentsAsync();
-
+            var result = await _nasaService.FetchFireDataAndCreateIncidentsAsync(isDemo);
             return Ok(result);
         }
         catch (Exception ex)
