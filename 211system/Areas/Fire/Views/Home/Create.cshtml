@@ -1,41 +1,32 @@
 @{
-    ViewData["Title"] = "Dodaj Wóz Strażacki";
+    ViewData["Title"] = "Rejestracja Remizy";
 }
 
 <div class="row">
     <div class="col-md-6 offset-md-3">
-        <div class="card card-danger">
+        <div class="card card-danger card-outline dark-mode">
             <div class="card-header">
-                <h3 class="card-title">Rejestracja Nowego Wozu Strażackiego</h3>
+                <h3 class="card-title">Wprowadź dane nowej remizy</h3>
             </div>
-            
-            <form id="createFireTruckForm">
+            <form id="createDepartmentForm">
                 <div class="card-body">
                     <div class="form-group">
-                        <label for="licensePlate">Numer Rejestracyjny</label>
-                        <input type="text" class="form-control" id="licensePlate" placeholder="np. WPI 998" required>
+                        <label>Nazwa Placówki</label>
+                        <input type="text" id="deptName" class="form-control" required placeholder="np. JRG nr 1">
                     </div>
-
                     <div class="form-group">
-                        <label for="departmentId">Przypisz do Remizy</label>
-                        <select class="form-control" id="departmentId" required>
-                            <option value="">Wybierz remizę z listy...</option>
-                        </select>
+                        <label>Adres</label>
+                        <input type="text" id="deptAddress" class="form-control" required placeholder="np. ul. Polna 1">
                     </div>
-                    
                     <div class="form-group">
-                        <label for="firemanId">Przypisz Strażaka (Opcjonalnie)</label>
-                        <select class="form-control" id="firemanId">
-                            <option value="">-- Wybierz najpierw remizę --</option>
-                        </select>
+                        <label>Region / Rejon</label>
+                        <input type="text" id="deptRegion" class="form-control" required placeholder="np. Śródmieście">
                     </div>
-                    
-                    <p id="form-error" class="text-danger d-none mt-3"></p>
+                    <p id="error-message" class="text-danger d-none"></p>
                 </div>
-
-                <div class="card-footer d-flex justify-content-between">
-                    <a href="/Fire/Trucks" class="btn btn-default">Anuluj</a>
-                    <button type="submit" class="btn btn-danger">Zarejestruj Wóz</button>
+                <div class="card-footer text-right">
+                    <a href="/Fire/Home" class="btn btn-secondary">Anuluj</a>
+                    <button type="submit" class="btn btn-danger" id="btn-submit">Zarejestruj</button>
                 </div>
             </form>
         </div>
@@ -44,95 +35,43 @@
 
 @section Scripts {
     <script>
-        const token = localStorage.getItem('jwt');
-        let allFiremen = [];
+        document.getElementById('createDepartmentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            const errorMsg = document.getElementById('error-message');
+            
+            btn.disabled = true;
+            errorMsg.classList.add('d-none');
 
-        document.addEventListener("DOMContentLoaded", async function () {
-            if (!token) {
-                window.location.href = "/AuthView/Login";
-                return;
-            }
+            const payload = {
+                name: document.getElementById('deptName').value,
+                address: document.getElementById('deptAddress').value,
+                region: document.getElementById('deptRegion').value
+            };
 
             try {
-                const deptRes = await fetch('/api/Fire/departments', { headers: { 'Authorization': 'Bearer ' + token } });
-                const fireRes = await fetch('/api/Fire/firemen', { headers: { 'Authorization': 'Bearer ' + token } });
-
-                if (deptRes.ok) {
-                    const departments = await deptRes.json();
-                    const deptSelect = document.getElementById('departmentId');
-                    departments.forEach(d => {
-                        const opt = document.createElement('option');
-                        opt.value = d.id || d.Id;
-                        opt.textContent = d.name || d.Name;
-                        deptSelect.appendChild(opt);
-                    });
-                }
-
-                if (fireRes.ok) {
-                    allFiremen = await fireRes.json();
-                }
-            } catch (e) {}
-
-            document.getElementById('departmentId').addEventListener('change', function () {
-                const selectedDeptId = this.value;
-                const fireSelect = document.getElementById('firemanId');
-                
-                fireSelect.innerHTML = '<option value="">-- Wybierz strażaka (opcjonalnie) --</option>';
-
-                if (!selectedDeptId) return;
-
-                const filteredFiremen = allFiremen.filter(f => (f.fDepartmentId || f.FDepartmentId) === selectedDeptId);
-
-                if (filteredFiremen.length === 0) {
-                    fireSelect.innerHTML = '<option value="">Brak strażaków w tej remizie</option>';
-                    return;
-                }
-
-                filteredFiremen.forEach(f => {
-                    const opt = document.createElement('option');
-                    opt.value = f.id || f.Id;
-                    opt.textContent = `${f.name || f.Name} ${f.surname || f.Surname} (${f.badgeNumber || f.BadgeNumber})`;
-                    fireSelect.appendChild(opt);
+                const token = localStorage.getItem('jwt');
+                const response = await fetch('/api/Fire/departments', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
-            });
 
-            document.getElementById('createFireTruckForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const deptId = document.getElementById('departmentId').value;
-                const fireId = document.getElementById('firemanId').value;
-
-                if (!deptId) {
-                    const errorMsg = document.getElementById('form-error');
-                    errorMsg.textContent = "Musisz wybrać remizę!";
+                if (response.ok) {
+                    window.location.href = '/Fire/Home';
+                } else {
+                    errorMsg.textContent = "Błąd rejestracji placówki. Sprawdź uprawnienia.";
                     errorMsg.classList.remove('d-none');
-                    return;
+                    btn.disabled = false;
                 }
-
-                const payload = {
-                    licensePlate: document.getElementById('licensePlate').value,
-                    fDepartmentId: deptId,
-                    firemanId: fireId ? fireId : null
-                };
-
-                try {
-                    const res = await fetch('/api/Fire/firetrucks', {
-                        method: 'POST',
-                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (res.ok) {
-                        window.location.href = '/Fire/Trucks'; // Zmień na swój poprawny link powrotu!
-                    } else {
-                        const err = await res.json();
-                        const errorMsg = document.getElementById('form-error');
-                        errorMsg.textContent = err.message || "Błąd podczas dodawania wozu.";
-                        errorMsg.classList.remove('d-none');
-                    }
-                } catch(err) {
-                    alert("Błąd połączenia z serwerem.");
-                }
-            });
+            } catch (error) {
+                errorMsg.textContent = "Błąd komunikacji z serwerem.";
+                errorMsg.classList.remove('d-none');
+                btn.disabled = false;
+            }
         });
     </script>
 }

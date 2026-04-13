@@ -10,7 +10,7 @@ public class Fireman
 	[Key]
     public Guid Id { get; set; }
 	public string Name { get; set; }
-	public string Surname { get; set; }
+	public string Lastname { get; set; }
 	public string BadgeNumber { get; set; }
 	public string Rank { get; set; }
 

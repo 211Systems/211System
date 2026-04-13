@@ -1,36 +1,31 @@
 ﻿@{
-    ViewData["Title"] = "Flota Radiowozów";
+    ViewData["Title"] = "Komisariaty Policji";
 }
-
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
-        <h1 class="m-0 text-primary"><i class="fas fa-car-side"></i> Zarządzanie Flotą Radiowozów</h1>
-        <a href="/Police/Cars/Create" class="btn btn-primary d-none" id="btn-add-car"><i class="fas fa-plus"></i> Dodaj Radiowóz</a>
+        <h1 class="m-0 text-primary"><i class="fas fa-shield-alt"></i> Lista Komisariatów</h1>
+        <a href="/Police/Home/Create" class="btn btn-primary d-none" id="btn-add-dept"><i class="fas fa-plus"></i> Dodaj Komisariat</a>
     </div>
 </div>
-
 <div class="row">
     <div class="col-12">
-        <div class="card card-primary card-outline">
+        <div class="card card-primary card-outline dark-mode">
             <div class="card-header">
-                <h3 class="card-title">Zarejestrowane pojazdy policyjne</h3>
+                <h3 class="card-title">Zarządzanie jednostkami policji</h3>
             </div>
             <div class="card-body p-0">
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
                             <th style="width: 10px">#</th>
-                            <th>Numer Rejestracyjny</th>
-                            <th>Przypisana Komenda</th>
-                            <th>Przypisany Policjant</th>
-                            <th>Status</th>
-                            <th>Akcja</th>
+                            <th>Nazwa Placówki</th>
+                            <th>Adres</th>
+                            <th>Region / Dzielnica</th>
+                            <th style="width: 150px" class="text-center">Akcje</th>
                         </tr>
                     </thead>
-                    <tbody id="police-cars-table-body">
-                        <tr>
-                            <td colspan="6" class="text-center">Ładowanie danych...</td>
-                        </tr>
+                    <tbody id="departments-table-body">
+                        <tr><td colspan="5" class="text-center">Ładowanie danych...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -38,210 +33,81 @@
     </div>
 </div>
 
-<div class="modal fade" id="editPoliceCarModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content dark-mode">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title text-dark"><i class="fas fa-edit"></i> Edytuj Radiowóz</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="editPoliceCarForm">
-                <div class="modal-body">
-                    <input type="hidden" id="edit-car-id">
-                    <input type="hidden" id="edit-car-dept-id">
-                    <div class="form-group">
-                        <label>Numer Rejestracyjny</label>
-                        <input type="text" id="edit-car-plate" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Przypisany Policjant</label>
-                        <select id="edit-car-policeman" class="form-control">
-                            <option value="">Brak przypisania</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 @section Scripts {
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
-        const token = localStorage.getItem('jwt');
+        window.parseJwt = window.parseJwt || function (token) {
+            try { return JSON.parse(window.atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return null; }
+        };
 
-        window.currentUserRoles = [];
-        window.policemenList = [];
-
-        if (token) {
-            try {
-                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-                const decoded = JSON.parse(window.atob(base64));
-                let role = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
-                window.currentUserRoles = Array.isArray(role) ? role : [role];
-            } catch (e) {}
-        }
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            const isAdmin = window.currentUserRoles.includes("Admin");
-            const isKomendant = window.currentUserRoles.includes("Komendant");
-
-            if (isAdmin || isKomendant) {
-                document.getElementById('btn-add-car').classList.remove('d-none');
+        document.addEventListener("DOMContentLoaded", function () {
+            const token = localStorage.getItem('jwt');
+            if (token) {
+                const decoded = window.parseJwt(token);
+                if (decoded) {
+                    let roleClaim = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                    let roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                    if (roles.includes("Admin") || roles.includes("Inspektor")) {
+                        document.getElementById('btn-add-dept').classList.remove('d-none');
+                    }
+                }
             }
         });
 
-        window.assignPoliceCar = async function(carId) {
-            const incidentId = prompt("Wprowadź ID zgłoszenia 112 (GUID):");
-            if (!incidentId) return;
-
-            try {
-                const response = await fetch(`/api/Police/cars/${carId}/assign/${incidentId}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-
-                if (response.ok) {
-                    alert("Radiowóz został pomyślnie zadysponowany!");
-                    window.location.reload();
-                } else {
-                    const err = await response.json();
-                    alert("Błąd: " + (err.message || "Nie udało się zadysponować."));
-                }
-            } catch (e) {
-                alert("Wystąpił błąd połączenia.");
-            }
-        };
-
         setupCustomList({
-            tableBodyId: 'police-cars-table-body',
-            colspan: 6,
-            emptyMessage: 'Brak radiowozów w systemie.',
+            tableBodyId: 'departments-table-body',
+            colspan: 5,
+            emptyMessage: 'Brak przypisanych komisariatów w systemie.',
             loadData: async (jwt) => {
-                const deptRes = await fetch('/api/Police/departments', { headers: { 'Authorization': 'Bearer ' + jwt } });
-                const departments = deptRes.ok ? await deptRes.json() : [];
-
-                const policeRes = await fetch('/api/Police/policemen', { headers: { 'Authorization': 'Bearer ' + jwt } });
-                window.policemenList = policeRes.ok ? await policeRes.json() : [];
-
-                const carsRes = await fetch('/api/Police/cars', { headers: { 'Authorization': 'Bearer ' + jwt } });
-                if (!carsRes.ok) throw new Error("Błąd pobierania radiowozów");
-
-                const cars = await carsRes.json();
-
-                return cars.map(car => {
-                    const dId = car.pDepartmentId || car.PDepartmentId;
-                    const dept = departments.find(d => d.id === dId || d.Id === dId);
-                    car.departmentName = dept ? (dept.name || dept.Name) : "Nieznana komenda";
-                    
-                    const pId = car.policemanId || car.PolicemanId;
-                    const policeman = window.policemenList.find(p => p.id === pId || p.Id === pId);
-                    car.policemanName = policeman ? `${policeman.name || policeman.Name} ${policeman.surname || policeman.Surname}` : "Brak";
-                    
-                    return car;
-                });
-            },
-            renderRow: (car, index) => {
-                const isAvailable = car.isAvailable !== undefined ? car.isAvailable : car.IsAvailable;
-                const statusBadge = isAvailable
-                    ? '<span class="badge bg-success">Dostępny</span>'
-                    : '<span class="badge bg-danger">W akcji</span>';
-
-                let actionBtn = isAvailable
-                    ? `<button class="btn btn-xs btn-primary mr-1" onclick="window.assignPoliceCar('${car.id || car.Id}')">Zadysponuj</button>`
-                    : `<button class="btn btn-xs btn-secondary mr-1" disabled>Zajęty</button>`;
-
-                const dId = car.pDepartmentId || car.PDepartmentId;
-                const pId = car.policemanId || car.PolicemanId || '';
-                
-                const isAdmin = window.currentUserRoles.includes("Admin");
-                const isKomendant = window.currentUserRoles.includes("Komendant");
-                const canManage = isAdmin || isKomendant; 
-
-                if (canManage) {
-                    actionBtn += `
-                        <button onclick="window.openEditModal('${car.id || car.Id}', '${car.licensePlate || car.LicensePlate}', '${pId}', '${dId}')" class="btn btn-xs btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
-                        <button onclick="window.deletePoliceCar('${car.id || car.Id}')" class="btn btn-xs btn-danger" title="Usuń"><i class="fas fa-trash"></i></button>
-                    `;
+                const decoded = window.parseJwt(jwt);
+                let roles = [];
+                let email = "";
+                if (decoded) {
+                    let roleClaim = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                    roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                    email = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decoded.email || "";
                 }
 
+                const response = await fetch('/api/Police/departments', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                if (!response.ok) throw new Error("Błąd pobierania placówek");
+                let depts = await response.json();
+
+                if (!roles.includes("Admin") && !roles.includes("Inspektor")) {
+                    const paramResponse = await fetch('/api/Police/policemen', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                    if (paramResponse.ok) {
+                        const staff = await paramResponse.json();
+                        const myRecord = staff.find(p => p.email === email || p.Email === email);
+
+                        if (myRecord) {
+                            const myDeptId = myRecord.pDepartmentId || myRecord.PDepartmentId;
+                            depts = depts.filter(h => (h.id || h.Id) === myDeptId);
+
+                            if (depts.length === 1) {
+                                window.location.href = `/Police/Home/Details/${myDeptId}`;
+                                return null;
+                            }
+                        } else {
+                            depts = [];
+                        }
+                    }
+                }
+                return depts;
+            },
+            renderRow: (dept, index) => {
                 return `
                     <tr>
                         <td>${index + 1}</td>
-                        <td><b>${car.licensePlate || car.LicensePlate}</b></td>
-                        <td><i class="fas fa-building text-muted mr-1"></i> ${car.departmentName}</td>
-                        <td><i class="fas fa-user-shield text-muted mr-1"></i> ${car.policemanName}</td>
-                        <td>${statusBadge}</td>
-                        <td style="white-space: nowrap;">${actionBtn}</td>
+                        <td><b>${dept.name || dept.Name}</b></td>
+                        <td>${dept.address || dept.Address}</td>
+                        <td>${dept.region || dept.Region || "Brak danych"}</td>
+                        <td class="text-center">
+                            <a href="/Police/Home/Details/${dept.id || dept.Id}" class="btn btn-sm btn-primary" title="Szczegóły">
+                                <i class="fas fa-shield-alt"></i> Zarządzaj
+                            </a>
+                        </td>
                     </tr>
                 `;
             }
-        });
-
-        window.deletePoliceCar = async function(id) {
-            if (!confirm("Czy na pewno chcesz usunąć ten radiowóz z bazy?")) return;
-            try {
-                const res = await fetch(`/api/Police/cars/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (res.ok) window.location.reload();
-                else alert("Błąd podczas usuwania radiowozu.");
-            } catch (e) { alert("Błąd sieci."); }
-        }
-
-        window.openEditModal = function(id, plate, policemanId, departmentId) {
-            document.getElementById('edit-car-id').value = id;
-            document.getElementById('edit-car-plate').value = plate;
-            document.getElementById('edit-car-dept-id').value = departmentId;
-            
-            const pSelect = document.getElementById('edit-car-policeman');
-            pSelect.innerHTML = '<option value="">Brak przypisania</option>';
-            
-            if (window.policemenList) {
-                window.policemenList.filter(p => (p.pDepartmentId || p.PDepartmentId) === departmentId).forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id || p.Id;
-                    opt.textContent = `${p.name || p.Name} ${p.surname || p.Surname} (${p.badgeNumber || p.BadgeNumber})`;
-                    pSelect.appendChild(opt);
-                });
-            }
-            pSelect.value = policemanId || "";
-
-            $('#editPoliceCarModal').modal('show');
-        }
-
-        document.getElementById('editPoliceCarForm')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const id = document.getElementById('edit-car-id').value;
-            const pVal = document.getElementById('edit-car-policeman').value;
-            
-            const data = {
-                licensePlate: document.getElementById('edit-car-plate').value,
-                policemanId: pVal ? pVal : null
-            };
-
-            try {
-                const res = await fetch(`/api/Police/cars/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                
-                if (res.ok) {
-                    $('#editPoliceCarModal').modal('hide');
-                    window.location.reload();
-                } else {
-                    const err = await res.json();
-                    alert(err.message || "Błąd podczas edycji.");
-                }
-            } catch(e) { alert("Błąd sieci."); }
         });
     </script>
 }

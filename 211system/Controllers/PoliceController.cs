@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using _211system.Data;
 using _211system.Models.Dtos.Police;
 using _211system.Models.Interfaces;
+using _211system.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
-using _211system.Services;
 
 
 namespace _211system.Controllers
@@ -14,10 +16,12 @@ namespace _211system.Controllers
     public class PoliceController : Controller
     {
         private readonly IPoliceService _policeService;
+        private readonly _211DbContext _context;
 
-        public PoliceController(IPoliceService policeService)
+        public PoliceController(IPoliceService policeService, _211DbContext context)
         {
             _policeService = policeService;
+            _context = context;
         }
 
         [Authorize(Roles = "Inspektor, Admin")]
@@ -134,6 +138,24 @@ namespace _211system.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+        [HttpGet("cars")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> GetAllCars()
+        {
+            var cars = await _context.PoliceCars.ToListAsync();
+            return Ok(cars);
+        }
+
+        [HttpDelete("cars/{id}")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor")]
+        public async Task<IActionResult> DeleteCar(Guid id)
+        {
+            var car = await _context.PoliceCars.FindAsync(id);
+            if (car == null) return NotFound();
+            _context.PoliceCars.Remove(car);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Usunięto radiowóz." });
         }
     }
 }

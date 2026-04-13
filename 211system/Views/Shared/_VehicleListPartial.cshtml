@@ -1,0 +1,28 @@
+﻿@*
+*@
+
+<div class="card card-success card-outline dark-mode">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title m-0"><i class="@ViewBag.Icon"></i> @ViewBag.Title</h3>
+        <a href="@ViewBag.AddButtonLink" class="btn btn-sm btn-success ml-auto d-none" id="btn-add-vehicle">
+            <i class="fas fa-plus"></i> @ViewBag.AddButtonText
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Nr Rejestracyjny</th>
+                    <th>Typ</th>
+                    <th>Przypisana Jednostka</th>
+                    <th>Status</th>
+                    <th class="text-right">Akcje</th>
+                </tr>
+            </thead>
+            <tbody id="@ViewBag.TableBodyId">
+                <tr><td colspan="6" class="text-center">Ładowanie danych...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>

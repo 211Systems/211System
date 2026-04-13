@@ -1,36 +1,31 @@
 ﻿@{
-    ViewData["Title"] = "Flota Straży Pożarnej";
+    ViewData["Title"] = "Remizy Strażackie";
 }
-
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
-        <h1 class="m-0 text-danger"><i class="fas fa-fire-extinguisher"></i> Zarządzanie Flotą Wozów Strażackich</h1>
-        <a href="/Fire/Trucks/Create" class="btn btn-danger d-none" id="btn-add-truck"><i class="fas fa-plus"></i> Dodaj Wóz</a>
+        <h1 class="m-0 text-danger"><i class="fas fa-fire-extinguisher"></i> Lista Remiz</h1>
+        <a href="/Fire/Home/Create" class="btn btn-danger d-none" id="btn-add-dept"><i class="fas fa-plus"></i> Dodaj Remizę</a>
     </div>
 </div>
-
 <div class="row">
     <div class="col-12">
-        <div class="card card-danger card-outline">
+        <div class="card card-danger card-outline dark-mode">
             <div class="card-header">
-                <h3 class="card-title">Zarejestrowane wozy strażackie</h3>
+                <h3 class="card-title">Zarządzanie jednostkami straży pożarnej</h3>
             </div>
             <div class="card-body p-0">
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
                             <th style="width: 10px">#</th>
-                            <th>Numer Rejestracyjny</th>
-                            <th>Przypisana Remiza</th>
-                            <th>Przypisany Strażak</th>
-                            <th>Status</th>
-                            <th>Akcja</th>
+                            <th>Nazwa Placówki</th>
+                            <th>Adres</th>
+                            <th>Region / Rejon</th>
+                            <th style="width: 150px" class="text-center">Akcje</th>
                         </tr>
                     </thead>
-                    <tbody id="fire-trucks-table-body">
-                        <tr>
-                            <td colspan="6" class="text-center">Ładowanie danych...</td>
-                        </tr>
+                    <tbody id="departments-table-body">
+                        <tr><td colspan="5" class="text-center">Ładowanie danych...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -38,210 +33,81 @@
     </div>
 </div>
 
-<div class="modal fade" id="editFireTruckModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content dark-mode">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title text-dark"><i class="fas fa-edit"></i> Edytuj Wóz Strażacki</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="editFireTruckForm">
-                <div class="modal-body">
-                    <input type="hidden" id="edit-truck-id">
-                    <input type="hidden" id="edit-truck-dept-id">
-                    <div class="form-group">
-                        <label>Numer Rejestracyjny</label>
-                        <input type="text" id="edit-truck-plate" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Przypisany Strażak</label>
-                        <select id="edit-truck-fireman" class="form-control">
-                            <option value="">Brak przypisania</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 @section Scripts {
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
-        const token = localStorage.getItem('jwt');
+        window.parseJwt = window.parseJwt || function (token) {
+            try { return JSON.parse(window.atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return null; }
+        };
 
-        window.currentUserRoles = [];
-        window.firemenList = [];
-
-        if (token) {
-            try {
-                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-                const decoded = JSON.parse(window.atob(base64));
-                let role = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
-                window.currentUserRoles = Array.isArray(role) ? role : [role];
-            } catch (e) {}
-        }
-
-        document.addEventListener("DOMContentLoaded", async function () {
-            const isAdmin = window.currentUserRoles.includes("Admin");
-            const isKapitan = window.currentUserRoles.includes("Kapitan");
-
-            if (isAdmin || isKapitan) {
-                document.getElementById('btn-add-truck').classList.remove('d-none');
+        document.addEventListener("DOMContentLoaded", function () {
+            const token = localStorage.getItem('jwt');
+            if (token) {
+                const decoded = window.parseJwt(token);
+                if (decoded) {
+                    let roleClaim = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                    let roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                    if (roles.includes("Admin") || roles.includes("Naczelnik")) {
+                        document.getElementById('btn-add-dept').classList.remove('d-none');
+                    }
+                }
             }
         });
 
-        window.assignFireTruck = async function(truckId) {
-            const incidentId = prompt("Wprowadź ID zgłoszenia 112 (GUID):");
-            if (!incidentId) return;
-
-            try {
-                const response = await fetch(`/api/Fire/firetrucks/${truckId}/assign/${incidentId}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-
-                if (response.ok) {
-                    alert("Wóz został pomyślnie zadysponowany!");
-                    window.location.reload();
-                } else {
-                    const err = await response.json();
-                    alert("Błąd: " + (err.message || "Nie udało się zadysponować."));
-                }
-            } catch (e) {
-                alert("Wystąpił błąd połączenia.");
-            }
-        };
-
         setupCustomList({
-            tableBodyId: 'fire-trucks-table-body',
-            colspan: 6,
-            emptyMessage: 'Brak wozów strażackich w systemie.',
+            tableBodyId: 'departments-table-body',
+            colspan: 5,
+            emptyMessage: 'Brak przypisanych remiz w systemie.',
             loadData: async (jwt) => {
-                const deptRes = await fetch('/api/Fire/departments', { headers: { 'Authorization': 'Bearer ' + jwt } });
-                const departments = deptRes.ok ? await deptRes.json() : [];
-
-                const firemenRes = await fetch('/api/Fire/firemen', { headers: { 'Authorization': 'Bearer ' + jwt } });
-                window.firemenList = firemenRes.ok ? await firemenRes.json() : [];
-
-                const trucksRes = await fetch('/api/Fire/firetrucks', { headers: { 'Authorization': 'Bearer ' + jwt } });
-                if (!trucksRes.ok) throw new Error("Błąd pobierania wozów");
-
-                const trucks = await trucksRes.json();
-
-                return trucks.map(truck => {
-                    const dId = truck.fDepartmentId || truck.FDepartmentId;
-                    const dept = departments.find(d => d.id === dId || d.Id === dId);
-                    truck.departmentName = dept ? (dept.name || dept.Name) : "Nieznana remiza";
-                    
-                    const fId = truck.firemanId || truck.FiremanId;
-                    const fireman = window.firemenList.find(f => f.id === fId || f.Id === fId);
-                    truck.firemanName = fireman ? `${fireman.name || fireman.Name} ${fireman.surname || fireman.Surname}` : "Brak";
-                    
-                    return truck;
-                });
-            },
-            renderRow: (truck, index) => {
-                const isAvailable = truck.isAvailable !== undefined ? truck.isAvailable : truck.IsAvailable;
-                const statusBadge = isAvailable
-                    ? '<span class="badge bg-success">Dostępny</span>'
-                    : '<span class="badge bg-danger">W akcji</span>';
-
-                let actionBtn = isAvailable
-                    ? `<button class="btn btn-xs btn-primary mr-1" onclick="window.assignFireTruck('${truck.id || truck.Id}')">Zadysponuj</button>`
-                    : `<button class="btn btn-xs btn-secondary mr-1" disabled>Zajęty</button>`;
-
-                const dId = truck.fDepartmentId || truck.FDepartmentId;
-                const fId = truck.firemanId || truck.FiremanId || '';
-                
-                const isAdmin = window.currentUserRoles.includes("Admin");
-                const isKapitan = window.currentUserRoles.includes("Kapitan");
-                const canManage = isAdmin || isKapitan; 
-
-                if (canManage) {
-                    actionBtn += `
-                        <button onclick="window.openEditModal('${truck.id || truck.Id}', '${truck.licensePlate || truck.LicensePlate}', '${fId}', '${dId}')" class="btn btn-xs btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
-                        <button onclick="window.deleteFireTruck('${truck.id || truck.Id}')" class="btn btn-xs btn-danger" title="Usuń"><i class="fas fa-trash"></i></button>
-                    `;
+                const decoded = window.parseJwt(jwt);
+                let roles = [];
+                let email = "";
+                if (decoded) {
+                    let roleClaim = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                    roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                    email = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decoded.email || "";
                 }
 
+                const response = await fetch('/api/Fire/departments', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                if (!response.ok) throw new Error("Błąd pobierania placówek");
+                let depts = await response.json();
+
+                if (!roles.includes("Admin") && !roles.includes("Naczelnik")) {
+                    const paramResponse = await fetch('/api/Fire/firemen', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                    if (paramResponse.ok) {
+                        const staff = await paramResponse.json();
+                        const myRecord = staff.find(p => p.email === email || p.Email === email);
+
+                        if (myRecord) {
+                            const myDeptId = myRecord.fDepartmentId || myRecord.FDepartmentId;
+                            depts = depts.filter(h => (h.id || h.Id) === myDeptId);
+
+                            if (depts.length === 1) {
+                                window.location.href = `/Fire/Home/Details/${myDeptId}`;
+                                return null;
+                            }
+                        } else {
+                            depts = [];
+                        }
+                    }
+                }
+                return depts;
+            },
+            renderRow: (dept, index) => {
                 return `
                     <tr>
                         <td>${index + 1}</td>
-                        <td><b>${truck.licensePlate || truck.LicensePlate}</b></td>
-                        <td><i class="fas fa-building text-muted mr-1"></i> ${truck.departmentName}</td>
-                        <td><i class="fas fa-fire text-muted mr-1"></i> ${truck.firemanName}</td>
-                        <td>${statusBadge}</td>
-                        <td style="white-space: nowrap;">${actionBtn}</td>
+                        <td><b>${dept.name || dept.Name}</b></td>
+                        <td>${dept.address || dept.Address}</td>
+                        <td>${dept.region || dept.Region || "Brak danych"}</td>
+                        <td class="text-center">
+                            <a href="/Fire/Home/Details/${dept.id || dept.Id}" class="btn btn-sm btn-danger" title="Szczegóły">
+                                <i class="fas fa-fire"></i> Zarządzaj
+                            </a>
+                        </td>
                     </tr>
                 `;
             }
-        });
-
-        window.deleteFireTruck = async function(id) {
-            if (!confirm("Czy na pewno chcesz usunąć ten wóz strażacki z bazy?")) return;
-            try {
-                const res = await fetch(`/api/Fire/firetrucks/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (res.ok) window.location.reload();
-                else alert("Błąd podczas usuwania wozu.");
-            } catch (e) { alert("Błąd sieci."); }
-        }
-
-        window.openEditModal = function(id, plate, firemanId, departmentId) {
-            document.getElementById('edit-truck-id').value = id;
-            document.getElementById('edit-truck-plate').value = plate;
-            document.getElementById('edit-truck-dept-id').value = departmentId;
-            
-            const fSelect = document.getElementById('edit-truck-fireman');
-            fSelect.innerHTML = '<option value="">Brak przypisania</option>';
-            
-            if (window.firemenList) {
-                window.firemenList.filter(f => (f.fDepartmentId || f.FDepartmentId) === departmentId).forEach(f => {
-                    const opt = document.createElement('option');
-                    opt.value = f.id || f.Id;
-                    opt.textContent = `${f.name || f.Name} ${f.surname || f.Surname} (${f.badgeNumber || f.BadgeNumber})`;
-                    fSelect.appendChild(opt);
-                });
-            }
-            fSelect.value = firemanId || "";
-
-            $('#editFireTruckModal').modal('show');
-        }
-
-        document.getElementById('editFireTruckForm')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const id = document.getElementById('edit-truck-id').value;
-            const fVal = document.getElementById('edit-truck-fireman').value;
-            
-            const data = {
-                licensePlate: document.getElementById('edit-truck-plate').value,
-                firemanId: fVal ? fVal : null
-            };
-
-            try {
-                const res = await fetch(`/api/Fire/firetrucks/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                
-                if (res.ok) {
-                    $('#editFireTruckModal').modal('hide');
-                    window.location.reload();
-                } else {
-                    const err = await res.json();
-                    alert(err.message || "Błąd podczas edycji.");
-                }
-            } catch(e) { alert("Błąd sieci."); }
         });
     </script>
 }

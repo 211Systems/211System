@@ -1,0 +1,70 @@
+﻿@{
+    ViewData["Title"] = "Zarządzanie Flotą Radiowozów";
+}
+
+@{
+    ViewBag.Title = "Rejestr Radiowozów";
+    ViewBag.Icon = "fas fa-car";
+    ViewBag.AddButtonText = "Zarejestruj Radiowóz";
+    ViewBag.AddButtonLink = "/Police/Cars/Create";
+    ViewBag.TableBodyId = "police-cars-table-body";
+    ViewBag.ThemeColor = "primary";
+}
+@await Html.PartialAsync("~/Views/Shared/_VehicleListPartial.cshtml")
+
+@section Scripts {
+    <script>
+            document.addEventListener("DOMContentLoaded", async function () {
+                const token = localStorage.getItem('jwt');
+                const tableBody = document.getElementById('police-cars-table-body');
+    
+                if (!tableBody) {
+                    console.error("Nie znaleziono elementu tabeli. Sprawdź, czy Partial view ładuje się poprawnie.");
+                    return;
+                }
+    
+                try {
+                const res = await fetch('/api/Police/cars', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (res.ok) {
+                    const cars = await res.json();
+                    tableBody.innerHTML = '';
+                    
+                    if (cars.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak radiowozów w systemie.</td></tr>';
+                        return;
+                    }
+
+                    cars.forEach((v, index) => {
+                        const plate = v.licensePlate || v.LicensePlate || "Brak Tablicy";
+                        const isAvailable = v.isAvailable !== undefined ? v.isAvailable : (v.IsAvailable !== undefined ? v.IsAvailable : true);
+                        const statusBadge = isAvailable
+                            ? '<span class="badge badge-success">Dostępny</span>'
+                            : '<span class="badge badge-danger">W Akcji / Zajęty</span>';
+
+                        tableBody.insertAdjacentHTML('beforeend', `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td><b>${plate}</b></td>
+                                <td><span class="badge badge-secondary">Radiowóz</span></td>
+                                <td><i class="fas fa-building text-muted"></i> Jednostka</td>
+                                <td>${statusBadge}</td>
+                                <td class="text-right">
+                                    <button onclick="deleteGlobalCar('${v.id || v.Id}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+                }
+            } catch (e) {
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Błąd ładowania z serwera.</td></tr>';
+            }
+        });
+
+        window.deleteGlobalCar = async function(id) {
+            if (!confirm("Na pewno usunąć ten pojazd z globalnego rejestru?")) return;
+            const token = localStorage.getItem('jwt');
+            await fetch(`/api/Police/cars/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+            location.reload();
+        };
+    </script>
+}
