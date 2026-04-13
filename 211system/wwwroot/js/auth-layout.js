@@ -1,4 +1,4 @@
-﻿function updateLayoutBasedOnAuth() {
+﻿window.updateLayoutBasedOnAuth = function () {
     const token = localStorage.getItem('jwt');
     const currentPath = window.location.pathname.toLowerCase();
     const isAuthPage = currentPath.includes('/authview');
@@ -9,113 +9,132 @@
     }
 
     if (token) {
-        const decodedToken = parseJwt(token);
+        let decodedToken = null;
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            decodedToken = JSON.parse(window.atob(base64));
+        } catch (e) {
+            console.error("Błąd parsowania tokenu!");
+            return;
+        }
 
-        document.getElementById('auth-logged-in').classList.remove('d-none');
-        document.getElementById('auth-logged-out').classList.add('d-none');
+        if (document.getElementById('auth-logged-in')) document.getElementById('auth-logged-in').classList.remove('d-none');
+        if (document.getElementById('auth-logged-out')) document.getElementById('auth-logged-out').classList.add('d-none');
 
         const email = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || "Użytkownik";
-        const role = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "Pracownik";
 
-        document.getElementById('nav-user-name').textContent = email.split('@')[0];
-        document.getElementById('profile-email').textContent = email;
-        document.getElementById('profile-role').textContent = role;
+        let roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role || "Pracownik";
+        let roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
 
-        if (currentPath.includes('/admin') && role !== "Admin") {
-            alert("To jest strefa tylko dla Głównego Administratora systemu!");
+        if (document.getElementById('nav-user-name')) document.getElementById('nav-user-name').textContent = email.split('@')[0];
+        if (document.getElementById('profile-email')) document.getElementById('profile-email').textContent = email;
+        if (document.getElementById('profile-role')) document.getElementById('profile-role').textContent = roles.join(', ');
+
+        if (currentPath.includes('/admin') && !roles.includes("Admin")) {
+            alert("To jest strefa tylko dla Głównego Administratora systemu.");
             window.location.href = '/';
             return;
         }
-        if (currentPath.includes('/police') && !["Admin", "Policjant", "Komendant", "Inspektor"].includes(role)) {
-            alert("Brak uprawnień do tego obszaru!");
+        if (currentPath.includes('/police') && !roles.some(r => ["Admin", "Policjant", "Komendant", "Inspektor"].includes(r))) {
+            alert("Brak uprawnień do tego obszaru.");
             window.location.href = '/';
             return;
         }
-        if (currentPath.includes('/medic') && !["Admin", "Medyk", "Lekarz", "Kierownik Szpitala"].includes(role)) {
-            alert("Brak uprawnień do tego obszaru!");
+        if (currentPath.includes('/medic') && !roles.some(r => ["Admin", "Medyk", "Lekarz", "Kierownik Szpitala"].includes(r))) {
+            alert("Brak uprawnień do tego obszaru.");
             window.location.href = '/';
             return;
         }
-        if (currentPath.includes('/fire') && !["Admin", "Strazak", "Kapitan", "Naczelnik"].includes(role)) {
-            alert("Brak uprawnień do tego obszaru!");
+        if (currentPath.includes('/fire') && !roles.some(r => ["Admin", "Strazak", "Kapitan", "Naczelnik"].includes(r))) {
+            alert("Brak uprawnień do tego obszaru.");
             window.location.href = '/';
             return;
         }
-        if (currentPath.includes('/dispatch') && !["Admin", "Admin112", "Dyspozytor112"].includes(role)) {
-            alert("Brak uprawnień do tego obszaru!");
+        if (currentPath.includes('/dispatch') && !roles.some(r => ["Admin", "Admin112", "Dyspozytor112"].includes(r))) {
+            alert("Brak uprawnień do tego obszaru.");
             window.location.href = '/';
             return;
         }
 
         const homeLink = document.getElementById('nav-home-link');
 
-        const menuMedicManager = document.getElementById('menu-medic-manager');
-        const menuMedicWorker = document.getElementById('menu-medic-worker');
-        const linkHospitals = document.getElementById('link-hospitals');
-        const linkAmbulances = document.getElementById('link-ambulances');
-        const linkOperations = document.getElementById('link-operations');
+        const shouldRedirectToDashboard = currentPath === '/' || currentPath === '/authview/login';
 
-        const isHomePage = currentPath === '/' || currentPath === '/medic/home/index' || currentPath === '/medic/home';
+        const allMenus = [
+            'menu-admin', 'menu-dispatch',
+            'menu-medic-manager', 'menu-medic-worker', 'link-hospitals', 'link-ambulances', 'link-operations',
+            'menu-police-manager', 'menu-police-worker', 'link-police-depts', 'link-police-cars', 'link-police-operations',
+            'menu-fire-manager', 'menu-fire-worker', 'link-fire-depts', 'link-fire-trucks', 'link-fire-operations'
+        ];
 
-
-        if (role === "Admin") {
-            if (document.getElementById('menu-admin')) document.getElementById('menu-admin').classList.remove('d-none');
-            if (menuMedicManager) menuMedicManager.classList.remove('d-none');
-            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
-            if (linkHospitals) linkHospitals.classList.remove('d-none');
-            if (linkAmbulances) linkAmbulances.classList.remove('d-none');
-            if (linkOperations) linkOperations.classList.remove('d-none');
-
+        if (roles.includes("Admin")) {
+            allMenus.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('d-none');
+            });
             if (homeLink) homeLink.href = '/Admin/Home/Index';
-            if (isHomePage) window.location.href = '/Admin/Home/Index';
+            if (shouldRedirectToDashboard) window.location.href = '/Admin/Home/Index';
         }
-        else if (role === "Kierownik Szpitala") {
-            if (menuMedicManager) menuMedicManager.classList.remove('d-none');
-            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
-            if (linkHospitals) linkHospitals.classList.remove('d-none');
-            if (linkAmbulances) linkAmbulances.classList.remove('d-none');
-            if (linkOperations) linkOperations.classList.remove('d-none');
-
-            if (homeLink) homeLink.href = '/Medic/Hospitals'; 
-            if (isHomePage) window.location.href = '/Medic/Hospitals'; 
+        else if (roles.includes("Kierownik Szpitala")) {
+            ['menu-medic-manager', 'menu-medic-worker', 'link-hospitals', 'link-ambulances', 'link-operations'].forEach(id => {
+                if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
+            });
+            if (homeLink) homeLink.href = '/Medic/Hospitals';
+            if (shouldRedirectToDashboard) window.location.href = '/Medic/Hospitals';
         }
-        else if (role === "Lekarz") {
-            if (menuMedicManager) menuMedicManager.classList.remove('d-none');
-            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
-            if (linkHospitals) linkHospitals.classList.remove('d-none');
-            if (linkOperations) linkOperations.classList.remove('d-none');
-
-            if (homeLink) homeLink.href = '/Medic/Hospitals'; 
-            if (isHomePage) window.location.href = '/Medic/Hospitals'; 
+        else if (roles.includes("Lekarz")) {
+            ['menu-medic-manager', 'menu-medic-worker', 'link-hospitals', 'link-operations'].forEach(id => {
+                if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
+            });
+            if (homeLink) homeLink.href = '/Medic/Hospitals';
+            if (shouldRedirectToDashboard) window.location.href = '/Medic/Hospitals';
         }
-        else if (role === "Medyk") {
-            if (menuMedicWorker) menuMedicWorker.classList.remove('d-none');
-            if (linkOperations) linkOperations.classList.remove('d-none');
-
-            if (homeLink) homeLink.href = '/Medic/Operations'; 
-            if (isHomePage) window.location.href = '/Medic/Operations'; 
+        else if (roles.includes("Medyk")) {
+            ['menu-medic-worker', 'link-operations'].forEach(id => {
+                if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
+            });
+            if (homeLink) homeLink.href = '/Medic/Operations';
+            if (shouldRedirectToDashboard) window.location.href = '/Medic/Operations';
         }
-        else if (role === "Inspektor" || role === "Komendant") {
-            if (document.getElementById('menu-police-manager')) document.getElementById('menu-police-manager').classList.remove('d-none');
-            if (document.getElementById('menu-police-worker')) document.getElementById('menu-police-worker').classList.remove('d-none');
-            if (homeLink) homeLink.href = '/Police/Home/Index';
+        else if (roles.includes("Inspektor") || roles.includes("Komendant")) {
+            ['menu-police-manager', 'menu-police-worker', 'link-police-depts', 'link-police-cars', 'link-police-operations'].forEach(id => {
+                if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
+            });
+            if (homeLink) homeLink.href = '/Police/Home';
+            if (shouldRedirectToDashboard) window.location.href = '/Police/Home';
         }
-        else if (role === "Policjant") {
-            if (document.getElementById('menu-police-worker')) document.getElementById('menu-police-worker').classList.remove('d-none');
-            if (homeLink) homeLink.href = '/Police/Home/Index';
+        else if (roles.includes("Policjant")) {
+            ['menu-police-worker', 'link-police-operations'].forEach(id => {
+                if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
+            });
+            if (homeLink) homeLink.href = '/Police/Operations';
+            if (shouldRedirectToDashboard) window.location.href = '/Police/Operations';
         }
-        else if (role === "Strazak" || role === "Kapitan" || role === "Naczelnik") {
-            if (homeLink) homeLink.href = '/Fire/Home/Index';
+        else if (roles.includes("Naczelnik") || roles.includes("Kapitan")) {
+            ['menu-fire-manager', 'menu-fire-worker', 'link-fire-depts', 'link-fire-trucks', 'link-fire-operations'].forEach(id => {
+                if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
+            });
+            if (homeLink) homeLink.href = '/Fire/Home';
+            if (shouldRedirectToDashboard) window.location.href = '/Fire/Home';
         }
-        else if (role === "Admin112" || role === "Dyspozytor112") {
+        else if (roles.includes("Strazak")) {
+            ['menu-fire-worker', 'link-fire-operations'].forEach(id => {
+                if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
+            });
+            if (homeLink) homeLink.href = '/Fire/Operations';
+            if (shouldRedirectToDashboard) window.location.href = '/Fire/Operations';
+        }
+        else if (roles.includes("Admin112") || roles.includes("Dyspozytor112")) {
             if (document.getElementById('menu-dispatch')) document.getElementById('menu-dispatch').classList.remove('d-none');
             if (homeLink) homeLink.href = '/Dispatch/Home/Index';
-            if (!currentPath.includes('/dispatch') && currentPath !== '/') window.location.href = '/Dispatch/Home/Index';
+            if (shouldRedirectToDashboard) window.location.href = '/Dispatch/Home/Index';
         }
-
     } else {
-        document.getElementById('auth-logged-in').classList.add('d-none');
-        document.getElementById('auth-logged-out').classList.remove('d-none');
+        if (document.getElementById('auth-logged-in')) document.getElementById('auth-logged-in').classList.add('d-none');
+        if (document.getElementById('auth-logged-out')) document.getElementById('auth-logged-out').classList.remove('d-none');
         if (document.getElementById('nav-user-name')) document.getElementById('nav-user-name').textContent = "Niezalogowany";
     }
-}
+};
+
+document.addEventListener("DOMContentLoaded", window.updateLayoutBasedOnAuth);

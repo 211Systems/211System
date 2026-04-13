@@ -70,7 +70,7 @@ public class PoliceTest
         var policemanDto = new CreatePolicemanDto
         {
             Name = "Jan",
-            Surname = "Kowalski",
+            Lastname = "Kowalski",
             BadgeNumber = "12345",
             Rank = "Policjant",
             PDepartmentId = department.PDepartmentId,
@@ -96,7 +96,7 @@ public class PoliceTest
         var policemanDto = new CreatePolicemanDto
         {
             Name = "Anna",
-            Surname = "Nowak",
+            Lastname = "Nowak",
             BadgeNumber = "999",
             Rank = "Policjant",
             PDepartmentId = Guid.NewGuid(),

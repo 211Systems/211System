@@ -70,7 +70,7 @@ public class FireTest
         var firemanDto = new CreateFiremanDto
         {
             Name = "Piotr",
-            Surname = "Zalewski",
+            Lastname = "Zalewski",
             BadgeNumber = "PSP-998",
             Rank = "Kapitan",
             FDepartmentId = department.FDepartmentId,
@@ -96,7 +96,7 @@ public class FireTest
         var firemanDto = new CreateFiremanDto
         {
             Name = "Adam",
-            Surname = "Brakujący",
+            Lastname = "Brakujący",
             BadgeNumber = "PSP-000",
             Rank = "Strazak",
             FDepartmentId = Guid.NewGuid(),

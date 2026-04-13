@@ -1,41 +1,32 @@
 @{
-    ViewData["Title"] = "Dodaj Radiowóz";
+    ViewData["Title"] = "Rejestracja Komisariatu";
 }
 
 <div class="row">
     <div class="col-md-6 offset-md-3">
-        <div class="card card-primary">
+        <div class="card card-primary card-outline dark-mode">
             <div class="card-header">
-                <h3 class="card-title">Rejestracja Nowego Radiowozu</h3>
+                <h3 class="card-title">Wprowadź dane nowej jednostki</h3>
             </div>
-            
-            <form id="createPoliceCarForm">
+            <form id="createDepartmentForm">
                 <div class="card-body">
                     <div class="form-group">
-                        <label for="licensePlate">Numer Rejestracyjny</label>
-                        <input type="text" class="form-control" id="licensePlate" placeholder="np. WPI 12345" required>
+                        <label>Nazwa Placówki</label>
+                        <input type="text" id="deptName" class="form-control" required placeholder="np. Komenda Główna">
                     </div>
-
                     <div class="form-group">
-                        <label for="departmentId">Przypisz do Komendy</label>
-                        <select class="form-control" id="departmentId" required>
-                            <option value="">Wybierz komendę z listy...</option>
-                        </select>
+                        <label>Adres</label>
+                        <input type="text" id="deptAddress" class="form-control" required placeholder="np. ul. Puławska 148/150">
                     </div>
-                    
                     <div class="form-group">
-                        <label for="policemanId">Przypisz Policjanta (Opcjonalnie)</label>
-                        <select class="form-control" id="policemanId">
-                            <option value="">-- Wybierz najpierw komendę --</option>
-                        </select>
+                        <label>Region / Dzielnica</label>
+                        <input type="text" id="deptRegion" class="form-control" required placeholder="np. Mokotów">
                     </div>
-                    
-                    <p id="form-error" class="text-danger d-none mt-3"></p>
+                    <p id="error-message" class="text-danger d-none"></p>
                 </div>
-
-                <div class="card-footer d-flex justify-content-between">
-                    <a href="/Police/Cars" class="btn btn-default">Anuluj</a>
-                    <button type="submit" class="btn btn-primary">Zarejestruj Radiowóz</button>
+                <div class="card-footer text-right">
+                    <a href="/Police/Home" class="btn btn-secondary">Anuluj</a>
+                    <button type="submit" class="btn btn-primary" id="btn-submit">Zarejestruj</button>
                 </div>
             </form>
         </div>
@@ -44,95 +35,43 @@
 
 @section Scripts {
     <script>
-        const token = localStorage.getItem('jwt');
-        let allPolicemen = [];
+        document.getElementById('createDepartmentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            const errorMsg = document.getElementById('error-message');
+            
+            btn.disabled = true;
+            errorMsg.classList.add('d-none');
 
-        document.addEventListener("DOMContentLoaded", async function () {
-            if (!token) {
-                window.location.href = "/AuthView/Login";
-                return;
-            }
+            const payload = {
+                name: document.getElementById('deptName').value,
+                address: document.getElementById('deptAddress').value,
+                region: document.getElementById('deptRegion').value
+            };
 
             try {
-                const deptRes = await fetch('/api/Police/departments', { headers: { 'Authorization': 'Bearer ' + token } });
-                const polRes = await fetch('/api/Police/policemen', { headers: { 'Authorization': 'Bearer ' + token } });
-
-                if (deptRes.ok) {
-                    const departments = await deptRes.json();
-                    const deptSelect = document.getElementById('departmentId');
-                    departments.forEach(d => {
-                        const opt = document.createElement('option');
-                        opt.value = d.id || d.Id;
-                        opt.textContent = d.name || d.Name;
-                        deptSelect.appendChild(opt);
-                    });
-                }
-
-                if (polRes.ok) {
-                    allPolicemen = await polRes.json();
-                }
-            } catch (e) {}
-
-            document.getElementById('departmentId').addEventListener('change', function () {
-                const selectedDeptId = this.value;
-                const polSelect = document.getElementById('policemanId');
-                
-                polSelect.innerHTML = '<option value="">-- Wybierz policjanta (opcjonalnie) --</option>';
-
-                if (!selectedDeptId) return;
-
-                const filteredPolicemen = allPolicemen.filter(p => (p.pDepartmentId || p.PDepartmentId) === selectedDeptId);
-
-                if (filteredPolicemen.length === 0) {
-                    polSelect.innerHTML = '<option value="">Brak funkcjonariuszy w tej komendzie</option>';
-                    return;
-                }
-
-                filteredPolicemen.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id || p.Id;
-                    opt.textContent = `${p.name || p.Name} ${p.surname || p.Surname} (${p.badgeNumber || p.BadgeNumber})`;
-                    polSelect.appendChild(opt);
+                const token = localStorage.getItem('jwt');
+                const response = await fetch('/api/Police/departments', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
-            });
 
-            document.getElementById('createPoliceCarForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const deptId = document.getElementById('departmentId').value;
-                const polId = document.getElementById('policemanId').value;
-
-                if (!deptId) {
-                    const errorMsg = document.getElementById('form-error');
-                    errorMsg.textContent = "Musisz wybrać komendę!";
+                if (response.ok) {
+                    window.location.href = '/Police/Home';
+                } else {
+                    errorMsg.textContent = "Błąd rejestracji placówki. Sprawdź uprawnienia.";
                     errorMsg.classList.remove('d-none');
-                    return;
+                    btn.disabled = false;
                 }
-
-                const payload = {
-                    licensePlate: document.getElementById('licensePlate').value,
-                    pDepartmentId: deptId,
-                    policemanId: polId ? polId : null
-                };
-
-                try {
-                    const res = await fetch('/api/Police/cars', {
-                        method: 'POST',
-                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (res.ok) {
-                        window.location.href = '/Police/Cars'; // Zmień na swój poprawny link powrotu!
-                    } else {
-                        const err = await res.json();
-                        const errorMsg = document.getElementById('form-error');
-                        errorMsg.textContent = err.message || "Błąd podczas dodawania radiowozu.";
-                        errorMsg.classList.remove('d-none');
-                    }
-                } catch(err) {
-                    alert("Błąd połączenia z serwerem.");
-                }
-            });
+            } catch (error) {
+                errorMsg.textContent = "Błąd komunikacji z serwerem.";
+                errorMsg.classList.remove('d-none');
+                btn.disabled = false;
+            }
         });
     </script>
 }

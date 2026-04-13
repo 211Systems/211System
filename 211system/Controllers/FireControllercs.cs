@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using _211system.Data;
 using _211system.Models.Dtos.Fire;
 using _211system.Models.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
 
@@ -12,10 +14,13 @@ namespace _211system.Controllers
     public class FireController : Controller
     {
         private readonly IFireService _fireService;
+        private readonly _211DbContext _context;
 
-        public FireController(IFireService fireService)
+        public FireController(IFireService fireService, _211DbContext context)
         {
             _fireService = fireService;
+            _context = context;
+
         }
 
         [Authorize(Roles = "Naczelnik, Admin")]
@@ -132,6 +137,24 @@ namespace _211system.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+        [HttpGet("trucks")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> GetAllTrucks()
+        {
+            var trucks = await _context.FireTrucks.ToListAsync();
+            return Ok(trucks);
+        }
+
+        [HttpDelete("trucks/{id}")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan")]
+        public async Task<IActionResult> DeleteTruck(Guid id)
+        {
+            var truck = await _context.FireTrucks.FindAsync(id);
+            if (truck == null) return NotFound();
+            _context.FireTrucks.Remove(truck);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Usunięto wóz strażacki." });
         }
     }
 }

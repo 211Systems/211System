@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class odswiezonko : Migration
+    public partial class unified : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -292,7 +292,7 @@ namespace _211system.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Surname = table.Column<string>(type: "text", nullable: false),
+                    Lastname = table.Column<string>(type: "text", nullable: false),
                     BadgeNumber = table.Column<string>(type: "text", nullable: false),
                     Rank = table.Column<string>(type: "text", nullable: false),
                     FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -313,26 +313,6 @@ namespace _211system.Migrations
                         principalTable: "FireDepartments",
                         principalColumn: "FDepartmentId",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "FireTrucks",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    LicensePlate = table.Column<string>(type: "text", nullable: false),
-                    FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FireEquipmentid = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_FireTrucks", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_FireTrucks_FireDepartments_FDepartmentId",
-                        column: x => x.FDepartmentId,
-                        principalTable: "FireDepartments",
-                        principalColumn: "FDepartmentId",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -385,32 +365,12 @@ namespace _211system.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PoliceCars",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    LicensePlate = table.Column<string>(type: "text", nullable: false),
-                    PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
-                    PoliceEquipmentId = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PoliceCars", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_PoliceCars_PoliceDepartments_PDepartmentId",
-                        column: x => x.PDepartmentId,
-                        principalTable: "PoliceDepartments",
-                        principalColumn: "PDepartmentId",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Policemen",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Surname = table.Column<string>(type: "text", nullable: false),
+                    Lastname = table.Column<string>(type: "text", nullable: false),
                     BadgeNumber = table.Column<string>(type: "text", nullable: false),
                     Rank = table.Column<string>(type: "text", nullable: false),
                     PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -467,22 +427,31 @@ namespace _211system.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "FireEquipments",
+                name: "FireTrucks",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    FireTruckId = table.Column<Guid>(type: "uuid", nullable: false)
+                    LicensePlate = table.Column<string>(type: "text", nullable: false),
+                    FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FiremanId = table.Column<Guid>(type: "uuid", nullable: true),
+                    FireEquipmentid = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "boolean", nullable: false),
+                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_FireEquipments", x => x.Id);
+                    table.PrimaryKey("PK_FireTrucks", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_FireEquipments_FireTrucks_FireTruckId",
-                        column: x => x.FireTruckId,
-                        principalTable: "FireTrucks",
-                        principalColumn: "Id",
+                        name: "FK_FireTrucks_FireDepartments_FDepartmentId",
+                        column: x => x.FDepartmentId,
+                        principalTable: "FireDepartments",
+                        principalColumn: "FDepartmentId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_FireTrucks_Firemen_FiremanId",
+                        column: x => x.FiremanId,
+                        principalTable: "Firemen",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -514,22 +483,31 @@ namespace _211system.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PoliceEquipments",
+                name: "PoliceCars",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    PoliceCarId = table.Column<Guid>(type: "uuid", nullable: false)
+                    LicensePlate = table.Column<string>(type: "text", nullable: false),
+                    PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PolicemanId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PoliceEquipmentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "boolean", nullable: false),
+                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PoliceEquipments", x => x.Id);
+                    table.PrimaryKey("PK_PoliceCars", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PoliceEquipments_PoliceCars_PoliceCarId",
-                        column: x => x.PoliceCarId,
-                        principalTable: "PoliceCars",
-                        principalColumn: "Id",
+                        name: "FK_PoliceCars_PoliceDepartments_PDepartmentId",
+                        column: x => x.PDepartmentId,
+                        principalTable: "PoliceDepartments",
+                        principalColumn: "PDepartmentId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PoliceCars_Policemen_PolicemanId",
+                        column: x => x.PolicemanId,
+                        principalTable: "Policemen",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -598,7 +576,8 @@ namespace _211system.Migrations
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
-                    IncidentId = table.Column<Guid>(type: "uuid", nullable: false)
+                    IncidentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FiremanId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -609,6 +588,11 @@ namespace _211system.Migrations
                         principalTable: "FireDepartments",
                         principalColumn: "FDepartmentId",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_FireOperations_Firemen_FiremanId",
+                        column: x => x.FiremanId,
+                        principalTable: "Firemen",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_FireOperations_Incidents_IncidentId",
                         column: x => x.IncidentId,
@@ -680,7 +664,8 @@ namespace _211system.Migrations
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
-                    IncidentId = table.Column<Guid>(type: "uuid", nullable: false)
+                    IncidentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    PolicemanId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -697,6 +682,30 @@ namespace _211system.Migrations
                         principalTable: "PoliceDepartments",
                         principalColumn: "PDepartmentId",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_PoliceOperations_Policemen_PolicemanId",
+                        column: x => x.PolicemanId,
+                        principalTable: "Policemen",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "FireEquipments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    FireTruckId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FireEquipments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_FireEquipments_FireTrucks_FireTruckId",
+                        column: x => x.FireTruckId,
+                        principalTable: "FireTrucks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -715,6 +724,25 @@ namespace _211system.Migrations
                         name: "FK_AmbulanceEquipments_Ambulances_AmbulanceId",
                         column: x => x.AmbulanceId,
                         principalTable: "Ambulances",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PoliceEquipments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    PoliceCarId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PoliceEquipments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PoliceEquipments_PoliceCars_PoliceCarId",
+                        column: x => x.PoliceCarId,
+                        principalTable: "PoliceCars",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -834,6 +862,11 @@ namespace _211system.Migrations
                 column: "FDepartmentId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_FireOperations_FiremanId",
+                table: "FireOperations",
+                column: "FiremanId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_FireOperations_IncidentId",
                 table: "FireOperations",
                 column: "IncidentId");
@@ -842,6 +875,11 @@ namespace _211system.Migrations
                 name: "IX_FireTrucks_FDepartmentId",
                 table: "FireTrucks",
                 column: "FDepartmentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FireTrucks_FiremanId",
+                table: "FireTrucks",
+                column: "FiremanId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_GivenMedicines_ParamedicId",
@@ -914,6 +952,11 @@ namespace _211system.Migrations
                 column: "PDepartmentId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PoliceCars_PolicemanId",
+                table: "PoliceCars",
+                column: "PolicemanId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PoliceEquipments_PoliceCarId",
                 table: "PoliceEquipments",
                 column: "PoliceCarId");
@@ -937,6 +980,11 @@ namespace _211system.Migrations
                 name: "IX_PoliceOperations_PDepartmentId",
                 table: "PoliceOperations",
                 column: "PDepartmentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PoliceOperations_PolicemanId",
+                table: "PoliceOperations",
+                column: "PolicemanId");
         }
 
         /// <inheritdoc />
@@ -973,9 +1021,6 @@ namespace _211system.Migrations
                 name: "FireEquipments");
 
             migrationBuilder.DropTable(
-                name: "Firemen");
-
-            migrationBuilder.DropTable(
                 name: "FireOperations");
 
             migrationBuilder.DropTable(
@@ -992,9 +1037,6 @@ namespace _211system.Migrations
 
             migrationBuilder.DropTable(
                 name: "PoliceEquipments");
-
-            migrationBuilder.DropTable(
-                name: "Policemen");
 
             migrationBuilder.DropTable(
                 name: "PoliceOperations");
@@ -1021,7 +1063,7 @@ namespace _211system.Migrations
                 name: "Paramedics");
 
             migrationBuilder.DropTable(
-                name: "FireDepartments");
+                name: "Firemen");
 
             migrationBuilder.DropTable(
                 name: "HospitalWards");
@@ -1030,13 +1072,19 @@ namespace _211system.Migrations
                 name: "Incidents");
 
             migrationBuilder.DropTable(
-                name: "PoliceDepartments");
+                name: "Policemen");
+
+            migrationBuilder.DropTable(
+                name: "FireDepartments");
 
             migrationBuilder.DropTable(
                 name: "Hospitals");
 
             migrationBuilder.DropTable(
                 name: "Operators112");
+
+            migrationBuilder.DropTable(
+                name: "PoliceDepartments");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");

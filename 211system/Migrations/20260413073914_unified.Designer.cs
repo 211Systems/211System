@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260408163553_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260413073914_unified")]
+    partial class unified
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -300,6 +300,9 @@ namespace _211system.Migrations
                     b.Property<Guid>("FDepartmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("FiremanId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("IncidentId")
                         .HasColumnType("uuid");
 
@@ -309,6 +312,8 @@ namespace _211system.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FDepartmentId");
+
+                    b.HasIndex("FiremanId");
 
                     b.HasIndex("IncidentId");
 
@@ -341,11 +346,20 @@ namespace _211system.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CurrentIncidentId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("FDepartmentId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("FireEquipmentid")
                         .HasColumnType("uuid");
+
+                    b.Property<Guid?>("FiremanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("LicensePlate")
                         .IsRequired()
@@ -354,6 +368,8 @@ namespace _211system.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FDepartmentId");
+
+                    b.HasIndex("FiremanId");
 
                     b.ToTable("FireTrucks");
                 });
@@ -375,15 +391,15 @@ namespace _211system.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Lastname")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Rank")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Surname")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -557,6 +573,12 @@ namespace _211system.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CurrentIncidentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LicensePlate")
                         .IsRequired()
                         .HasColumnType("text");
@@ -567,9 +589,14 @@ namespace _211system.Migrations
                     b.Property<Guid>("PoliceEquipmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("PolicemanId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PDepartmentId");
+
+                    b.HasIndex("PolicemanId");
 
                     b.ToTable("PoliceCars");
                 });
@@ -609,6 +636,9 @@ namespace _211system.Migrations
                     b.Property<Guid>("PDepartmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("PolicemanId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -617,6 +647,8 @@ namespace _211system.Migrations
                     b.HasIndex("IncidentId");
 
                     b.HasIndex("PDepartmentId");
+
+                    b.HasIndex("PolicemanId");
 
                     b.ToTable("PoliceOperations");
                 });
@@ -628,6 +660,10 @@ namespace _211system.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("BadgeNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Lastname")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -643,10 +679,6 @@ namespace _211system.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Rank")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Surname")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -1056,6 +1088,10 @@ namespace _211system.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("FireDepartment.Fireman", "Fireman")
+                        .WithMany()
+                        .HasForeignKey("FiremanId");
+
                     b.HasOne("CPR112.Models.Incident", "Incident")
                         .WithMany()
                         .HasForeignKey("IncidentId")
@@ -1063,6 +1099,8 @@ namespace _211system.Migrations
                         .IsRequired();
 
                     b.Navigation("Department");
+
+                    b.Navigation("Fireman");
 
                     b.Navigation("Incident");
                 });
@@ -1086,7 +1124,13 @@ namespace _211system.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("FireDepartment.Fireman", "Fireman")
+                        .WithMany()
+                        .HasForeignKey("FiremanId");
+
                     b.Navigation("Department");
+
+                    b.Navigation("Fireman");
                 });
 
             modelBuilder.Entity("FireDepartment.Fireman", b =>
@@ -1167,7 +1211,13 @@ namespace _211system.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Police.Policeman", "Policeman")
+                        .WithMany()
+                        .HasForeignKey("PolicemanId");
+
                     b.Navigation("PDepartment");
+
+                    b.Navigation("Policeman");
                 });
 
             modelBuilder.Entity("Police.PoliceEquipment", b =>
@@ -1195,9 +1245,15 @@ namespace _211system.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Police.Policeman", "Policeman")
+                        .WithMany()
+                        .HasForeignKey("PolicemanId");
+
                     b.Navigation("Department");
 
                     b.Navigation("Incident");
+
+                    b.Navigation("Policeman");
                 });
 
             modelBuilder.Entity("Police.Policeman", b =>

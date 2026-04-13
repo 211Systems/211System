@@ -51,7 +51,7 @@ namespace _211system.Models.Services
             {
                 Id = Guid.NewGuid(),
                 Name = dto.Name,
-                Surname = dto.Surname,
+                Lastname = dto.Lastname,
                 BadgeNumber = dto.BadgeNumber,
                 Rank = dto.Rank,
                 PDepartmentId = dto.PDepartmentId,
@@ -189,7 +189,7 @@ namespace _211system.Models.Services
                         {
                             PolicemanId = car.Policeman.Id,
                             FirstName = car.Policeman.Name,
-                            LastName = car.Policeman.Surname,
+                            LastName = car.Policeman.Lastname,
                             BadgeNumber = car.Policeman.BadgeNumber,
                             Rank = car.Policeman.Rank
                         } : null
@@ -224,7 +224,7 @@ namespace _211system.Models.Services
                 {
                     Id = p.Id,
                     Name = p.Name,
-                    Surname = p.Surname,
+                    Surname = p.Lastname,
                     BadgeNumber = p.BadgeNumber,
                     Rank = p.Rank,
                     PDepartmentId = p.PDepartmentId,

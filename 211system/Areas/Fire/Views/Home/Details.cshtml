@@ -1,0 +1,111 @@
+﻿@{
+    ViewData["Title"] = "Zarządzanie Remizą";
+}
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card card-primary card-outline dark-mode">
+            <div class="card-body box-profile">
+                <h3 class="profile-username text-center" id="dept-name">Ładowanie...</h3>
+                <ul class="list-group list-group-unbordered mb-3">
+                    <li class="list-group-item">
+                        <b>Adres</b> <a class="float-right" id="dept-address">...</a>
+                    </li>
+                    <li class="list-group-item d-none" id="dept-region-container">
+                        <b>Region / Rejon</b> <a class="float-right" id="dept-region">...</a>
+                    </li>
+                </ul>
+                
+                <div id="admin-department-actions" class="d-none mb-3">
+                    <button class="btn btn-warning btn-block mb-2" data-toggle="modal" data-target="#editDepartmentModal">
+                        <b><i class="fas fa-edit"></i> Edytuj Placówkę</b>
+                    </button>
+                    <button class="btn btn-danger btn-block" onclick="window.deleteDepartment()">
+                        <b><i class="fas fa-trash"></i> Usuń Placówkę</b>
+                    </button>
+                </div>
+
+                <a href="/Police/Home" class="btn btn-primary btn-block"><b>Wróć do listy</b></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        
+        @{
+            ViewBag.Title = "Strażacy Przypisani do Jednostki";
+            ViewBag.Icon = "fas fa-user-shield";
+            ViewBag.AddModalTarget = "#addPersonnelModal";
+            ViewBag.AddButtonText = "Zatrudnij Strażaka";
+            ViewBag.TableBodyId = "personnel-table-body";
+            ViewBag.ThemeColor = "danger";
+        }
+        <partial name="~/Views/Shared/_PersonnelListPartial.cshtml" />
+
+        @{
+            ViewBag.Title = "Flota Radiowozów";
+            ViewBag.Icon = "fas fa-car-side";
+            ViewBag.AddButtonText = "Zarejestruj wóz strażacki";
+            ViewBag.AddButtonLink = "#addVehicleModal";
+            ViewBag.TableBodyId = "vehicles-table-body";
+            ViewBag.ThemeColor = "primary";
+        }
+        <partial name="~/Views/Shared/_VehicleListPartial.cshtml" />
+
+    </div>
+</div>
+
+<div class="modal fade" id="addPersonnelModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Rejestracja Funkcjonariusza</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="addPersonnelForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Imię</label>
+                        <input type="text" id="staffName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nazwisko</label>
+                        <input type="text" id="staffLastName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email (Login)</label>
+                        <input type="email" id="staffEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Numer Odznaki</label>
+                        <input type="text" id="staffLicense" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ranga / Rola</label>
+                        <select id="staffRole" class="form-control" required>
+                        </select>
+                    </div>
+                    
+                    <div id="generated-password-alert" class="alert alert-warning d-none">
+                        <h5><i class="icon fas fa-check"></i> Konto aktywne!</h5>
+                        Tymczasowe hasło: <strong id="temp-password-display" style="font-size: 1.2em;"></strong>
+                    </div>
+                    <p id="staff-error" class="text-danger d-none"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-staff">Dodaj do systemu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/universal-department-handler.js"></script>
+    <script>
+        // Tutaj wywołamy nasz uniwersalny skrypt
+    </script>
+}
