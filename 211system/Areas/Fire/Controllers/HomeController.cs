@@ -17,5 +17,11 @@ namespace _211system.Areas.Fire.Controllers
         {
             return View();
         }
+        [HttpGet]
+        public IActionResult Details(Guid id)
+        {
+            ViewBag.DepartmentId = id;
+            return View();
+        }
     }
 }

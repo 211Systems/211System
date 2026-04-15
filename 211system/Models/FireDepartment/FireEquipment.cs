@@ -10,6 +10,7 @@ public class FireEquipment
 
 	public Guid FireTruckId { get; set; }
 	public virtual FireTruck Firetruck { get; set; }
+    public int Quantity { get; set; }
 
     public FireEquipment()
 	{

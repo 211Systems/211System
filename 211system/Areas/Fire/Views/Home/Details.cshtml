@@ -1,10 +1,9 @@
 ﻿@{
     ViewData["Title"] = "Zarządzanie Remizą";
 }
-
 <div class="row">
     <div class="col-md-4">
-        <div class="card card-primary card-outline dark-mode">
+        <div class="card card-danger card-outline dark-mode">
             <div class="card-body box-profile">
                 <h3 class="profile-username text-center" id="dept-name">Ładowanie...</h3>
                 <ul class="list-group list-group-unbordered mb-3">
@@ -25,13 +24,12 @@
                     </button>
                 </div>
 
-                <a href="/Police/Home" class="btn btn-primary btn-block"><b>Wróć do listy</b></a>
+                <a href="/Fire/Home" class="btn btn-danger btn-block"><b>Wróć do listy</b></a>
             </div>
         </div>
     </div>
 
     <div class="col-md-8">
-        
         @{
             ViewBag.Title = "Strażacy Przypisani do Jednostki";
             ViewBag.Icon = "fas fa-user-shield";
@@ -40,26 +38,15 @@
             ViewBag.TableBodyId = "personnel-table-body";
             ViewBag.ThemeColor = "danger";
         }
-        <partial name="~/Views/Shared/_PersonnelListPartial.cshtml" />
-
-        @{
-            ViewBag.Title = "Flota Radiowozów";
-            ViewBag.Icon = "fas fa-car-side";
-            ViewBag.AddButtonText = "Zarejestruj wóz strażacki";
-            ViewBag.AddButtonLink = "#addVehicleModal";
-            ViewBag.TableBodyId = "vehicles-table-body";
-            ViewBag.ThemeColor = "primary";
-        }
-        <partial name="~/Views/Shared/_VehicleListPartial.cshtml" />
-
+        @await Html.PartialAsync("~/Views/Shared/_PersonnelListPartial.cshtml")
     </div>
 </div>
 
 <div class="modal fade" id="addPersonnelModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode">
-            <div class="modal-header bg-primary">
-                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Rejestracja Funkcjonariusza</h5>
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Rejestracja Strażaka</h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -84,8 +71,7 @@
                     </div>
                     <div class="form-group">
                         <label>Ranga / Rola</label>
-                        <select id="staffRole" class="form-control" required>
-                        </select>
+                        <select id="staffRole" class="form-control" required></select>
                     </div>
                     
                     <div id="generated-password-alert" class="alert alert-warning d-none">
@@ -96,7 +82,77 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
-                    <button type="submit" class="btn btn-primary" id="btn-submit-staff">Dodaj do systemu</button>
+                    <button type="submit" class="btn btn-danger" id="btn-submit-staff">Dodaj do systemu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="editDepartmentModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark"><i class="fas fa-edit"></i> Edytuj Placówkę</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editDepartmentForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nazwa Placówki</label>
+                        <input type="text" id="editDeptName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Adres</label>
+                        <input type="text" id="editDeptAddress" class="form-control" required>
+                    </div>
+                    <div class="form-group" id="editDeptRegionContainer">
+                        <label>Region / Rejon</label>
+                        <input type="text" id="editDeptRegion" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editPersonnelModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark"><i class="fas fa-user-edit"></i> Edytuj Pracownika</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editPersonnelForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editStaffId">
+                    <div class="form-group">
+                        <label>Imię</label>
+                        <input type="text" id="editStaffName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nazwisko</label>
+                        <input type="text" id="editStaffLastName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Numer Odznaki / Licencji</label>
+                        <input type="text" id="editStaffLicense" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ranga / Rola</label>
+                        <select id="editStaffRole" class="form-control" required></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
                 </div>
             </form>
         </div>
@@ -104,8 +160,8 @@
 </div>
 
 @section Scripts {
-    <script src="~/js/universal-department-handler.js"></script>
     <script>
-        // Tutaj wywołamy nasz uniwersalny skrypt
+        window.currentDepartmentId = '@ViewBag.DepartmentId';
     </script>
+    <script src="~/js/universal-department-handler.js?v=2015"></script>
 }

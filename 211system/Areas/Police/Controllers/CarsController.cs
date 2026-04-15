@@ -14,5 +14,6 @@ namespace _211system.Areas.Police.Controllers
         {
             return View();
         }
+
     }
 }

@@ -1,14 +1,13 @@
 @{
-    ViewData["Title"] = "Rejestracja Komisariatu";
+    ViewData["Title"] = "Dodaj Komendę";
 }
-
 <div class="row">
     <div class="col-md-6 offset-md-3">
-        <div class="card card-primary card-outline dark-mode">
-            <div class="card-header">
-                <h3 class="card-title">Wprowadź dane nowej jednostki</h3>
+        <div class="card card-primary dark-mode">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title">Rejestracja Nowej Komendy</h3>
             </div>
-            <form id="createDepartmentForm">
+            <form id="createDeptForm">
                 <div class="card-body">
                     <div class="form-group">
                         <label>Nazwa Placówki</label>
@@ -16,17 +15,17 @@
                     </div>
                     <div class="form-group">
                         <label>Adres</label>
-                        <input type="text" id="deptAddress" class="form-control" required placeholder="np. ul. Puławska 148/150">
+                        <input type="text" id="deptAddress" class="form-control" required placeholder="np. ul. Policyjna 1">
                     </div>
                     <div class="form-group">
-                        <label>Region / Dzielnica</label>
-                        <input type="text" id="deptRegion" class="form-control" required placeholder="np. Mokotów">
+                        <label>Region / Rejon</label>
+                        <input type="text" id="deptDistrict" class="form-control" required placeholder="np. Śródmieście">
                     </div>
-                    <p id="error-message" class="text-danger d-none"></p>
+                    <p id="form-error" class="text-danger d-none mt-3"></p>
                 </div>
-                <div class="card-footer text-right">
+                <div class="card-footer d-flex justify-content-between bg-light">
                     <a href="/Police/Home" class="btn btn-secondary">Anuluj</a>
-                    <button type="submit" class="btn btn-primary" id="btn-submit">Zarejestruj</button>
+                    <button type="submit" class="btn btn-primary">Zarejestruj</button>
                 </div>
             </form>
         </div>
@@ -35,42 +34,40 @@
 
 @section Scripts {
     <script>
-        document.getElementById('createDepartmentForm').addEventListener('submit', async function(e) {
+        const token = localStorage.getItem('jwt');
+        document.getElementById('createDeptForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const btn = document.getElementById('btn-submit');
-            const errorMsg = document.getElementById('error-message');
-            
-            btn.disabled = true;
+            const errorMsg = document.getElementById('form-error');
             errorMsg.classList.add('d-none');
 
             const payload = {
                 name: document.getElementById('deptName').value,
                 address: document.getElementById('deptAddress').value,
-                region: document.getElementById('deptRegion').value
+                district: document.getElementById('deptDistrict').value
             };
 
             try {
-                const token = localStorage.getItem('jwt');
-                const response = await fetch('/api/Police/departments', {
+                const res = await fetch('/api/Police/departments', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
-                if (response.ok) {
+                if (res.ok) {
                     window.location.href = '/Police/Home';
                 } else {
-                    errorMsg.textContent = "Błąd rejestracji placówki. Sprawdź uprawnienia.";
+                    if (res.status === 401 || res.status === 403) {
+                        errorMsg.textContent = "Brak uprawnień lub token wygasł! Wyloguj się i zaloguj ponownie.";
+                    } else if (res.status === 400) {
+                        errorMsg.textContent = "Błąd 400: Uzupełnij wszystkie pola prawidłowo.";
+                    } else {
+                        errorMsg.textContent = "Błąd serwera (Kod: " + res.status + ").";
+                    }
                     errorMsg.classList.remove('d-none');
-                    btn.disabled = false;
                 }
-            } catch (error) {
-                errorMsg.textContent = "Błąd komunikacji z serwerem.";
+            } catch(e) {
+                errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
                 errorMsg.classList.remove('d-none');
-                btn.disabled = false;
             }
         });
     </script>

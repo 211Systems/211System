@@ -11,6 +11,8 @@ public class PoliceEquipment
 	public Guid PoliceCarId { get; set; }
 	public virtual PoliceCar PoliceCar { get; set; }
 
+    public int Quantity { get; set; }
+
     public PoliceEquipment()
 	{
 	}

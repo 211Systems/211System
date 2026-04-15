@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
+using static _211system.Controllers.PoliceController;
 
 namespace _211system.Controllers
 {
@@ -139,24 +140,7 @@ namespace _211system.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-        //[HttpGet("trucks")]
-        //[Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
-        //public async Task<IActionResult> GetAllTrucks()
-        //{
-        //    var trucks = await _context.FireTrucks.ToListAsync();
-        //    return Ok(trucks);
-        //}
 
-        //[HttpDelete("trucks/{id}")]
-        //[Authorize(Roles = "Admin, Naczelnik, Kapitan")]
-        //public async Task<IActionResult> DeleteTruck(Guid id)
-        //{
-        //    var truck = await _context.FireTrucks.FindAsync(id);
-        //    if (truck == null) return NotFound();
-        //    _context.FireTrucks.Remove(truck);
-        //    await _context.SaveChangesAsync();
-        //    return Ok(new { message = "Usunięto wóz strażacki." });
-        //}
         [HttpGet("operations")]
         [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetOperations()
@@ -219,6 +203,62 @@ namespace _211system.Controllers
             var incident = await _context.Incidents.FindAsync(id);
             if (incident == null) return NotFound();
             return Ok(incident);
+        }
+        [HttpPut("departments/{id}")]
+        [Authorize(Roles = "Admin, Naczelnik")]
+        public async Task<IActionResult> UpdateDepartment(Guid id, [FromBody] CreateFDepartmentDto dto)
+        {
+            var dept = await _context.FireDepartments.FindAsync(id);
+            if (dept == null) return NotFound();
+
+            dept.Name = dto.Name;
+            dept.Address = dto.Address;
+            dept.District = dto.District;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Zaktualizowano placówkę." });
+        }
+
+        [HttpPut("firemen/{id}")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan")]
+        public async Task<IActionResult> UpdateFireman(Guid id, [FromBody] CreateFiremanDto dto)
+        {
+            var fireman = await _context.Firemen.FindAsync(id);
+            if (fireman == null) return NotFound();
+
+            fireman.Name = dto.Name;
+            fireman.Lastname = dto.Lastname;
+            fireman.BadgeNumber = dto.BadgeNumber;
+            fireman.Rank = dto.Rank;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Zaktualizowano dane strażaka." });
+        }
+        [HttpPost("firetrucks/{truckId}/equipment")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan")]
+        public async Task<IActionResult> AddTruckEquipment(Guid truckId, [FromBody] EquipmentDto dto)
+        {
+            var eq = new FireEquipment { FireTruckId = truckId, Name = dto.Name, Quantity = dto.Quantity };
+            _context.FireEquipments.Add(eq);
+            await _context.SaveChangesAsync();
+            return Ok(eq);
+        }
+
+        [HttpGet("firetrucks/{truckId}/equipment")]
+        [Authorize]
+        public async Task<IActionResult> GetTruckEquipment(Guid truckId)
+        {
+            var equipment = await _context.FireEquipments.Where(e => e.FireTruckId == truckId).ToListAsync();
+            return Ok(equipment);
+        }
+
+        [HttpDelete("equipment/{id}")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan")]
+        public async Task<IActionResult> DeleteTruckEquipment(Guid id)
+        {
+            var eq = await _context.FireEquipments.FindAsync(id);
+            if (eq != null) { _context.FireEquipments.Remove(eq); await _context.SaveChangesAsync(); }
+            return Ok();
         }
     }
 }

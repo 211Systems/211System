@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260413073914_unified")]
-    partial class unified
+    [Migration("20260415150129_Eq")]
+    partial class Eq
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -333,6 +333,9 @@ namespace _211system.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FireTruckId");
@@ -613,6 +616,9 @@ namespace _211system.Migrations
 
                     b.Property<Guid>("PoliceCarId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
