@@ -41,12 +41,15 @@ namespace _211system.Models.Services
                 var apiKey = configuration["NasaApiKey"];
                 if (string.IsNullOrEmpty(apiKey)) throw new Exception("Brak klucza NASA API!");
 
-                string nasaUrl = $"https://firms.modaps.eosdis.nasa.gov/api/country/csv/{apiKey}/VIIRS_SNPP_NRT/POL/1";
+                string nasaUrl = $"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{apiKey}/VIIRS_SNPP_NRT/14.0,49.0,24.1,55.0/5";
                 var client = _httpClientFactory.CreateClient();
                 var response = await client.GetAsync(nasaUrl);
 
                 if (!response.IsSuccessStatusCode)
-                    throw new Exception($"Błąd połączenia z NASA. Status: {response.StatusCode}");
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"Odrzucono przez NASA (Status: {response.StatusCode}). Detale: {errorBody}");
+                }
 
                 var csvData = await response.Content.ReadAsStringAsync();
                 var lines = csvData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
