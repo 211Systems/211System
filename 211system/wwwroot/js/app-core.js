@@ -55,8 +55,10 @@ function initUserContext() {
     const profEmail = document.getElementById('profile-email');
     const navName = document.getElementById('nav-user-name');
 
+    const userName = email.split('@')[0];
+
     if (profEmail) profEmail.textContent = email;
-    if (navName) navName.textContent = email.split('@')[0];
+    if (navName) navName.textContent = userName;
 
     let role = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role || "Brak";
     const rolesArray = Array.isArray(role) ? role : [role];
@@ -64,7 +66,12 @@ function initUserContext() {
     if (profRole) profRole.textContent = rolesArray.join(', ');
 
     const avatarUrl = decoded["AvatarUrl"];
-    if (avatarUrl) setAvatarImage(avatarUrl);
+    if (avatarUrl) {
+        setAvatarImage(avatarUrl);
+    } else {
+        const fallbackAvatar = `https://ui-avatars.com/api/?name=${userName}&background=random&color=fff`;
+        setAvatarImage(fallbackAvatar);
+    }
 
     const show = (id) => { const el = document.getElementById(id); if (el) el.classList.remove('d-none'); };
 
@@ -72,7 +79,10 @@ function initUserContext() {
         show('menu-admin'); show('menu-dispatch'); show('nav-admin-cpr-container');
         show('nav-admin-centers-container'); show('menu-medic-manager');
         show('menu-medic-worker'); show('link-hospitals'); show('link-ambulances');
-        show('link-operations');
+        show('link-operations'); show('menu-police-manager'); show('link-police-depts');
+        show('link-police-cars'); show('menu-police-worker'); show('link-police-operations');
+        show('menu-fire-manager'); show('link-fire-depts'); show('link-fire-trucks');
+        show('menu-fire-worker'); show('link-fire-operations');
     }
     else if (rolesArray.includes("Admin112")) {
         show('menu-dispatch'); show('nav-admin-cpr-container'); show('nav-admin-centers-container');
@@ -89,6 +99,26 @@ function initUserContext() {
     }
     else if (rolesArray.includes("Medyk")) {
         show('menu-medic-worker'); show('link-operations');
+    }
+ 
+    else if (rolesArray.includes("Komendant")) {
+        show('menu-police-manager'); show('link-police-depts'); show('link-police-cars');
+        show('menu-police-worker'); show('link-police-operations');
+    }
+    else if (rolesArray.includes("Inspektor")) {
+        show('menu-police-manager'); show('link-police-depts'); show('link-police-cars');
+        show('menu-police-worker'); show('link-police-operations');
+    }
+    else if (rolesArray.includes("Policjant")) {
+        show('menu-police-worker'); show('link-police-operations');
+    }
+
+    else if (rolesArray.includes("Naczelnik") || rolesArray.includes("Kapitan")) {
+        show('menu-fire-manager'); show('link-fire-depts'); show('link-fire-trucks');
+        show('menu-fire-worker'); show('link-fire-operations');
+    }
+    else if (rolesArray.includes("strazak")) { 
+        show('menu-fire-worker'); show('link-fire-operations');
     }
 }
 
