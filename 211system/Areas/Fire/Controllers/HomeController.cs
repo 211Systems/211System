@@ -20,6 +20,9 @@ namespace _211system.Areas.Fire.Controllers
         [HttpGet]
         public IActionResult Details(Guid id)
         {
+            if(id == Guid.Empty) 
+                    return NotFound();
+
             ViewBag.DepartmentId = id;
             return View();
         }
