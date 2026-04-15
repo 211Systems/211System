@@ -17,9 +17,28 @@ if (currentPath.includes('/medic/')) {
 }
 
 function parseJwt(tokenString) {
+    if (!tokenString || typeof tokenString !== 'string') {
+        return null;
+    }
+
+    const parts = tokenString.split('.');
+    if (parts.length !== 3) {
+        return null;
+    }
+
     try {
-        return JSON.parse(globalThis.atob(tokenString.split('.')[1].replaceAll('-', '+').replaceAll('_', '/')));
+        const base64Url = parts[1];
+        const base64 = base64Url.replaceAll('-', '+').replaceAll('_', '/');
+
+        const jsonPayload = decodeURIComponent(
+            globalThis.atob(base64).split('').map(function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join('')
+        );
+
+        return JSON.parse(jsonPayload);
     } catch (e) {
+        console.error("JWT Parsing Error:", e.message);
         return null;
     }
 }
@@ -175,7 +194,7 @@ document.getElementById('editDepartmentForm')?.addEventListener('submit', async 
             alert("Błąd podczas zapisywania zmian.");
         }
     } catch (e) {
-        alert("Błąd sieci.");
+        alert("Błąd sieci." + e.message);
     }
 });
 
