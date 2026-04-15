@@ -24,7 +24,7 @@
                 }
     
                 try {
-                    const res = await fetch('/api/Fire/trucks', { headers: { 'Authorization': 'Bearer ' + token } });
+                    const res = await fetch('/api/Fire/firetrucks', { headers: { 'Authorization': 'Bearer ' + token } });
                     const trucks = await res.json();
                     tableBody.innerHTML = '';
                     
@@ -53,8 +53,7 @@
                             </tr>
                         `);
                     });
-                }
-            } catch (e) {
+                } catch (e) {
                 tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Błąd ładowania z serwera.</td></tr>';
             }
         });
@@ -62,7 +61,7 @@
         window.deleteGlobalTruck = async function(id) {
             if (!confirm("Na pewno usunąć ten pojazd z globalnego rejestru?")) return;
             const token = localStorage.getItem('jwt');
-            await fetch(`/api/Fire/trucks/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+            await fetch(`/api/Fire/firetrucks/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
             location.reload();
         };
     </script>
