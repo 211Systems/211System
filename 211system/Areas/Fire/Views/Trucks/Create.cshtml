@@ -1,0 +1,127 @@
+﻿@{
+    ViewData["Title"] = "Zarejestruj Wóz Strażacki";
+}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card card-danger dark-mode">
+            <div class="card-header bg-danger text-white">
+                <h3 class="card-title">Rejestracja Nowego Wozu Strażackiego</h3>
+            </div>
+            
+            <form id="createVehicleForm">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="licensePlate">Numer Rejestracyjny / Operacyjny</label>
+                        <input type="text" class="form-control" id="licensePlate" placeholder="np. SR 998" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="departmentId">Przypisz do Remizy</label>
+                        <select class="form-control" id="departmentId" required>
+                            <option value="">Wybierz remizę z listy...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personnelId">Przypisz Strażaka (Dowódcę)</label>
+                        <select class="form-control" id="personnelId" required disabled>
+                            <option value="">-- Wybierz najpierw remizę --</option>
+                        </select>
+                    </div>
+                    
+                    <p id="form-error" class="text-danger d-none mt-3"></p>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between bg-light">
+                    <a href="/Fire/Trucks" class="btn btn-secondary">Anuluj</a>
+                    <button type="submit" class="btn btn-danger">Zarejestruj Wóz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/api-form-handler.js"></script>
+    <script src="~/js/api-department-loader.js"></script>
+    <script>
+        const token = localStorage.getItem('jwt');
+        let allPersonnel = [];
+
+        document.addEventListener("DOMContentLoaded", async function () {
+
+            await loadDepartmentsForDropdown({
+                selectElementId: 'departmentId',
+                allowedRoles: ["Admin", "Naczelnik", "Kapitan"],
+                fallbackUrl: '/Fire/Trucks',
+                departmentsApiUrl: '/api/Fire/departments',
+                staffApiUrl: '/api/Fire/firemen',
+                foreignKeyField: 'fDepartmentId'
+            });
+            if (token) {
+                try {
+                    const res = await fetch('/api/Fire/firemen', { headers: { 'Authorization': 'Bearer ' + token } });
+                    if (res.ok) {
+                        allPersonnel = await res.json();
+                    }
+                } catch (e) { console.error("Błąd ładowania kadry."); }
+            }
+
+            document.getElementById('departmentId').addEventListener('change', function () {
+                const selectedDeptId = this.value;
+                const paramSelect = document.getElementById('personnelId');
+                
+                paramSelect.innerHTML = '<option value="">-- Wybierz pracownika --</option>';
+
+                if (!selectedDeptId) {
+                    paramSelect.innerHTML = '<option value="">-- Wybierz najpierw remizę --</option>';
+                    paramSelect.disabled = true;
+                    return;
+                }
+
+                const filteredStaff = allPersonnel.filter(p => (p.fDepartmentId || p.FDepartmentId) === selectedDeptId);
+
+                if (filteredStaff.length === 0) {
+                    paramSelect.innerHTML = '<option value="">Brak kadry w tej placówce</option>';
+                    paramSelect.disabled = true;
+                    return;
+                }
+
+                filteredStaff.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id || p.Id;
+                    const name = `${p.name || p.Name} ${p.lastname || p.lastName || p.LastName || p.Lastname || ""}`;
+                    opt.textContent = `${name} (${p.rank || p.Rank})`;
+                    paramSelect.appendChild(opt);
+                });
+                
+                paramSelect.disabled = false;
+            });
+
+            setupApiFormSubmit({
+                formId: 'createVehicleForm',
+                apiUrl: '/api/Fire/firetrucks',
+                redirectUrl: '/Fire/Trucks',
+                defaultErrorMsg: 'Błąd podczas rejestracji wozu.',
+                buildPayload: () => {
+                    const deptId = document.getElementById('departmentId').value;
+                    const persId = document.getElementById('personnelId').value;
+
+                    if (!deptId || !persId) {
+                        const errorMsg = document.getElementById('form-error');
+                        errorMsg.textContent = "Remiza i strażak są wymagani!";
+                        errorMsg.classList.remove('d-none');
+                        throw new Error("Błąd walidacji");
+                    }
+
+                    return {
+                        licensePlate: document.getElementById('licensePlate').value,
+                        fDepartmentId: deptId,
+                        firemanId: persId
+                    };
+                }
+            });
+        });
+    </script>
+}

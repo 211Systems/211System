@@ -1,68 +1,331 @@
 ﻿@{
-    ViewData["Title"] = "Zarządzanie Flotą Wozów Strażackich";
+    ViewData["Title"] = "Flota Wozów Strażackich";
 }
 
-@{
-    ViewBag.Title = "Rejestr Wozów Strażackich";
-    ViewBag.Icon = "fas fa-truck-moving";
-    ViewBag.AddButtonText = "Zarejestruj Wóz";
-    ViewBag.AddButtonLink = "/Fire/Trucks/Create";
-    ViewBag.TableBodyId = "fire-trucks-table-body";
-    ViewBag.ThemeColor = "danger";
-}
-@await Html.PartialAsync("~/Views/Shared/_VehicleListPartial.cshtml")
+<div class="row mb-3">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="m-0 text-danger"><i class="fas fa-truck-moving"></i> Rejestr Wozów</h1>
+        <button class="btn btn-danger d-none" id="btn-add-vehicle" onclick="window.openAddModal()">
+            <i class="fas fa-plus"></i> Zarejestruj Wóz
+        </button>
+    </div>
+</div>
+
+<div class="card card-danger card-outline dark-mode">
+    <div class="card-header">
+        <h3 class="card-title">Zarejestrowane wozy bojowe</h3>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Nr Operacyjny</th>
+                    <th>Przypisana Remiza</th>
+                    <th>Dowódca Wozu</th>
+                    <th>Status</th>
+                    <th class="text-right">Akcje</th>
+                </tr>
+            </thead>
+            <tbody id="vehicles-table-body">
+                <tr><td colspan="6" class="text-center">Ładowanie danych...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addVehicleModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title"><i class="fas fa-truck"></i> Dodaj Wóz Strażacki</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="addVehicleForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Numer Operacyjny</label>
+                        <input type="text" id="add-veh-plate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Remiza</label>
+                        <select id="add-veh-dept" class="form-control" required>
+                            <option value="">Wczytywanie...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Przypisz Strażaka</label>
+                        <select id="add-veh-personnel" class="form-control" required disabled>
+                            <option value="">-- Wybierz najpierw remizę --</option>
+                        </select>
+                        <small class="text-muted">Wyświetlani są tylko strażacy bez przypisanego pojazdu.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-danger">Zapisz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editVehicleModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edytuj Wóz</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="editVehicleForm">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-veh-id">
+                    <div class="form-group">
+                        <label>Numer Operacyjny</label>
+                        <input type="text" id="edit-veh-plate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Przypisz Strażaka</label>
+                        <select id="edit-veh-personnel" class="form-control">
+                            <option value="">Brak przypisania</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="equipmentModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title"><i class="fas fa-briefcase"></i> Wyposażenie Wozu</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Nazwa Sprzętu</th>
+                            <th style="width: 100px;" class="text-center">Ilość</th>
+                            <th style="width: 80px;" class="text-right">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eq-table-body">
+                        <tr><td colspan="3" class="text-center">Ładowanie...</td></tr>
+                    </tbody>
+                </table>
+                <hr>
+                <form id="addEqForm">
+                    <input type="hidden" id="eq-veh-id">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <input type="text" id="eq-name" class="form-control form-control-sm" placeholder="Nazwa sprzętu" required>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" id="eq-qty" class="form-control form-control-sm" placeholder="Ilość" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-info btn-block"><i class="fas fa-plus"></i> Dodaj</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
-            document.addEventListener("DOMContentLoaded", async function () {
-                const token = localStorage.getItem('jwt');
-                const tableBody = document.getElementById('fire-trucks-table-body');
-    
-                if (!tableBody) {
-                    console.error("Nie znaleziono elementu tabeli. Sprawdź, czy Partial view ładuje się poprawnie.");
-                    return;
-                }
-    
-                try {
-                    const res = await fetch('/api/Fire/firetrucks', { headers: { 'Authorization': 'Bearer ' + token } });
-                    const trucks = await res.json();
-                    tableBody.innerHTML = '';
-                    
-                    if (trucks.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak wozów strażackich w systemie.</td></tr>';
-                        return;
-                    }
+        const token = localStorage.getItem('jwt');
+        window.allVehicles = [];
+        window.allPersonnel = [];
+        window.allDepartments = [];
 
-                    trucks.forEach((v, index) => {
-                        const plate = v.licensePlate || v.LicensePlate || "Brak Tablicy";
-                        const isAvailable = v.isAvailable !== undefined ? v.isAvailable : (v.IsAvailable !== undefined ? v.IsAvailable : true);
-                        const statusBadge = isAvailable
-                            ? '<span class="badge badge-success">Dostępny</span>'
-                            : '<span class="badge badge-danger">W Akcji / Zajęty</span>';
+        let isFireManager = false;
+        if (token) {
+            const dec = JSON.parse(window.atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            let roles = dec["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || dec.role;
+            let rArr = Array.isArray(roles) ? roles : [roles];
+            if (rArr.includes("Admin") || rArr.includes("Naczelnik") || rArr.includes("Kapitan")) isFireManager = true;
+        }
 
-                        tableBody.insertAdjacentHTML('beforeend', `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td><b>${plate}</b></td>
-                                <td><span class="badge badge-secondary">Wóz Bojowy</span></td>
-                                <td><i class="fas fa-building text-muted"></i> Remiza</td>
-                                <td>${statusBadge}</td>
-                                <td class="text-right">
-                                    <button onclick="deleteGlobalTruck('${v.id || v.Id}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                        `);
-                    });
-                } catch (e) {
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Błąd ładowania z serwera.</td></tr>';
-            }
+        document.addEventListener("DOMContentLoaded", async function () {
+            if (isFireManager) document.getElementById('btn-add-vehicle').classList.remove('d-none');
+            await fetchData();
         });
 
-        window.deleteGlobalTruck = async function(id) {
-            if (!confirm("Na pewno usunąć ten pojazd z globalnego rejestru?")) return;
-            const token = localStorage.getItem('jwt');
-            await fetch(`/api/Fire/firetrucks/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
-            location.reload();
+        async function fetchData() {
+            try {
+                const [vehRes, depRes, persRes] = await Promise.all([
+                    fetch('/api/Fire/firetrucks', { headers: { 'Authorization': 'Bearer ' + token } }),
+                    fetch('/api/Fire/departments', { headers: { 'Authorization': 'Bearer ' + token } }),
+                    fetch('/api/Fire/firemen', { headers: { 'Authorization': 'Bearer ' + token } })
+                ]);
+
+                if (vehRes.ok && depRes.ok && persRes.ok) {
+                    window.allVehicles = await vehRes.json();
+                    window.allDepartments = await depRes.json();
+                    window.allPersonnel = await persRes.json();
+                    renderTable();
+                }
+            } catch (e) { document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd sieci.</td></tr>'; }
+        }
+
+        function getOccupiedPersonnelIds(excludeVehicleId = null) {
+            return window.allVehicles
+                .filter(v => (v.id || v.Id) !== excludeVehicleId)
+                .map(v => v.firemanId || v.FiremanId)
+                .filter(Boolean);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('vehicles-table-body');
+            tbody.innerHTML = '';
+            if (window.allVehicles.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">Brak pojazdów.</td></tr>';
+                return;
+            }
+
+            window.allVehicles.forEach((v, index) => {
+                const vId = v.id || v.Id;
+                const plate = v.licensePlate || v.LicensePlate;
+                const deptId = v.fDepartmentId || v.FDepartmentId;
+                const persId = v.firemanId || v.FiremanId;
+
+                const dept = window.allDepartments.find(d => (d.id || d.Id) === deptId);
+                const pers = window.allPersonnel.find(p => (p.id || p.Id) === persId);
+
+                const deptName = dept ? (dept.name || dept.Name) : "Brak";
+                const persName = pers ? `${pers.name || pers.Name} ${pers.lastname || pers.Lastname || ""}` : '<span class="text-danger">Nieprzypisany</span>';
+                const statusBadge = (v.isAvailable !== false) ? '<span class="badge badge-success">W bazie</span>' : '<span class="badge badge-warning text-dark">W akcji</span>';
+
+                let actions = '';
+                if (isFireManager) {
+                    actions = `
+                        <button onclick="openEqModal('${vId}')" class="btn btn-sm btn-info" title="Wyposażenie"><i class="fas fa-briefcase"></i></button>
+                        <button onclick="openEditModal('${vId}', '${plate}', '${deptId}', '${persId}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteVehicle('${vId}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                    `;
+                }
+
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><b>${plate}</b></td>
+                        <td>${deptName}</td>
+                        <td>${persName}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-right" style="white-space:nowrap;">${actions}</td>
+                    </tr>
+                `);
+            });
+        }
+
+        window.openAddModal = function() {
+            const select = document.getElementById('add-veh-dept');
+            select.innerHTML = '<option value="">-- Wybierz remizę --</option>';
+            window.allDepartments.forEach(d => select.innerHTML += `<option value="${d.id || d.Id}">${d.name || d.Name}</option>`);
+            
+            document.getElementById('add-veh-personnel').innerHTML = '<option value="">-- Wybierz najpierw remizę --</option>';
+            document.getElementById('add-veh-personnel').disabled = true;
+            document.getElementById('addVehicleForm').reset();
+            $('#addVehicleModal').modal('show');
+        }
+
+        document.getElementById('add-veh-dept').addEventListener('change', function() {
+            const deptId = this.value;
+            const pSelect = document.getElementById('add-veh-personnel');
+            if (!deptId) { pSelect.disabled = true; return; }
+
+            const occupied = getOccupiedPersonnelIds();
+            const availableStaff = window.allPersonnel.filter(s => (s.fDepartmentId || s.FDepartmentId) === deptId && !occupied.includes(s.id || s.Id));
+
+            pSelect.innerHTML = '<option value="">-- Wybierz pracownika --</option>';
+            availableStaff.forEach(s => pSelect.innerHTML += `<option value="${s.id || s.Id}">${s.name || s.Name} ${s.lastname || s.Lastname || ""}</option>`);
+            pSelect.disabled = false;
+        });
+
+        document.getElementById('addVehicleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const payload = {
+                licensePlate: document.getElementById('add-veh-plate').value,
+                fDepartmentId: document.getElementById('add-veh-dept').value,
+                firemanId: document.getElementById('add-veh-personnel').value
+            };
+            const res = await fetch('/api/Fire/firetrucks', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (res.ok) { $('#addVehicleModal').modal('hide'); await fetchData(); }
+        });
+
+        window.openEditModal = function(id, plate, deptId, persId) {
+            document.getElementById('edit-veh-id').value = id;
+            document.getElementById('edit-veh-plate').value = plate;
+            
+            const pSelect = document.getElementById('edit-veh-personnel');
+            const occupied = getOccupiedPersonnelIds(id);
+            const availableStaff = window.allPersonnel.filter(s => (s.fDepartmentId || s.FDepartmentId) === deptId && !occupied.includes(s.id || s.Id));
+
+            pSelect.innerHTML = '<option value="">Brak przypisania</option>';
+            availableStaff.forEach(s => pSelect.innerHTML += `<option value="${s.id || s.Id}">${s.name || s.Name} ${s.lastname || s.Lastname || ""}</option>`);
+            pSelect.value = persId || "";
+            
+            $('#editVehicleModal').modal('show');
+        }
+
+        document.getElementById('editVehicleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-veh-id').value;
+            const payload = {
+                licensePlate: document.getElementById('edit-veh-plate').value,
+                firemanId: document.getElementById('edit-veh-personnel').value || null
+            };
+            const res = await fetch(`/api/Fire/firetrucks/${id}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (res.ok) { $('#editVehicleModal').modal('hide'); await fetchData(); }
+        });
+
+        window.deleteVehicle = async function(id) {
+            if (!confirm("Wyrejestrować pojazd?")) return;
+            const res = await fetch(`/api/Fire/firetrucks/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+            if (res.ok) await fetchData();
         };
+
+        window.openEqModal = function(truckId) {
+            document.getElementById('eq-veh-id').value = truckId;
+            loadEq(truckId);
+            $('#equipmentModal').modal('show');
+        }
+
+        async function loadEq(truckId) {
+            const tbody = document.getElementById('eq-table-body');
+            const res = await fetch(`/api/Fire/firetrucks/${truckId}/equipment`, { headers: { 'Authorization': 'Bearer ' + token }});
+            if (res.ok) {
+                const eqList = await res.json();
+                tbody.innerHTML = eqList.length ? '' : '<tr><td colspan="3" class="text-center">Brak wyposażenia.</td></tr>';
+                eqList.forEach(eq => {
+                    tbody.insertAdjacentHTML('beforeend', `<tr>
+                        <td>${eq.name || eq.Name}</td><td class="text-center">${eq.quantity || eq.Quantity}</td>
+                        <td class="text-right"><button onclick="deleteEq('${eq.id || eq.Id}', '${truckId}')" class="btn btn-xs btn-danger"><i class="fas fa-times"></i></button></td>
+                    </tr>`);
+                });
+            }
+        }
+
+        document.getElementById('addEqForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const truckId = document.getElementById('eq-veh-id').value;
+            const payload = { name: document.getElementById('eq-name').value, quantity: parseInt(document.getElementById('eq-qty').value) };
+            const res = await fetch(`/api/Fire/firetrucks/${truckId}/equipment`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (res.ok) { document.getElementById('eq-name').value = ''; loadEq(truckId); }
+        });
+
+        window.deleteEq = async function(eqId, truckId) {
+            await fetch(`/api/Fire/equipment/${eqId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }});
+            loadEq(truckId);
+        }
     </script>
 }

@@ -330,6 +330,9 @@ namespace _211system.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FireTruckId");
@@ -610,6 +613,9 @@ namespace _211system.Migrations
 
                     b.Property<Guid>("PoliceCarId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
