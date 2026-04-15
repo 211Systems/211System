@@ -1,5 +1,5 @@
-﻿const currentPath = window.location.pathname.toLowerCase();
-const departmentId = window.location.pathname.split('/').filter(Boolean).pop();
+﻿const currentPath = globalThis.location.pathname.toLowerCase();
+const departmentId = globalThis.location.pathname.split('/').filter(Boolean).pop();
 const token = localStorage.getItem('jwt');
 
 let apiEndpoints = {};
@@ -16,8 +16,12 @@ if (currentPath.includes('/medic/')) {
     moduleConfig = { roleKey: "rank", foreignKeyDept: "fDepartmentId", licenseLabel: "badgeNumber", lastNameKey: "lastname", accountIdKey: "fireAccountId", badgeColor: "badge-danger", hierarchy: { "Admin": 100, "Naczelnik": 3, "Kapitan": 2, "Strazak": 1 }, hasRegion: true };
 }
 
-function parseJwt(token) {
-    try { return JSON.parse(window.atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return null; }
+function parseJwt(tokenString) {
+    try {
+        return JSON.parse(globalThis.atob(tokenString.split('.')[1].replaceAll('-', '+').replaceAll('_', '/')));
+    } catch (e) {
+        return null;
+    }
 }
 
 let currentUserRoles = [];
@@ -60,8 +64,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 editRoleSelect.innerHTML += opt;
             });
         }
-    } else {
-        if (btnAddModal) btnAddModal.classList.add('d-none');
+    } else if (btnAddModal) {
+        btnAddModal.classList.add('d-none');
     }
 
     await loadDepartmentDetails();
@@ -92,7 +96,9 @@ async function loadDepartmentDetails() {
                 }
             }
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 async function loadPersonnel() {
@@ -127,8 +133,8 @@ async function loadPersonnel() {
                 let actionBtns = '';
                 if (myRankValue > targetRankValue) {
                     actionBtns = `
-                        <button onclick="openEditPersonnelModal('${pId}', '${fName}', '${lName}', '${license}', '${rank}')" class="btn btn-sm btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
-                        <button onclick="deletePersonnel('${pId}')" class="btn btn-sm btn-danger" title="Zwolnij"><i class="fas fa-trash"></i></button>
+                        <button onclick="globalThis.openEditPersonnelModal('${pId}', '${fName}', '${lName}', '${license}', '${rank}')" class="btn btn-sm btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
+                        <button onclick="globalThis.deletePersonnel('${pId}')" class="btn btn-sm btn-danger" title="Zwolnij"><i class="fas fa-trash"></i></button>
                     `;
                 }
 
@@ -143,7 +149,9 @@ async function loadPersonnel() {
                 `);
             });
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 document.getElementById('editDepartmentForm')?.addEventListener('submit', async function (e) {
@@ -166,10 +174,12 @@ document.getElementById('editDepartmentForm')?.addEventListener('submit', async 
         } else {
             alert("Błąd podczas zapisywania zmian.");
         }
-    } catch (e) { alert("Błąd sieci."); }
+    } catch (e) {
+        alert("Błąd sieci.");
+    }
 });
 
-window.openEditPersonnelModal = function (id, fname, lname, license, rank) {
+globalThis.openEditPersonnelModal = function (id, fname, lname, license, rank) {
     document.getElementById('editStaffId').value = id;
     document.getElementById('editStaffName').value = fname;
     document.getElementById('editStaffLastName').value = lname;
@@ -201,7 +211,9 @@ document.getElementById('editPersonnelForm')?.addEventListener('submit', async f
         } else {
             alert("Błąd podczas edycji pracownika.");
         }
-    } catch (e) { alert("Błąd sieci."); }
+    } catch (e) {
+        alert("Błąd sieci.");
+    }
 });
 
 document.getElementById('addPersonnelForm')?.addEventListener('submit', async function (e) {
@@ -228,7 +240,11 @@ document.getElementById('addPersonnelForm')?.addEventListener('submit', async fu
         });
         if (res.ok) {
             const data = await res.json();
-            document.getElementById('temp-password-display').textContent = data.temporaryPassword || data.password || "Auto-Generowane!";
+
+            const fallbackUiText = "Auto-Generowane!";
+            const generatedAuthToken = data.temporaryPassword || data.password;
+            document.getElementById('temp-password-display').textContent = generatedAuthToken ? generatedAuthToken : fallbackUiText;
+
             successAlert.classList.remove('d-none');
             btnSubmit.classList.add('d-none');
             await loadPersonnel();
@@ -236,14 +252,19 @@ document.getElementById('addPersonnelForm')?.addEventListener('submit', async fu
             alert("Błąd rejestracji.");
             btnSubmit.disabled = false;
         }
-    } catch (e) { alert("Błąd sieci."); btnSubmit.disabled = false; }
+    } catch (e) {
+        alert("Błąd sieci.");
+        btnSubmit.disabled = false;
+    }
 });
 
-window.deletePersonnel = async function (id) {
+globalThis.deletePersonnel = async function (id) {
     if (!confirm("Czy na pewno chcesz zwolnić tego pracownika? Zostanie on usunięty z systemu.")) return;
     try {
         const res = await fetch(`${apiEndpoints.personnel}/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
         if (res.ok) await loadPersonnel();
         else alert("Błąd usuwania.");
-    } catch (e) { alert("Błąd sieci."); }
+    } catch (e) {
+        alert("Błąd sieci.");
+    }
 };
