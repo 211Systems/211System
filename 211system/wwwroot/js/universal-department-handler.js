@@ -45,7 +45,7 @@ else if (currentPath.includes('/fire/')) {
     apiEndpoints = {
         department: '/api/Fire/departments',
         personnel: '/api/Fire/firemen',
-        vehicles: '/api/Fire/trucks'
+        vehicles: '/api/Fire/firetrucks'
     };
     moduleConfig = {
         roleKey: "rank",

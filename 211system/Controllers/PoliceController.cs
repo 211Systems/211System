@@ -1,12 +1,10 @@
 ﻿using _211system.Data;
 using _211system.Models.Dtos.Police;
 using _211system.Models.Interfaces;
-using _211system.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading.Tasks;
+using Police;
 
 
 namespace _211system.Controllers
@@ -38,7 +36,7 @@ namespace _211system.Controllers
         {
             var departments = await _policeService.GetAllDepartmentsAsync();
             return Ok(departments);
-        } 
+        }
 
         [Authorize(Roles = "Komendant, Admin")]
         [HttpPost("policemen")]
@@ -90,14 +88,6 @@ namespace _211system.Controllers
             }
         }
 
-        [Authorize(Roles = "Admin, Inspektor, Komendant, Policjant, Admin112, Dyspozytor112")]
-        [HttpGet("cars")]
-        public async Task<IActionResult> GetAllPoliceCars()
-        {
-            var cars = await _policeService.GetAllPoliceCarsAsync();
-            return Ok(cars);
-        }
-
         [Authorize(Roles = "Komendant, Admin")]
         [HttpPut("cars/{id}")]
         public async Task<IActionResult> UpdatePoliceCar(Guid id, [FromBody] UpdatePoliceCarDto dto)
@@ -115,14 +105,6 @@ namespace _211system.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
-        }
-
-        [Authorize(Roles = "Komendant, Admin")]
-        [HttpDelete("cars/{id}")]
-        public async Task<IActionResult> DeletePoliceCar(Guid id)
-        {
-            await _policeService.DeletePoliceCarAsync(id);
-            return Ok(new { message = "Usunięto radiowóz." });
         }
 
         [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
@@ -156,6 +138,50 @@ namespace _211system.Controllers
             _context.PoliceCars.Remove(car);
             await _context.SaveChangesAsync();
             return Ok(new { message = "Usunięto radiowóz." });
+        }
+        [HttpGet("operations")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> GetOperations()
+        {
+            var operations = await _context.PoliceOperations.ToListAsync();
+            return Ok(operations);
+        }
+
+        [HttpPost("operations/start")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant")]
+        public async Task<IActionResult> StartOperation([FromQuery] Guid policemanId, [FromQuery] Guid incidentId) 
+        {
+            var operation = new PoliceOperation
+            {
+                PolicemanId = policemanId,
+                IncidentId = incidentId,
+                StartTime = DateTime.UtcNow
+            };
+
+            _context.PoliceOperations.Add(operation);
+            await _context.SaveChangesAsync();
+            return Ok(operation);
+        }
+
+        [HttpPut("operations/{id}/end")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant")]
+        public async Task<IActionResult> EndOperation(Guid id)
+        {
+            var operation = await _context.PoliceOperations.FindAsync(id);
+            if (operation == null) return NotFound();
+
+            operation.EndTime = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Interwencja zakończona." });
+        }
+
+        [HttpGet("incidents/{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetIncidentDetails(Guid id)
+        {
+            var incident = await _context.Incidents.FindAsync(id);
+            if (incident == null) return NotFound();
+            return Ok(incident);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using _211system.Data;
 using _211system.Models.Dtos.Fire;
 using _211system.Models.Interfaces;
+using FireDepartment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -138,23 +139,86 @@ namespace _211system.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-        [HttpGet("trucks")]
+        //[HttpGet("trucks")]
+        //[Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
+        //public async Task<IActionResult> GetAllTrucks()
+        //{
+        //    var trucks = await _context.FireTrucks.ToListAsync();
+        //    return Ok(trucks);
+        //}
+
+        //[HttpDelete("trucks/{id}")]
+        //[Authorize(Roles = "Admin, Naczelnik, Kapitan")]
+        //public async Task<IActionResult> DeleteTruck(Guid id)
+        //{
+        //    var truck = await _context.FireTrucks.FindAsync(id);
+        //    if (truck == null) return NotFound();
+        //    _context.FireTrucks.Remove(truck);
+        //    await _context.SaveChangesAsync();
+        //    return Ok(new { message = "Usunięto wóz strażacki." });
+        //}
+        [HttpGet("operations")]
         [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
-        public async Task<IActionResult> GetAllTrucks()
+        public async Task<IActionResult> GetOperations()
         {
-            var trucks = await _context.FireTrucks.ToListAsync();
-            return Ok(trucks);
+            var operations = await _context.FireOperations
+                .Include(o => o.Fireman)
+                .ToListAsync();
+
+            var result = operations.Select(op => new
+            {
+                Id = op.Id,
+                StartTime = op.StartTime,
+                EndTime = op.EndTime,
+                FiremanId = op.FiremanId,
+                FiremanName = op.Fireman != null ? $"{op.Fireman.Name} {op.Fireman.Lastname}" : "Brak Danych",
+                ReportId = op.IncidentId
+            });
+
+            return Ok(result);
         }
 
-        [HttpDelete("trucks/{id}")]
-        [Authorize(Roles = "Admin, Naczelnik, Kapitan")]
-        public async Task<IActionResult> DeleteTruck(Guid id)
+        [HttpPost("operations/start")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak")]
+        public async Task<IActionResult> StartOperation([FromQuery] Guid firemanId, [FromQuery] Guid reportId)
         {
-            var truck = await _context.FireTrucks.FindAsync(id);
-            if (truck == null) return NotFound();
-            _context.FireTrucks.Remove(truck);
+            var fireman = await _context.Firemen.FindAsync(firemanId);
+            if (fireman == null) return BadRequest("Nie znaleziono strażaka w systemie.");
+
+            var operation = new FireDepartmentOperation
+            {
+                FiremanId = firemanId,
+                IncidentId = reportId,
+                FDepartmentId = fireman.FDepartmentId,
+                StartTime = DateTime.UtcNow
+            };
+
+            _context.FireOperations.Add(operation);
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Usunięto wóz strażacki." });
+
+            return Ok(new { message = "Wyruszono na akcję!" });
+        }
+
+        [HttpPut("operations/{id}/end")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak")]
+        public async Task<IActionResult> EndOperation(Guid id)
+        {
+            var operation = await _context.FireOperations.FindAsync(id);
+            if (operation == null) return NotFound();
+
+            operation.EndTime = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Akcja ratownicza zakończona." });
+        }
+
+        [HttpGet("incidents/{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetIncidentDetails(Guid id)
+        {
+            var incident = await _context.Incidents.FindAsync(id);
+            if (incident == null) return NotFound();
+            return Ok(incident);
         }
     }
 }

@@ -1,0 +1,263 @@
+﻿@{
+    ViewData["Title"] = "Akcje Ratownicze";
+}
+<div class="card card-danger card-outline dark-mode">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title m-0"><i class="fas fa-fire-extinguisher"></i> Dziennik Akcji Ratowniczych</h3>
+        <button class="btn btn-sm btn-danger ml-auto d-none" id="btn-start-operation" data-toggle="modal" data-target="#startOperationModal">
+            <i class="fas fa-play"></i> Wyrusz do Akcji
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Data i Czas Startu</th>
+                    <th>Zakończenie</th>
+                    <th>ID Zgłoszenia (Raportu)</th>
+                    <th>Dowódca Zastępu</th>
+                    <th>Status</th>
+                    <th class="text-right">Akcje</th>
+                </tr>
+            </thead>
+            <tbody id="operations-table-body">
+                <tr><td colspan="6" class="text-center">Ładowanie danych...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="startOperationModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title"><i class="fas fa-truck-moving"></i> Nowy Wyjazd Bojowy</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="startOperationForm">
+                <div class="modal-body">
+                    <p class="text-muted">Aby wyruszyć na akcję, wpisz numer ID zgłoszenia przekazany przez dyspozytora 112.</p>
+                    <div class="form-group">
+                        <label>ID Zgłoszenia (Report GUID)</label>
+                        <input type="text" id="opReportId" class="form-control" placeholder="np. 550e8400-e29b-41d4-a716-446655440000" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-danger">Wyrusz na miejsce</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="incidentDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Szczegóły Zgłoszenia 112</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group list-group-unbordered text-dark mb-3">
+                    <li class="list-group-item bg-light">
+                        <b>Numer:</b> <a class="float-right text-info" id="det-number">...</a>
+                    </li>
+                    <li class="list-group-item bg-light">
+                        <b>Priorytet:</b> <a class="float-right" id="det-severity">...</a>
+                    </li>
+                    <li class="list-group-item bg-light">
+                        <b>Status:</b> <a class="float-right" id="det-status">...</a>
+                    </li>
+                    <li class="list-group-item bg-light">
+                        <b>Lokalizacja:</b> <span class="float-right text-muted" id="det-address">...</span>
+                    </li>
+                </ul>
+                <div class="alert alert-secondary text-dark">
+                    <strong>Opis zdarzenia:</strong><br/>
+                    <span id="det-desc">...</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = localStorage.getItem('jwt');
+        
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                return JSON.parse(window.atob(base64));
+            } catch (e) { return null; }
+        }
+
+        let currentUserEmail = "";
+        let currentUserRoles = [];
+        let myFiremanId = null;
+
+        if (token) {
+            const decodedToken = parseJwt(token);
+            if (decodedToken) {
+                currentUserEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
+                let roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
+                currentUserRoles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            try {
+                const paramRes = await fetch('/api/Fire/firemen', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (paramRes.ok) {
+                    const firemen = await paramRes.json();
+                    const myRecord = firemen.find(p => p.email === currentUserEmail || p.Email === currentUserEmail);
+                    if (myRecord) {
+                        myFiremanId = myRecord.id || myRecord.Id;
+                        document.getElementById('btn-start-operation').classList.remove('d-none');
+                    }
+                }
+            } catch (error) { console.error("Błąd uwierzytelniania pracownika:", error); }
+
+            await loadOperations();
+        });
+
+        async function loadOperations() {
+            const tableBody = document.getElementById('operations-table-body');
+            try {
+                const response = await fetch('/api/Fire/operations', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (response.ok) {
+                    const operations = await response.json();
+                    tableBody.innerHTML = '';
+
+                    if (operations.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak zarejestrowanych akcji w systemie.</td></tr>';
+                        return;
+                    }
+
+                    operations.forEach(op => {
+                        const isFinished = op.endTime || op.EndTime;
+
+                        const startStr = new Date(op.startTime || op.StartTime).toLocaleString('pl-PL');
+                        const endStr = isFinished ? new Date(op.endTime || op.EndTime).toLocaleString('pl-PL') : "W toku...";
+
+                        const statusBadge = isFinished 
+                            ? '<span class="badge bg-secondary">Zakończona</span>' 
+                            : '<span class="badge bg-danger border-danger blink_me">Aktywna</span>';
+
+                        const opFiremanId = op.firemanId || op.FiremanId;
+                        const reportId = op.reportId || op.ReportId;
+                        
+                        let actions = `<button onclick="window.showIncidentDetails('${reportId}')" class="btn btn-sm btn-info mr-1" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>`;
+
+                        const isAdminOrManager = currentUserRoles.includes("Admin") || currentUserRoles.includes("Naczelnik") || currentUserRoles.includes("Kapitan");
+
+                        if (!isFinished && (myFiremanId === opFiremanId || isAdminOrManager)) {
+                            actions += `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ Akcję</button>`;
+                        } else if (!isFinished) {
+                            actions += `<span class="text-muted small ml-2">Tylko podgląd</span>`;
+                        }
+
+                        const row = `<tr>
+                            <td>${startStr}</td>
+                            <td>${endStr}</td>
+                            <td><small class="text-muted">${reportId}</small></td>
+                            <td><b>${op.firemanName || op.FiremanName || "Brak Danych"}</b></td>
+                            <td>${statusBadge}</td>
+                            <td class="text-right" style="white-space: nowrap;">${actions}</td>
+                        </tr>`;
+                        
+                        tableBody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+            } catch (error) {
+                console.error(error);
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd połączenia z serwerem.</td></tr>';
+            }
+        }
+
+        window.showIncidentDetails = async function(incidentId) {
+            try {
+                const response = await fetch(`/api/Fire/incidents/${incidentId}`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('det-number').textContent = data.incidentNumber;
+                    document.getElementById('det-desc').textContent = data.description;
+                    document.getElementById('det-address').textContent = data.address;
+                    document.getElementById('det-status').textContent = data.status;
+
+                    const severityEl = document.getElementById('det-severity');
+                    severityEl.textContent = data.severity;
+                    severityEl.className = "float-right badge " + 
+                        (data.severity === 'Wysoki' ? 'bg-danger' : 
+                        (data.severity === 'Średni' ? 'bg-warning' : 'bg-info'));
+
+                    $('#incidentDetailsModal').modal('show');
+                } else {
+                    alert("Brak dostępu lub zgłoszenie zostało usunięte.");
+                }
+            } catch (e) { alert("Błąd sieci przy pobieraniu szczegółów."); }
+        }
+
+        document.getElementById('startOperationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!myFiremanId) {
+                alert("Błąd: Nie odnaleziono Twojego profilu w systemie. Zgłoś to administratorowi.");
+                return;
+            }
+
+            const reportId = document.getElementById('opReportId').value;
+
+            try {
+                const response = await fetch(`/api/Fire/operations/start?firemanId=${myFiremanId}&reportId=${reportId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    $('#startOperationModal').modal('hide');
+                    document.getElementById('opReportId').value = "";
+                    await loadOperations();
+                } else {
+                    const err = await response.text();
+                    alert("Nie udało się wyruszyć na akcję: " + err);
+                }
+            } catch (error) { alert("Błąd sieci."); }
+        });
+
+        async function endOperation(operationId) {
+            if (!confirm("Czy na pewno chcesz zakończyć tę akcję i wrócić do bazy?")) return;
+
+            try {
+                const response = await fetch(`/api/Fire/operations/${operationId}/end`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    await loadOperations();
+                } else {
+                    const err = await response.text();
+                    alert("Błąd: " + err);
+                }
+            } catch (error) { alert("Błąd sieci."); }
+        }
+    </script>
+    
+    <style>
+        .blink_me { animation: blinker 1.5s linear infinite; }
+        @@keyframes blinker { 50% { opacity: 0.3; } }
+    </style>
+}
