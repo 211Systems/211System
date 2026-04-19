@@ -4,34 +4,18 @@
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="m-0 text-danger"><i class="fas fa-fire-extinguisher"></i> Lista Remiz</h1>
-        <a href="/Fire/Home/Create" class="btn btn-danger d-none" id="btn-add-dept"><i class="fas fa-plus"></i> Dodaj Remizę</a>
     </div>
 </div>
-<div class="row">
-    <div class="col-12">
-        <div class="card card-danger card-outline dark-mode">
-            <div class="card-header">
-                <h3 class="card-title">Zarządzanie jednostkami straży pożarnej</h3>
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-bordered table-striped">
-                    <thead>
-                        <tr>
-                            <th style="width: 10px">#</th>
-                            <th>Nazwa Placówki</th>
-                            <th>Adres</th>
-                            <th>Region / Rejon</th>
-                            <th style="width: 150px" class="text-center">Akcje</th>
-                        </tr>
-                    </thead>
-                    <tbody id="departments-table-body">
-                        <tr><td colspan="5" class="text-center">Ładowanie danych...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
+@{
+    ViewBag.ThemeColor = "danger";
+    ViewBag.Icon = "fas fa-fire";
+    ViewBag.Title = "Zarządzanie jednostkami straży pożarnej";
+    ViewBag.AddButtonText = "Dodaj Remizę";
+    ViewBag.AddLink = "/Fire/Home/Create";
+    ViewBag.TableBodyId = "departments-table-body";
+    ViewBag.Col4Name = "Region / Rejon";
+}
+@await Html.PartialAsync("~/Views/Shared/_DepartmentListPartial.cshtml")
 
 @section Scripts {
     <script src="~/js/api-custom-list-handler.js"></script>

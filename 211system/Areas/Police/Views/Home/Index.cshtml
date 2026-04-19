@@ -4,34 +4,18 @@
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="m-0 text-primary"><i class="fas fa-shield-alt"></i> Lista Komisariatów</h1>
-        <a href="/Police/Home/Create" class="btn btn-primary d-none" id="btn-add-dept"><i class="fas fa-plus"></i> Dodaj Komisariat</a>
     </div>
 </div>
-<div class="row">
-    <div class="col-12">
-        <div class="card card-primary card-outline dark-mode">
-            <div class="card-header">
-                <h3 class="card-title">Zarządzanie jednostkami policji</h3>
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-bordered table-striped">
-                    <thead>
-                        <tr>
-                            <th style="width: 10px">#</th>
-                            <th>Nazwa Placówki</th>
-                            <th>Adres</th>
-                            <th>Region / Dzielnica</th>
-                            <th style="width: 150px" class="text-center">Akcje</th>
-                        </tr>
-                    </thead>
-                    <tbody id="departments-table-body">
-                        <tr><td colspan="5" class="text-center">Ładowanie danych...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
+@{
+    ViewBag.ThemeColor = "primary";
+    ViewBag.Icon = "fas fa-building";
+    ViewBag.Title = "Zarządzanie jednostkami policji";
+    ViewBag.AddButtonText = "Dodaj Komisariat";
+    ViewBag.AddLink = "/Police/Home/Create";
+    ViewBag.TableBodyId = "departments-table-body";
+    ViewBag.Col4Name = "Region / Dzielnica";
+}
+@await Html.PartialAsync("~/Views/Shared/_DepartmentListPartial.cshtml")
 
 @section Scripts {
     <script src="~/js/api-custom-list-handler.js"></script>

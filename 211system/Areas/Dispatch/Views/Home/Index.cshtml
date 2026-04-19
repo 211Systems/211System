@@ -3,47 +3,122 @@
 }
 
 <style>
-    .user-avatar-container { position: relative; cursor: pointer; display: inline-block; vertical-align: middle; }
-    .user-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; transition: transform 0.2s; background-color: #ccc; }
-    .user-avatar:hover { transform: scale(1.1); }
-    #avatarInput { display: none; }
-    .fade-panel { animation: fadeIn 0.4s; }
-    @@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-    .amb-row { transition: background 0.2s; }
-    .amb-row:hover { background-color: #f8f9fa !important; cursor: pointer; }
-    .incident-photo-link { color: #ffc107; cursor: pointer; transition: transform 0.2s; display: inline-block; }
-    .incident-photo-link:hover { transform: scale(1.2); color: #e0a800; }
-    .table-valign-middle td { vertical-align: middle !important; }
-    .card-title { font-weight: 600; }
-    .btn-group .btn { margin-left: 2px; }
-    .custom-file-label::after { content: "Szukaj"; }
+    .user-avatar-container {
+        position: relative;
+        cursor: pointer;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .user-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #fff;
+        transition: transform 0.2s;
+        background-color: #ccc;
+    }
+
+        .user-avatar:hover {
+            transform: scale(1.1);
+        }
+
+    #avatarInput {
+        display: none;
+    }
+
+    .fade-panel {
+        animation: fadeIn 0.4s;
+    }
+
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    .amb-row {
+        transition: background 0.2s;
+    }
+
+        .amb-row:hover {
+            background-color: #f8f9fa !important;
+            cursor: pointer;
+        }
+
+    .incident-photo-link {
+        color: #ffc107;
+        cursor: pointer;
+        transition: transform 0.2s;
+        display: inline-block;
+    }
+
+        .incident-photo-link:hover {
+            transform: scale(1.2);
+            color: #e0a800;
+        }
+
+    .table-valign-middle td {
+        vertical-align: middle !important;
+    }
+
+    .card-title {
+        font-weight: 600;
+    }
+
+    .btn-group .btn {
+        margin-left: 2px;
+    }
+
+    .custom-file-label::after {
+        content: "Szukaj";
+    }
+
+    .status-tile {
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+        .status-tile:hover {
+            transform: scale(1.02);
+        }
 </style>
 
 <div id="incidents-panel" class="fade-panel">
     <div class="row mb-3" id="status-board">
         <div class="col-md-4 col-12">
-            <div class="info-box bg-primary shadow">
+            <div class="info-box bg-primary shadow status-tile" onclick="openDispatchModal('police')">
                 <span class="info-box-icon"><i class="fas fa-car-side"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Gotowe Radiowozy</span>
+                    <span class="info-box-text">Dysponuj Radiowóz</span>
                     <span class="info-box-number" id="status-police">0 / 0</span>
                 </div>
             </div>
         </div>
         <div class="col-md-4 col-12">
-            <div class="info-box bg-success shadow">
+            <div class="info-box bg-success shadow status-tile" onclick="openDispatchModal('medic')">
                 <span class="info-box-icon"><i class="fas fa-ambulance"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Wolne Karetki</span>
+                    <span class="info-box-text">Dysponuj Karetkę</span>
                     <span class="info-box-number" id="status-medic">Ładowanie...</span>
                 </div>
             </div>
         </div>
         <div class="col-md-4 col-12">
-            <div class="info-box bg-danger shadow">
+            <div class="info-box bg-danger shadow status-tile" onclick="openDispatchModal('fire')">
                 <span class="info-box-icon"><i class="fas fa-fire-extinguisher"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Dostępne Wozy PSP</span>
+                    <span class="info-box-text">Dysponuj Wóz PSP</span>
                     <span class="info-box-number" id="status-fire">0 / 0</span>
                 </div>
             </div>
@@ -99,7 +174,10 @@
             <div class="card card-dark shadow">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title m-0"><i class="fas fa-list-ul"></i> Aktywne Interwencje</h3>
-                    <button class="btn btn-sm btn-outline-light ml-auto" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> Odśwież</button>
+                    <div>
+                        <button class="btn btn-sm btn-warning text-dark mr-2" onclick="alert('Tu będzie AI!')"><i class="fas fa-magic"></i> Auto-Dyspozycja AI</button>
+                        <button class="btn btn-sm btn-outline-light" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> Odśwież</button>
+                    </div>
                 </div>
                 <div class="card-body p-0 table-responsive" style="max-height: 600px; overflow-y: auto;">
                     <table class="table table-striped table-hover m-0 table-valign-middle">
@@ -123,133 +201,30 @@
 </div>
 
 <div id="operators-panel" class="d-none fade-panel">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-warning font-weight-bold m-0"><i class="fas fa-users-cog mr-2"></i> Panel Zarządzania Kadrami 112</h2>
-        <button class="btn btn-outline-light" onclick="window.location.hash='';"><i class="fas fa-arrow-left"></i> Powrót do Operacji</button>
-    </div>
-    <div class="row">
-        <div class="col-12">
-            <div class="card card-outline card-warning mb-4 shadow">
-                <div class="card-header">
-                    <h3 class="card-title text-bold">Rejestracja nowego Operatora/Admina</h3>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3"><label>Imię</label><input type="text" id="regFirstName" class="form-control" placeholder="Imię"></div>
-                        <div class="col-md-3"><label>Nazwisko</label><input type="text" id="regLastName" class="form-control" placeholder="Nazwisko"></div>
-                        <div class="col-md-2"><label>Stacja</label><input type="text" id="regStation" class="form-control" placeholder="np. S-1"></div>
-                        <div class="col-md-4"><label>Adres E-mail</label><input type="email" id="regEmail" class="form-control" placeholder="login@system.pl"></div>
-                    </div>
-                    <div class="row mt-3">
-                        <div class="col-md-6">
-                            <label>Ranga Systemowa</label>
-                            <select id="regRank" class="form-control">
-                                <option value="Dyspozytor112">Dyspozytor 112</option>
-                                <option value="Admin112">Administrator 112</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label>Placówka Nadrzędna</label>
-                            <select id="regEncId" class="form-control">
-                                <option value="">Ładowanie...</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer text-right">
-                    <button onclick="registerNewOperator()" class="btn btn-warning text-bold shadow-sm">
-                        <i class="fas fa-user-plus"></i> Utwórz konto i wyślij hasło
-                    </button>
-                </div>
-            </div>
-            <div class="card card-dark shadow">
-                <div class="card-header border-0">
-                    <h3 class="card-title m-0"><i class="fas fa-id-badge"></i> Aktywny personel CPR</h3>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-striped table-valign-middle m-0">
-                        <thead>
-                            <tr>
-                                <th>Operator</th>
-                                <th>Uprawnienia</th>
-                                <th>Numer Stanowiska</th>
-                                <th class="text-right">Zarządzanie</th>
-                            </tr>
-                        </thead>
-                        <tbody id="operators-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
-
 <div id="centers-panel" class="d-none fade-panel">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-warning font-weight-bold m-0"><i class="fas fa-hospital mr-2"></i> Zarządzanie Placówkami CPR</h2>
-        <button class="btn btn-outline-light" onclick="window.location.hash='';"><i class="fas fa-arrow-left"></i> Wróć do operacji</button>
-    </div>
-    <div class="row">
-        <div class="col-md-5">
-            <div class="card card-outline card-warning shadow">
-                <div class="card-header"><h3 class="card-title text-bold">Nowa Placówka</h3></div>
-                <form id="createCenterForm">
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label>Nazwa placówki</label>
-                            <input type="text" id="centerName" class="form-control" placeholder="np. CPR Warszawa" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Region / Lokalizacja</label>
-                            <input type="text" id="centerRegion" class="form-control" placeholder="np. Mazowieckie" required>
-                        </div>
-                    </div>
-                    <div class="card-footer text-right">
-                        <button type="submit" class="btn btn-warning text-bold">Dodaj Placówkę</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <div class="col-md-7">
-            <div class="card card-dark shadow">
-                <div class="card-header"><h3 class="card-title m-0">Lista Placówek w Systemie</h3></div>
-                <div class="card-body p-0">
-                    <table class="table table-striped table-valign-middle m-0">
-                        <thead>
-                            <tr>
-                                <th>Nazwa</th>
-                                <th>Region</th>
-                                <th>ID (GUID)</th>
-                                <th class="text-right">Zarządzanie</th>
-                            </tr>
-                        </thead>
-                        <tbody id="centers-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
-<div class="modal fade" id="dispatchAmbulanceModal" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="universalDispatchModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content shadow-lg">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title font-weight-bold"><i class="fas fa-ambulance mr-2"></i> Dysponowanie Wolnej Jednostki</h5>
+            <div class="modal-header text-white" id="dispatch-modal-header">
+                <h5 class="modal-title font-weight-bold" id="dispatch-modal-title"><i class="fas fa-truck mr-2"></i> Dysponowanie Jednostki</h5>
                 <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body p-0">
-                <input type="hidden" id="dispatchTargetIncidentId">
                 <table class="table table-hover m-0">
                     <thead class="bg-light">
                         <tr>
-                            <th>Tablice</th>
-                            <th>Typ</th>
-                            <th>Szpital Bazowy</th>
+                            <th>Tablice / Nr</th>
+                            <th id="dispatch-col-type">Typ/Model</th>
+                            <th>Baza / Szpital</th>
                             <th class="text-right">Akcja</th>
                         </tr>
                     </thead>
-                    <tbody id="available-ambulances-list"></tbody>
+                    <tbody id="available-units-list">
+                        <tr><td colspan="4" class="text-center p-4">Wybierz jednostkę do zadysponowania...</td></tr>
+                    </tbody>
                 </table>
             </div>
             <div class="modal-footer bg-light">
@@ -260,76 +235,8 @@
 </div>
 
 <div class="modal fade" id="statusModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog shadow-lg">
-        <div class="modal-content border-info">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title font-weight-bold">Aktualizacja Parametrów Zdarzenia</h5>
-                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
-            </div>
-            <form id="changeStatusForm">
-                <div class="modal-body">
-                    <input type="hidden" id="editIncidentId">
-                    <div class="form-group">
-                        <label>Status operacyjny</label>
-                        <select id="editIncidentStatus" class="form-control">
-                            <option value="Nowe">Nowe</option>
-                            <option value="W toku">W toku</option>
-                            <option value="Zakończone">Zakończone</option>
-                            <option value="Fałszywy alarm">Fałszywy alarm</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Poziom Zagrożenia (Severity)</label>
-                        <select id="editIncidentPriority" class="form-control">
-                            <option value="Wysoki">Wysoki</option>
-                            <option value="Średni">Średni</option>
-                            <option value="Niski">Niski</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-sync"></i> Zmień/Dodaj zdjęcie</label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" id="editIncPhoto" accept="image/*">
-                            <label class="custom-file-label" for="editIncPhoto" id="editIncPhotoLabel">Wybierz nowe zdjęcie...</label>
-                        </div>
-                    </div>
-                    <p id="edit-error" class="text-danger d-none font-weight-bold"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-link text-muted" data-dismiss="modal">Zamknij</button>
-                    <button type="submit" class="btn btn-info font-weight-bold shadow-sm" id="btn-save-status">Zaktualizuj bazę</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
-
 <div class="modal fade" id="rankModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog shadow-lg">
-        <div class="modal-content shadow-lg">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title text-bold"><i class="fas fa-user-shield"></i> Modyfikacja Uprawnień</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
-            <form id="changeRankForm">
-                <div class="modal-body">
-                    <input type="hidden" id="editOperatorId">
-                    <div class="form-group">
-                        <label>Nowa ranga w strukturze CPR</label>
-                        <select id="editOperatorRank" class="form-control" required>
-                            <option value="Dyspozytor112">Dyspozytor 112</option>
-                            <option value="Admin112">Administrator 112</option>
-                        </select>
-                    </div>
-                    <p id="edit-rank-error" class="text-danger d-none font-weight-bold"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-dismiss="modal">Anuluj</button>
-                    <button type="submit" class="btn btn-warning font-weight-bold shadow-sm">Zatwierdź zmianę</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 
 @section Scripts {

@@ -5,34 +5,22 @@
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="m-0 text-primary"><i class="fas fa-car-side"></i> Rejestr Radiowozów</h1>
-        <button class="btn btn-primary d-none" id="btn-add-vehicle" onclick="window.openAddModal()">
-            <i class="fas fa-plus"></i> Zarejestruj Radiowóz
-        </button>
     </div>
 </div>
 
-<div class="card card-primary card-outline dark-mode">
-    <div class="card-header">
-        <h3 class="card-title">Zarejestrowane pojazdy policyjne</h3>
-    </div>
-    <div class="card-body p-0">
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th style="width: 50px;">#</th>
-                    <th>Nr Rejestracyjny</th>
-                    <th>Przypisana Komenda</th>
-                    <th>Przypisany Funkcjonariusz</th>
-                    <th>Status</th>
-                    <th class="text-right">Akcje</th>
-                </tr>
-            </thead>
-            <tbody id="vehicles-table-body">
-                <tr><td colspan="6" class="text-center">Ładowanie danych...</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
+@{
+    ViewBag.ThemeColor = "primary";
+    ViewBag.Icon = "fas fa-car";
+    ViewBag.Title = "Zarejestrowane pojazdy policyjne";
+    ViewBag.AddButtonText = "Zarejestruj Radiowóz";
+    ViewBag.TableBodyId = "vehicles-table-body";
+    ViewBag.Col2Name = "Nr Rejestracyjny";
+    ViewBag.Col2_5Name = "";
+    ViewBag.Col3Name = "Przypisana Komenda";
+    ViewBag.Col4Name = "Przypisany Funkcjonariusz";
+}
+@await Html.PartialAsync("~/Views/Shared/_VehicleListPartial.cshtml")
+
 
 <div class="modal fade" id="addVehicleModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">

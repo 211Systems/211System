@@ -1,28 +1,24 @@
 ﻿<div class="card card-@ViewBag.ThemeColor card-outline dark-mode">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title m-0"><i class="@ViewBag.Icon"></i> @ViewBag.Title</h3>
-        <button class="btn btn-sm btn-@ViewBag.ThemeColor ml-auto d-none" id="btn-add-vehicle" onclick="window.openAddModal()">
-            <i class="fas fa-plus"></i> @ViewBag.AddButtonText
+        <button class="btn btn-sm btn-@ViewBag.ThemeColor ml-auto d-none" id="btn-start-operation" data-toggle="modal" data-target="#startOperationModal">
+            <i class="fas fa-play"></i> @ViewBag.AddButtonText
         </button>
     </div>
     <div class="card-body p-0">
         <table class="table table-striped table-hover">
             <thead>
                 <tr>
-                    <th style="width: 50px;">#</th>
-                    <th>@ViewBag.Col2Name</th>
-                    @if (!string.IsNullOrEmpty(ViewBag.Col2_5Name))
-                    {
-                        <th>@ViewBag.Col2_5Name</th>
-                    }
-                    <th>@ViewBag.Col3Name</th>
+                    <th>Data i Czas Startu</th>
+                    <th>Zakończenie</th>
+                    <th>ID Zgłoszenia (Raportu)</th>
                     <th>@ViewBag.Col4Name</th>
                     <th>Status</th>
                     <th class="text-right">Akcje</th>
                 </tr>
             </thead>
             <tbody id="@ViewBag.TableBodyId">
-                <tr><td colspan="7" class="text-center">Ładowanie danych...</td></tr>
+                <tr><td colspan="6" class="text-center">Ładowanie danych...</td></tr>
             </tbody>
         </table>
     </div>
