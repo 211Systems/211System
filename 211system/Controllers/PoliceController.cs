@@ -107,7 +107,7 @@ namespace _211system.Controllers
             }
         }
 
-        [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Komendant, Inspektor")]
         [HttpPut("cars/{carId}/assign/{incidentId}")]
         public async Task<IActionResult> AssignPoliceCarToIncident(Guid carId, Guid incidentId)
         {
@@ -121,6 +121,7 @@ namespace _211system.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
         [HttpGet("cars")]
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetAllCars()
@@ -148,19 +149,21 @@ namespace _211system.Controllers
         }
 
         [HttpPost("operations/start")]
-        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant")]
-        public async Task<IActionResult> StartOperation([FromQuery] Guid policemanId, [FromQuery] Guid incidentId) 
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> StartOperation([FromQuery] Guid policemanId, [FromQuery] Guid reportId)
         {
-            var operation = new PoliceOperation
-            {
-                PolicemanId = policemanId,
-                IncidentId = incidentId,
-                StartTime = DateTime.UtcNow
-            };
+            var car = await _context.PoliceCars.FirstOrDefaultAsync(c => c.PolicemanId == policemanId);
+            if (car == null) return BadRequest(new { message = "Błąd: Ten policjant nie jest aktualnie przypisany do żadnego radiowozu!" });
 
-            _context.PoliceOperations.Add(operation);
-            await _context.SaveChangesAsync();
-            return Ok(operation);
+            try
+            {
+                await _policeService.AssignPoliceCarToIncidentAsync(car.Id, reportId);
+                return Ok(new { message = "Radiowóz został zadysponowany i jest w drodze!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("operations/{id}/end")]

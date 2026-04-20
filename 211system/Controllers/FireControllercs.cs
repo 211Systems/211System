@@ -126,14 +126,41 @@ namespace _211system.Controllers
             return Ok(new { message = "Usunięto wóz strażacki." });
         }
 
-        [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
         [HttpPut("firetrucks/{truckId}/assign/{incidentId}")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Naczelnik, Kapitan")]
         public async Task<IActionResult> AssignFireTruckToIncident(Guid truckId, Guid incidentId)
         {
             try
             {
-                await _fireService.AssignFireTruckToIncidentAsync(truckId, incidentId);
-                return Ok(new { message = "Wóz został zadysponowany do zgłoszenia." });
+                var truck = await _context.FireTrucks.FirstOrDefaultAsync(t => t.Id == truckId);
+                if (truck == null) return NotFound(new { message = "Nie znaleziono wozu." });
+                if (!truck.IsAvailable) return BadRequest(new { message = "Wóz jest już w akcji." });
+
+                truck.IsAvailable = false;
+                truck.CurrentIncidentId = incidentId;
+                _context.FireTrucks.Update(truck);
+
+                var incident = await _context.Incidents.FindAsync(incidentId);
+                if (incident != null)
+                {
+                    incident.IsFireActive = true;
+                    if (incident.Status == "Nowe") incident.Status = "W toku";
+                    _context.Incidents.Update(incident);
+                }
+
+                if (truck.FiremanId.HasValue)
+                {
+                    var operation = new FireDepartmentOperation
+                    {
+                        FiremanId = truck.FiremanId.Value,
+                        IncidentId = incidentId,
+                        StartTime = DateTime.UtcNow
+                    };
+                    _context.FireOperations.Add(operation);
+                }
+
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Wóz strażacki został zadysponowany do akcji!" });
             }
             catch (Exception ex)
             {
@@ -163,25 +190,49 @@ namespace _211system.Controllers
         }
 
         [HttpPost("operations/start")]
-        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
         public async Task<IActionResult> StartOperation([FromQuery] Guid firemanId, [FromQuery] Guid reportId)
         {
-            var fireman = await _context.Firemen.FindAsync(firemanId);
-            if (fireman == null) return BadRequest("Nie znaleziono strażaka w systemie.");
-
-            var operation = new FireDepartmentOperation
+            try
             {
-                FiremanId = firemanId,
-                IncidentId = reportId,
-                FDepartmentId = fireman.FDepartmentId,
-                StartTime = DateTime.UtcNow
-            };
+                var truck = await _context.FireTrucks.FirstOrDefaultAsync(t => t.FiremanId == firemanId);
+                if (truck != null)
+                {
+                    truck.IsAvailable = false;
+                    truck.CurrentIncidentId = reportId;
+                    _context.FireTrucks.Update(truck);
+                }
 
-            _context.FireOperations.Add(operation);
-            await _context.SaveChangesAsync();
+                var incident = await _context.Incidents.FindAsync(reportId);
+                if (incident != null)
+                {
+                    incident.IsFireActive = true;
+                    if (incident.Status == "Nowe")
+                    {
+                        incident.Status = "W toku";
+                    }
+                    _context.Incidents.Update(incident);
+                }
 
-            return Ok(new { message = "Wyruszono na akcję!" });
+                var operation = new FireDepartmentOperation
+                {
+                    FiremanId = firemanId,
+                    IncidentId = reportId,
+                    StartTime = DateTime.UtcNow
+                };
+
+                _context.FireOperations.Add(operation);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Wóz strażacki w drodze na miejsce zdarzenia!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd podczas dysponowania straży: " + ex.Message });
+            }
         }
+
 
         [HttpPut("operations/{id}/end")]
         [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak")]
