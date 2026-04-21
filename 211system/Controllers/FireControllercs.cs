@@ -132,34 +132,8 @@ namespace _211system.Controllers
         {
             try
             {
-                var truck = await _context.FireTrucks.FirstOrDefaultAsync(t => t.Id == truckId);
-                if (truck == null) return NotFound(new { message = "Nie znaleziono wozu." });
-                if (!truck.IsAvailable) return BadRequest(new { message = "Wóz jest już w akcji." });
+                await _fireService.AssignFireTruckToIncidentAsync(truckId, incidentId);
 
-                truck.IsAvailable = false;
-                truck.CurrentIncidentId = incidentId;
-                _context.FireTrucks.Update(truck);
-
-                var incident = await _context.Incidents.FindAsync(incidentId);
-                if (incident != null)
-                {
-                    incident.IsFireActive = true;
-                    if (incident.Status == "Nowe") incident.Status = "W toku";
-                    _context.Incidents.Update(incident);
-                }
-
-                if (truck.FiremanId.HasValue)
-                {
-                    var operation = new FireDepartmentOperation
-                    {
-                        FiremanId = truck.FiremanId.Value,
-                        IncidentId = incidentId,
-                        StartTime = DateTime.UtcNow
-                    };
-                    _context.FireOperations.Add(operation);
-                }
-
-                await _context.SaveChangesAsync();
                 return Ok(new { message = "Wóz strażacki został zadysponowany do akcji!" });
             }
             catch (Exception ex)
