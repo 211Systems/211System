@@ -5,36 +5,62 @@
 <div class="row mb-3">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h1 class="m-0 text-success"><i class="fas fa-ambulance"></i> Zarządzanie Flotą Ambulansów</h1>
-        <a href="/Medic/Ambulances/Create" class="btn btn-success d-none" id="btn-add-ambulance"><i class="fas fa-plus"></i> Dodaj Karetkę</a>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card card-success card-outline">
-            <div class="card-header">
-                <h3 class="card-title">Zarejestrowane pojazdy medyczne</h3>
+@{
+    ViewBag.ThemeColor = "success";
+    ViewBag.Icon = "fas fa-ambulance";
+    ViewBag.Title = "Zarejestrowane pojazdy medyczne";
+    ViewBag.AddButtonText = "Dodaj Karetkę";
+    ViewBag.TableBodyId = "ambulances-table-body";
+    ViewBag.Col2Name = "Numer Rejestracyjny";
+    ViewBag.Col2_5Name = "Typ Karetki";
+    ViewBag.Col3Name = "Przypisany Szpital";
+    ViewBag.Col4Name = "Przypisany Ratownik";
+}
+@await Html.PartialAsync("~/Views/Shared/_VehicleListPartial.cshtml")
+
+<div class="modal fade" id="addAmbulanceModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-success">
+                <h5 class="modal-title"><i class="fas fa-ambulance"></i> Dodaj Karetkę</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
             </div>
-            <div class="card-body p-0">
-                <table class="table table-bordered table-striped">
-                    <thead>
-                        <tr>
-                            <th style="width: 10px">#</th>
-                            <th>Numer Rejestracyjny</th>
-                            <th>Typ Karetki</th>
-                            <th>Przypisany Szpital</th>
-                            <th>Przypisany Ratownik</th>
-                            <th>Status</th>
-                            <th>Akcja</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ambulances-table-body">
-                        <tr>
-                            <td colspan="7" class="text-center">Ładowanie danych...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <form id="addAmbulanceForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Numer Rejestracyjny</label>
+                        <input type="text" id="add-amb-plate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Typ Ambulansu</label>
+                        <select id="add-amb-type" class="form-control" required>
+                            <option value="0">S - Specjalistyczna</option>
+                            <option value="1">T - Transportowa</option>
+                            <option value="2">P - Podstawowa</option>
+                            <option value="3">N - Neonatologiczna</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Szpital Bazowy</label>
+                        <select id="add-amb-hosp" class="form-control" required>
+                            <option value="">Wczytywanie...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Przypisz Ratownika</label>
+                        <select id="add-amb-paramedic" class="form-control" required disabled>
+                            <option value="">-- Wybierz najpierw szpital --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-success">Zapisz</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -132,6 +158,7 @@
         window.currentUserEmail = "";
         window.myHospitalId = null;
         window.paramedicsList = [];
+        window.allHospitals = [];
 
         if (token) {
             try {
@@ -148,7 +175,7 @@
             const isKierownik = window.currentUserRoles.includes("Kierownik Szpitala");
 
             if (isAdmin || isKierownik) {
-                document.getElementById('btn-add-ambulance').classList.remove('d-none');
+                document.getElementById('btn-add-vehicle').classList.remove('d-none');
             }
 
             if (isKierownik && !isAdmin) {
@@ -193,6 +220,7 @@
             loadData: async (jwt) => {
                 const hospRes = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + jwt } });
                 const hospitals = hospRes.ok ? await hospRes.json() : [];
+                window.allHospitals = hospitals;
 
                 const paramRes = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + jwt } });
                 window.paramedicsList = paramRes.ok ? await paramRes.json() : [];
@@ -206,11 +234,11 @@
                     const hId = amb.hospitalId || amb.HospitalId;
                     const hosp = hospitals.find(h => h.id === hId || h.Id === hId);
                     amb.hospitalName = hosp ? (hosp.name || hosp.Name) : "Nieznany szpital";
-                    
+
                     const pId = amb.paramedicId || amb.ParamedicId;
                     const param = window.paramedicsList.find(p => p.id === pId || p.Id === pId);
                     amb.paramedicName = param ? `${param.name || param.Name} ${param.lastName || param.LastName}` : "Brak";
-                    
+
                     return amb;
                 });
             },
@@ -256,6 +284,54 @@
             }
         });
 
+        window.openAddModal = function() {
+            const select = document.getElementById('add-amb-hosp');
+            select.innerHTML = '<option value="">-- Wybierz szpital --</option>';
+            if(window.allHospitals) {
+                window.allHospitals.forEach(h => select.innerHTML += `<option value="${h.id || h.Id}">${h.name || h.Name}</option>`);
+            }
+
+            document.getElementById('add-amb-paramedic').innerHTML = '<option value="">-- Wybierz najpierw szpital --</option>';
+            document.getElementById('add-amb-paramedic').disabled = true;
+            document.getElementById('addAmbulanceForm').reset();
+            $('#addAmbulanceModal').modal('show');
+        }
+
+        document.getElementById('add-amb-hosp')?.addEventListener('change', function() {
+            const hospId = this.value;
+            const pSelect = document.getElementById('add-amb-paramedic');
+            if (!hospId) { pSelect.disabled = true; return; }
+
+            const availableStaff = window.paramedicsList.filter(s => (s.hospitalId || s.HospitalId) === hospId);
+
+            pSelect.innerHTML = '<option value="">-- Wybierz pracownika --</option>';
+            availableStaff.forEach(s => pSelect.innerHTML += `<option value="${s.id || s.Id}">${s.name || s.Name} ${s.lastName || s.LastName}</option>`);
+            pSelect.disabled = false;
+        });
+
+        document.getElementById('addAmbulanceForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const payload = {
+                licensePlate: document.getElementById('add-amb-plate').value,
+                type: parseInt(document.getElementById('add-amb-type').value),
+                hospitalId: document.getElementById('add-amb-hosp').value,
+                paramedicId: document.getElementById('add-amb-paramedic').value || null
+            };
+            try {
+                const res = await fetch('/api/Medical/ambulances', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    $('#addAmbulanceModal').modal('hide');
+                    window.location.reload();
+                } else {
+                    alert("Błąd dodawania karetki.");
+                }
+            } catch(e) { alert("Błąd sieci."); }
+        });
+
         window.deleteAmbulance = async function(id) {
             if (!confirm("Czy na pewno chcesz wyrejestrować tę karetkę?")) return;
             try {
@@ -273,10 +349,10 @@
             document.getElementById('edit-amb-plate').value = plate;
             document.getElementById('edit-amb-type').value = type;
             document.getElementById('edit-amb-hosp-id').value = hospitalId;
-            
+
             const pSelect = document.getElementById('edit-amb-paramedic');
             pSelect.innerHTML = '<option value="">Brak przypisania</option>';
-            
+
             if (window.paramedicsList) {
                 window.paramedicsList.filter(p => (p.hospitalId || p.HospitalId) === hospitalId).forEach(p => {
                     const opt = document.createElement('option');
@@ -294,7 +370,7 @@
             e.preventDefault();
             const id = document.getElementById('edit-amb-id').value;
             const pVal = document.getElementById('edit-amb-paramedic').value;
-            
+
             const data = {
                 licensePlate: document.getElementById('edit-amb-plate').value,
                 type: parseInt(document.getElementById('edit-amb-type').value),
@@ -318,7 +394,7 @@
         window.openEqModal = function(ambulanceId, canManage) {
             document.getElementById('eq-amb-id').value = ambulanceId;
             const addForm = document.getElementById('addEqForm');
-            
+
             if (canManage) addForm.classList.remove('d-none');
             else addForm.classList.add('d-none');
 

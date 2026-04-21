@@ -29,3 +29,90 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+.user-avatar-container {
+    position: relative;
+    cursor: pointer;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.user-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    transition: transform 0.2s;
+    background-color: #ccc;
+}
+
+    .user-avatar:hover {
+        transform: scale(1.1);
+    }
+
+#avatarInput {
+    display: none;
+}
+
+.fade-panel {
+    animation: fadeIn 0.4s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.amb-row {
+    transition: background 0.2s;
+}
+
+    .amb-row:hover {
+        background-color: #f8f9fa !important;
+        cursor: pointer;
+    }
+
+.incident-photo-link {
+    color: #ffc107;
+    cursor: pointer;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+    .incident-photo-link:hover {
+        transform: scale(1.2);
+        color: #e0a800;
+    }
+
+.table-valign-middle td {
+    vertical-align: middle !important;
+}
+
+.card-title {
+    font-weight: 600;
+}
+
+.btn-group .btn {
+    margin-left: 2px;
+}
+
+.custom-file-label::after {
+    content: "Szukaj";
+}
+
+.status-tile {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+    .status-tile:hover {
+        transform: scale(1.02);
+    }

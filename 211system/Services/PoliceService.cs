@@ -150,10 +150,17 @@ namespace _211system.Models.Services
 
                 if (!isBusy)
                 {
+                    Guid deptId = car.PDepartmentId;
+                    if (deptId == Guid.Empty && car.Policeman != null)
+                    {
+                        deptId = car.Policeman.PDepartmentId;
+                    }
+
                     var operation = new PoliceOperation
                     {
                         PolicemanId = car.PolicemanId.Value,
                         IncidentId = incidentId,
+                        PDepartmentId = deptId,
                         StartTime = DateTime.UtcNow
                     };
                     await _context.PoliceOperations.AddAsync(operation);

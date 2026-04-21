@@ -151,10 +151,17 @@ namespace _211system.Models.Services
 
                 if (!isBusy)
                 {
+                    Guid deptId = truck.FDepartmentId;
+                    if (deptId == Guid.Empty && truck.Fireman != null)
+                    {
+                        deptId = truck.Fireman.FDepartmentId;
+                    }
+
                     var operation = new FireDepartmentOperation
                     {
                         FiremanId = truck.FiremanId.Value,
                         IncidentId = incidentId,
+                        FDepartmentId = deptId,
                         StartTime = DateTime.UtcNow
                     };
                     await _context.FireOperations.AddAsync(operation);
@@ -162,11 +169,6 @@ namespace _211system.Models.Services
             }
 
             await _context.SaveChangesAsync();
-
-            if (incident != null)
-            {
-                await NotifyFireEndpointAsync(truck, incident);
-            }
         }
 
         private async Task NotifyFireEndpointAsync(FireTruck truck, CPR112.Models.Incident incident)

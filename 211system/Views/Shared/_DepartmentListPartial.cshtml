@@ -1,0 +1,24 @@
+﻿<div class="card card-@ViewBag.ThemeColor card-outline dark-mode">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title m-0"><i class="@ViewBag.Icon"></i> @ViewBag.Title</h3>
+        <a href="@ViewBag.AddLink" class="btn btn-sm btn-@ViewBag.ThemeColor ml-auto d-none" id="btn-add-dept" onclick="@ViewBag.AddOnClick">
+            <i class="fas fa-plus"></i> @ViewBag.AddButtonText
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th style="width: 10px">#</th>
+                    <th>Nazwa Placówki</th>
+                    <th>Adres</th>
+                    <th class="@ViewBag.Col4Class">@ViewBag.Col4Name</th>
+                    <th style="width: 150px" class="text-center">Akcje</th>
+                </tr>
+            </thead>
+            <tbody id="@ViewBag.TableBodyId">
+                <tr><td colspan="5" class="text-center">Ładowanie danych...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
