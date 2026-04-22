@@ -144,7 +144,19 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetOperations()
         {
-            var operations = await _context.PoliceOperations.ToListAsync();
+            var operations = await _context.PoliceOperations
+                .Include(o => o.Policeman)
+                .Select(o => new 
+                {
+                    Id = o.Id,
+                    StartTime = o.StartTime,
+                    EndTime = o.EndTime,
+                    IncidentId = o.IncidentId,
+                    PolicemanId = o.PolicemanId,
+                    PolicemanName = o.Policeman != null ? (o.Policeman.Name + " " + o.Policeman.Lastname) : "Brak Danych"
+                })
+                .ToListAsync();
+                
             return Ok(operations);
         }
 
@@ -166,7 +178,7 @@ namespace _211system.Controllers
             }
         }
 
-        [HttpPut("operations/{id}/end")]
+       [HttpPut("operations/{id}/end")]
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant")]
         public async Task<IActionResult> EndOperation(Guid id)
         {
@@ -174,8 +186,29 @@ namespace _211system.Controllers
             if (operation == null) return NotFound();
 
             operation.EndTime = DateTime.UtcNow;
+
+            var car = await _context.PoliceCars
+                .FirstOrDefaultAsync(c => c.PolicemanId == operation.PolicemanId && c.CurrentIncidentId == operation.IncidentId);
+            
+            if (car != null)
+            {
+                car.IsAvailable = true;
+                car.CurrentIncidentId = null;
+            }
+
+            var incident = await _context.Incidents.FindAsync(operation.IncidentId);
+            if (incident != null)
+            {
+                incident.IsPoliceActive = false;
+
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+            }
+
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Interwencja zakończona." });
+            return Ok(new { message = "Interwencja zakończona. Radiowóz wraca do bazy." });
         }
 
         [HttpGet("incidents/{id}")]

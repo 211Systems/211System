@@ -1,0 +1,261 @@
+@{
+    ViewData["Title"] = "Profil Użytkownika";
+}
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card card-primary card-outline">
+            <div class="card-body box-profile">
+                <div class="text-center">
+                    <img class="profile-user-img img-fluid img-circle" src="https://ui-avatars.com/api/?name=U&background=0D8ABC&color=fff&size=128" id="page-avatar" alt="Zdjęcie profilowe" style="cursor: pointer;" onclick="document.getElementById('avatarUploadInput').click();" title="Zmień zdjęcie (kliknij)">
+                </div>
+                <h3 class="profile-username text-center" id="page-name">Ładowanie danych...</h3>
+                <p class="text-muted text-center" id="page-role">Pobieranie stanowiska...</p>
+
+                <ul class="list-group list-group-unbordered mb-3">
+                    <li class="list-group-item">
+                        <b>Email</b> <span class="float-right text-dark" id="page-email">Brak danych</span>
+                    </li>
+                    <li class="list-group-item d-none" id="li-page-badge">
+                        <b id="page-badge-label">Identyfikator</b> <span class="float-right text-dark" id="page-badge">-</span>
+                    </li>
+                    <li class="list-group-item d-none" id="li-page-dept">
+                        <b id="page-dept-label">Jednostka</b> <span class="float-right text-dark" id="page-dept">-</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card card-secondary">
+            <div class="card-header">
+                <h3 class="card-title" id="page-table-title"><i class="fas fa-users"></i> Ładowanie pracowników...</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 600px;">
+                    <table class="table table-striped table-head-fixed">
+                        <thead>
+                            <tr>
+                                <th>Imię i Nazwisko</th>
+                                <th>Ranga / Stopień</th>
+                                <th>Identyfikator</th>
+                                <th>Jednostka</th>
+                                <th class="d-none" id="col-page-sector">Sektor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="page-colleagues-body">
+                            <tr><td colspan="5" class="text-center">Ładowanie danych...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Zmieniliśmy ID z "profile-..." na "page-..." aby uniknąć konfliktu z Layout.cshtml!
+        
+        const token = localStorage.getItem('jwt');
+        if (!token) window.location.href = '/AuthView/Login';
+
+        let currentUser = {
+            accountId: "",
+            email: "",
+            roles: []
+        };
+
+        let allColleagues = [];
+
+        function decodeToken() {
+            try {
+                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const decoded = JSON.parse(window.atob(base64));
+                
+                currentUser.accountId = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || decoded.sub || decoded.uid || "";
+                
+                // Fallback na email z paska nawigacji jeśli w tokenie jest ukryty pod dziwnym kluczem
+                const navEmail = document.getElementById('profile-email') ? document.getElementById('profile-email').innerText : "";
+                
+                let foundEmail = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] 
+                    || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] 
+                    || decoded.email 
+                    || decoded.unique_name;
+                
+                currentUser.email = foundEmail ? foundEmail : (navEmail !== "email@system211.pl" ? navEmail : "Brak emaila w systemie");
+                
+                let roleClaim = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role;
+                if (roleClaim) {
+                    currentUser.roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                } else {
+                    currentUser.roles = [];
+                }
+            } catch (e) {
+                console.error("Błąd dekodowania tokena", e);
+            }
+        }
+
+        async function fetchSectorData(apiUrlStaff, apiUrlDept, sectorName, fkDeptField, nameField, surnameField, badgeField, accountField) {
+            try {
+                const [staffRes, deptRes] = await Promise.all([
+                    fetch(apiUrlStaff, { headers: { 'Authorization': 'Bearer ' + token } }),
+                    fetch(apiUrlDept, { headers: { 'Authorization': 'Bearer ' + token } })
+                ]);
+
+                if (!staffRes.ok || !deptRes.ok) return [];
+
+                const staff = await staffRes.json();
+                const depts = await deptRes.json();
+
+                return staff.map(person => {
+                    const dId = person[fkDeptField] || person[fkDeptField.charAt(0).toUpperCase() + fkDeptField.slice(1)];
+                    const dept = depts.find(d => d.id === dId || d.Id === dId);
+                    
+                    return {
+                        id: person.id || person.Id,
+                        accountId: person[accountField] || person[accountField.charAt(0).toUpperCase() + accountField.slice(1)],
+                        firstName: person[nameField] || person[nameField.charAt(0).toUpperCase() + nameField.slice(1)] || "",
+                        lastName: person[surnameField] || person[surnameField.charAt(0).toUpperCase() + surnameField.slice(1)] || "",
+                        rank: person.rank || person.Rank || "",
+                        badge: person[badgeField] || person[badgeField.charAt(0).toUpperCase() + badgeField.slice(1)] || "-",
+                        departmentName: dept ? (dept.name || dept.Name) : "Brak przypisania",
+                        sector: sectorName
+                    };
+                });
+            } catch (e) {
+                return [];
+            }
+        }
+
+        async function loadProfileAndColleagues() {
+            decodeToken();
+
+            const isMedical = currentUser.roles.some(r => ["Lekarz", "Medyk", "Kierownik Szpitala"].includes(r));
+            const isPolice = currentUser.roles.some(r => ["Policjant", "Inspektor", "Komendant"].includes(r));
+            const isFire = currentUser.roles.some(r => ["strazak", "Naczelnik", "Kapitan"].includes(r));
+            const isAdmin = currentUser.roles.includes("Admin");
+
+            let myProfileData = null;
+
+            if (isAdmin || isMedical) {
+                const medicalStaff = await fetchSectorData('/api/Medical/paramedics', '/api/Medical/hospitals', 'Medyczny', 'hospitalId', 'name', 'lastName', 'licenseNumber', 'paraAccountId');
+                allColleagues = allColleagues.concat(medicalStaff);
+            }
+            if (isAdmin || isPolice) {
+                const policeStaff = await fetchSectorData('/api/Police/policemen', '/api/Police/departments', 'Policja', 'pDepartmentId', 'name', 'surname', 'badgeNumber', 'policeAccountId');
+                allColleagues = allColleagues.concat(policeStaff);
+            }
+            if (isAdmin || isFire) {
+                const fireStaff = await fetchSectorData('/api/Fire/firemen', '/api/Fire/departments', 'Straż Pożarna', 'fDepartmentId', 'name', 'surname', 'badgeNumber', 'fireAccountId');
+                allColleagues = allColleagues.concat(fireStaff);
+            }
+
+            if (!isAdmin) {
+                myProfileData = allColleagues.find(c => c.accountId === currentUser.accountId);
+                
+                if (myProfileData && myProfileData.departmentName && myProfileData.departmentName !== "Brak przypisania") {
+                    allColleagues = allColleagues.filter(c => c.departmentName === myProfileData.departmentName);
+                    document.getElementById('page-table-title').innerHTML = `<i class="fas fa-users"></i> Pracownicy Jednostki: ${myProfileData.departmentName}`;
+                } else {
+                    document.getElementById('page-table-title').innerHTML = `<i class="fas fa-users"></i> Moi Współpracownicy`;
+                }
+            } else {
+                document.getElementById('page-table-title').innerHTML = '<i class="fas fa-globe"></i> Wszyscy Pracownicy (Widok Administratora)';
+                document.getElementById('col-page-sector').classList.remove('d-none');
+                
+                myProfileData = allColleagues.find(c => c.accountId === currentUser.accountId) || {
+                    firstName: "Konto",
+                    lastName: "Administratora",
+                    rank: "Administrator Systemu",
+                    badge: "-",
+                    departmentName: "Zarząd Globalny",
+                    sector: "Administracja"
+                };
+            }
+
+            try {
+                if (myProfileData) {
+                    const fName = myProfileData.firstName || "Nieznane";
+                    const lName = myProfileData.lastName || "";
+                    
+                    document.getElementById('page-name').innerText = `${fName} ${lName}`;
+                    
+                    let displayRank = myProfileData.rank;
+                    if (!displayRank || displayRank.trim() === "") {
+                        displayRank = currentUser.roles.join(", ") || "Pracownik Systemu";
+                    }
+                    document.getElementById('page-role').innerText = displayRank;
+                    
+                    document.getElementById('page-email').innerText = currentUser.email;
+                    
+                    // Synchronizacja avatara ze zdjęciem profilowym z paska nav (jeśli użytkownik ustawił customowe)
+                    const navAvatarSrc = document.getElementById('profile-user-avatar') ? document.getElementById('profile-user-avatar').src : null;
+                    const defaultAvatarSrc = `https://ui-avatars.com/api/?name=${fName}+${lName}&background=0D8ABC&color=fff&size=128`;
+                    
+                    if(navAvatarSrc && navAvatarSrc.includes('http') && !navAvatarSrc.includes('ui-avatars') && document.getElementById('profile-user-avatar').classList.contains('d-none') === false) {
+                        document.getElementById('page-avatar').src = navAvatarSrc;
+                    } else {
+                        document.getElementById('page-avatar').src = defaultAvatarSrc;
+                    }
+
+                    if (myProfileData.badge && myProfileData.badge !== "-") {
+                        document.getElementById('li-page-badge').classList.remove('d-none');
+                        document.getElementById('page-badge').innerText = myProfileData.badge;
+                    }
+                    
+                    if (myProfileData.departmentName && myProfileData.departmentName !== "Brak przypisania") {
+                        document.getElementById('li-page-dept').classList.remove('d-none');
+                        document.getElementById('page-dept').innerText = myProfileData.departmentName;
+                    }
+                }
+            } catch (err) {
+                console.error("Błąd uzupełniania Karty Profilu: ", err);
+            }
+
+            const tbody = document.getElementById('page-colleagues-body');
+            tbody.innerHTML = '';
+
+            if (allColleagues.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Brak innych przypisanych pracowników w tej placówce.</td></tr>';
+                return;
+            }
+
+            allColleagues.forEach(c => {
+                let sectorBadge = '';
+                if (isAdmin) {
+                    if (c.sector === 'Medyczny') sectorBadge = '<span class="badge bg-success">Medyczny</span>';
+                    else if (c.sector === 'Policja') sectorBadge = '<span class="badge bg-primary">Policja</span>';
+                    else if (c.sector === 'Straż Pożarna') sectorBadge = '<span class="badge bg-danger">Straż Pożarna</span>';
+                }
+
+                const isMe = (c.accountId === currentUser.accountId) ? '<b>(Ty)</b>' : '';
+                const rowRank = c.rank ? c.rank : "-"; 
+
+                const rowHtml = `
+                    <tr>
+                        <td>${c.firstName} ${c.lastName} ${isMe}</td>
+                        <td>${rowRank}</td>
+                        <td>${c.badge}</td>
+                        <td>${c.departmentName}</td>
+                        ${isAdmin ? `<td>${sectorBadge}</td>` : ''}
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', rowHtml);
+            });
+        }
+
+        // Dodanie nasłuchiwania na zmianę zdjęcia przez input z layoutu
+        document.getElementById('avatarUploadInput')?.addEventListener('change', function(e) {
+            setTimeout(() => { // poczekaj chwilę aż skrypt z layoutu zmieni miniaturkę
+                const newAvatar = document.getElementById('profile-user-avatar')?.src;
+                if(newAvatar && document.getElementById('page-avatar')) {
+                    document.getElementById('page-avatar').src = newAvatar;
+                }
+            }, 1000);
+        });
+
+        document.addEventListener("DOMContentLoaded", loadProfileAndColleagues);
+    </script>
+}
