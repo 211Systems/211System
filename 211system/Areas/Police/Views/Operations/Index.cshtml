@@ -138,7 +138,7 @@
                             : '<span class="badge bg-primary border-primary blink_me">Aktywna</span>';
 
                         const opPolicemanId = op.policemanId || op.PolicemanId;
-                        const reportId = op.reportId || op.ReportId;
+                        const reportId = op.incidentId || op.IncidentId;
                         
                         let actions = `<button onclick="window.showIncidentDetails('${reportId}')" class="btn btn-sm btn-info mr-1" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>`;
 

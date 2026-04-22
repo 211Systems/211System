@@ -216,9 +216,30 @@ namespace _211system.Controllers
             if (operation == null) return NotFound();
 
             operation.EndTime = DateTime.UtcNow;
+
+            var truck = await _context.FireTrucks
+                .FirstOrDefaultAsync(t => t.FiremanId == operation.FiremanId && t.CurrentIncidentId == operation.IncidentId);
+            
+            if (truck != null)
+            {
+                truck.IsAvailable = true;
+                truck.CurrentIncidentId = null;
+            }
+
+            var incident = await _context.Incidents.FindAsync(operation.IncidentId);
+            if (incident != null)
+            {
+                incident.IsFireActive = false;
+
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+            }
+
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Akcja ratownicza zakończona." });
+            return Ok(new { message = "Akcja ratownicza zakończona. Wóz wraca do remizy." });
         }
 
         [HttpGet("incidents/{id}")]
