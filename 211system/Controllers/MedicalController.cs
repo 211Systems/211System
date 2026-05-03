@@ -1,6 +1,8 @@
-﻿using _211system.DTOs.Hospital;
+﻿using _211system.Data;
+using _211system.DTOs.Hospital;
+using _211system.Models;
 using _211system.Services;
-using _211system.Data;
+using CPR112.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -122,7 +124,20 @@ namespace _211system.Controllers
             if (incident != null)
             {
                 incident.IsMedicalActive = true;
-                incident.Status = "W toku";
+
+                if (incident.Status != "W toku")
+                {
+                    var oldStatus = incident.Status;
+                    incident.Status = "W toku";
+                    _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                    {
+                        IncidentId = incident.Id,
+                        OldStatus = oldStatus,
+                        NewStatus = "W toku",
+                        ChangedAt = DateTime.UtcNow
+                    });
+                }
+
                 await _context.SaveChangesAsync();
             }
 
@@ -147,7 +162,28 @@ namespace _211system.Controllers
 
                 if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
                 {
-                    incident.Status = "Zakończone";
+                    if (incident.Status != "Zakończone")
+                    {
+                        var oldStatus = incident.Status;
+                        incident.Status = "Zakończone";
+                        _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                        {
+                            IncidentId = incident.Id,
+                            OldStatus = oldStatus,
+                            NewStatus = "Zakończone",
+                            ChangedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+                else
+                {
+                    _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                    {
+                        IncidentId = incident.Id,
+                        OldStatus = incident.Status,
+                        NewStatus = "ZRM powrócił do bazy",
+                        ChangedAt = DateTime.UtcNow
+                    });
                 }
 
                 await _context.SaveChangesAsync();
@@ -274,7 +310,8 @@ namespace _211system.Controllers
                 {
                     IncidentNumber = i.IncidentNumber,
                     Description = i.Description,
-                    Severity = i.Severity,
+                    Severity = i.SeverityLevel != null ? i.SeverityLevel.Name : "Brak",
+                    IncidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
                     Status = i.Status,
                     ReportDate = i.ReportDate,
                     Address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Brak dokładnej lokalizacji"

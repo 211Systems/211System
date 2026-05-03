@@ -88,7 +88,8 @@ namespace _211system.Models.Services
                     {
                         Id = Guid.NewGuid(),
                         IncidentNumber = $"NASA/{DateTime.UtcNow:yyyyMMdd}/{randomSuffix}",
-                        Severity = "Krytyczny",
+                        SeverityLevelId = 3,
+                        IncidentTypeId = 2,
                         Description = $"ALARM SATELITARNY: Wykryto anomalię termiczną ({anomaly.Brightness} K). Współrzędne: {anomaly.Lat}, {anomaly.Lon}",
                         ReportDate = DateTime.UtcNow,
                         Status = "Nowe",

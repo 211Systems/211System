@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>_211system</RootNamespace>
     <UserSecretsId>8882d50c-02b7-4042-b7a2-6472b1a6f410</UserSecretsId>
+	  <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

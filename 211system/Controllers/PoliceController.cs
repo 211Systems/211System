@@ -1,4 +1,5 @@
 ﻿using _211system.Data;
+using _211system.Models;
 using _211system.Models.Dtos.Police;
 using _211system.Models.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -170,6 +171,22 @@ namespace _211system.Controllers
             try
             {
                 await _policeService.AssignPoliceCarToIncidentAsync(car.Id, reportId);
+
+                var incident = await _context.Incidents.FindAsync(reportId);
+                if (incident != null && incident.Status != "W toku")
+                {
+                    var oldStatus = incident.Status;
+                    incident.Status = "W toku";
+                    _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                    {
+                        IncidentId = incident.Id,
+                        OldStatus = oldStatus,
+                        NewStatus = "W toku",
+                        ChangedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
                 return Ok(new { message = "Radiowóz został zadysponowany i jest w drodze!" });
             }
             catch (Exception ex)
@@ -178,7 +195,7 @@ namespace _211system.Controllers
             }
         }
 
-       [HttpPut("operations/{id}/end")]
+        [HttpPut("operations/{id}/end")]
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant")]
         public async Task<IActionResult> EndOperation(Guid id)
         {
@@ -189,7 +206,7 @@ namespace _211system.Controllers
 
             var car = await _context.PoliceCars
                 .FirstOrDefaultAsync(c => c.PolicemanId == operation.PolicemanId && c.CurrentIncidentId == operation.IncidentId);
-            
+
             if (car != null)
             {
                 car.IsAvailable = true;
@@ -203,7 +220,28 @@ namespace _211system.Controllers
 
                 if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
                 {
-                    incident.Status = "Zakończone";
+                    if (incident.Status != "Zakończone")
+                    {
+                        var oldStatus = incident.Status;
+                        incident.Status = "Zakończone";
+                        _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                        {
+                            IncidentId = incident.Id,
+                            OldStatus = oldStatus,
+                            NewStatus = "Zakończone",
+                            ChangedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+                else
+                {
+                    _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                    {
+                        IncidentId = incident.Id,
+                        OldStatus = incident.Status,
+                        NewStatus = "Radiowóz zakończył działania",
+                        ChangedAt = DateTime.UtcNow
+                    });
                 }
             }
 
@@ -215,7 +253,20 @@ namespace _211system.Controllers
         [Authorize]
         public async Task<IActionResult> GetIncidentDetails(Guid id)
         {
-            var incident = await _context.Incidents.FindAsync(id);
+            var incident = await _context.Incidents
+                .Where(i => i.Id == id)
+                .Select(i => new
+                {
+                    incidentNumber = i.IncidentNumber,
+                    description = i.Description,
+                    severity = i.SeverityLevel != null ? i.SeverityLevel.Name : "Brak",
+                    incidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
+                    status = i.Status,
+                    address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Nieznana",
+                    reportDate = i.ReportDate
+                })
+                .FirstOrDefaultAsync();
+
             if (incident == null) return NotFound();
             return Ok(incident);
         }

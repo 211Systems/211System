@@ -29,6 +29,10 @@ namespace _211system.Controllers
         [HttpPost]
         public async Task<ActionResult<IncidentDto>> CreateIncident([FromForm] CreateIncidentDto dto, IFormFile? photo)
         {
+            Console.WriteLine($"Otrzymano: Desc={dto.Description}, SeverityId={dto.SeverityLevelId}");
+
+            if (dto.SeverityLevelId == 0) 
+                return BadRequest("Niepoprawny priorytet (ID=0)");
             try
             {
                 if (photo != null && photo.Length > 0)
@@ -50,6 +54,8 @@ namespace _211system.Controllers
         public async Task<IActionResult> GetAllIncidents()
         {
             var incidents = await _context.Incidents
+                .Include(i => i.SeverityLevel)
+                .Include(i => i.IncidentType)
                 .OrderByDescending(i => i.ReportDate)
                 .ToListAsync();
 
@@ -58,13 +64,14 @@ namespace _211system.Controllers
                 Id = inc.Id,
                 IncidentNumber = inc.IncidentNumber,
                 Description = inc.Description,
-                Severity = inc.Severity,
+                Severity = inc.SeverityLevel != null ? inc.SeverityLevel.Name : "Brak",
+                IncidentType = inc.IncidentType != null ? inc.IncidentType.Name : "Brak",
                 Status = inc.Status,
                 ReportedAt = inc.ReportDate,
                 LocationId = inc.LocationId,
                 OperatorId = inc.OperatorId,
-                PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl) 
-                    ? null 
+                PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl)
+                    ? null
                     : _blobStorageService.GetSecureFileUrl(inc.PhotoUrl, "incidents")
             }).ToList();
 
@@ -182,6 +189,44 @@ namespace _211system.Controllers
             {
                 return BadRequest(new { message = "Błąd krytyczny.", error = ex.Message });
             }
+        }
+
+        [HttpGet("IncidentTypes")]
+        public async Task<IActionResult> GetIncidentTypes()
+        {
+            var types = await _context.IncidentTypes
+                .Select(t => new { t.Id, t.Name })
+                .ToListAsync();
+            return Ok(types);
+        }
+
+        [HttpGet("stats/summary")]
+        public async Task<IActionResult> GetIncidentStats()
+        {
+            var stats = await _context.Incidents
+                .GroupBy(i => i.IncidentType.Name)
+                .Select(g => new { Name = g.Key ?? "Nieokreślone", Count = g.Count() })
+                .ToListAsync();
+            return Ok(stats);
+        }
+
+        [HttpGet("{id}/history")]
+        public async Task<IActionResult> GetIncidentHistory(Guid id)
+        {
+            var ApplicationUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var history = await _context.IncidentStatusHistories
+                .Where(h => h.IncidentId == id)
+                .OrderByDescending(h => h.ChangedAt)
+                .Select(h => new {
+                    h.OldStatus,
+                    h.NewStatus,
+                    h.ChangedAt,
+                    Operator = ApplicationUserId
+                })
+                .ToListAsync();
+
+            return Ok(history);
         }
     } 
 }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Reflection.Emit;
 using _211system.Models;
 using _211system.Models.Hospital;
 using CPR112.Models;
@@ -27,6 +28,9 @@ namespace _211system.Data
         public DbSet<Operator112> Operators112 { get; set; }
         public DbSet<PeriodicReport> PeriodicReports { get; set; }
         public DbSet<StatusHistory> StatusHistories { get; set; }
+        public DbSet<SeverityLevel> SeverityLevels { get; set; }
+        public DbSet<IncidentType> IncidentTypes { get; set; }
+        public DbSet<IncidentStatusHistory> IncidentStatusHistories { get; set; }
 
         // Straz pozarna
         public DbSet<FDepartment> FireDepartments { get; set; }
@@ -130,6 +134,21 @@ namespace _211system.Data
                 .WithMany(p => p.MedicalOperations)
                 .HasForeignKey(mo => mo.ParamedicId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SeverityLevel>().HasData(
+                new SeverityLevel { Id = 1, Name = "Niski", ColorCode = "info" },
+                new SeverityLevel { Id = 2, Name = "Średni", ColorCode = "warning" },
+                new SeverityLevel { Id = 3, Name = "Wysoki", ColorCode = "danger" },
+                new SeverityLevel { Id = 4, Name = "Krytyczny", ColorCode = "dark" }
+            );
+
+            builder.Entity<IncidentType>().HasData(
+                new IncidentType { Id = 1, Name = "Wypadek drogowy", RequiresPolice = true, RequiresMedic = true, RequiresFire = true },
+                new IncidentType { Id = 2, Name = "Pożar budynku", RequiresPolice = true, RequiresMedic = true, RequiresFire = true },
+                new IncidentType { Id = 3, Name = "Zatrzymanie krążenia", RequiresPolice = false, RequiresMedic = true, RequiresFire = false },
+                new IncidentType { Id = 4, Name = "Kradzież / Włamanie", RequiresPolice = true, RequiresMedic = false, RequiresFire = false },
+                new IncidentType { Id = 5, Name = "Zagrożenie miejscowe (drzewo/woda)", RequiresPolice = false, RequiresMedic = false, RequiresFire = true }
+            );
         }
     }
 }

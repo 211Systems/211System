@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Xunit;
 using _211system.Data;
 using _211system.DTOs.CPR112;
+using _211system.Models;
 using _211system.Services;
 using CPR112.Models;
+using Microsoft.EntityFrameworkCore;
+using Xunit;
 
 namespace _211system.Tests
 {
@@ -17,7 +18,24 @@ namespace _211system.Tests
             var options = new DbContextOptionsBuilder<_211DbContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
-            return new _211DbContext(options);
+
+            var context = new _211DbContext(options);
+
+            // Wypełnienie słowników dla bazy InMemory, żeby relacje zadziałały
+            if (!context.SeverityLevels.Any())
+            {
+                context.SeverityLevels.AddRange(
+                    new SeverityLevel { Id = 1, Name = "Niski", ColorCode = "info" },
+                    new SeverityLevel { Id = 2, Name = "Średni", ColorCode = "warning" },
+                    new SeverityLevel { Id = 3, Name = "Wysoki", ColorCode = "danger" }
+                );
+                context.IncidentTypes.AddRange(
+                    new IncidentType { Id = 1, Name = "Wypadek drogowy", RequiresPolice = true, RequiresMedic = true, RequiresFire = true }
+                );
+                context.SaveChanges();
+            }
+
+            return context;
         }
 
         [Fact]
@@ -27,8 +45,9 @@ namespace _211system.Tests
             var service = new IncidentService(context);
             var dto = new CreateIncidentDto
             {
-                Description = "Test Incident",
-                Severity = "Wysoki",
+                Description = "Test",
+                SeverityLevelId = 3,
+                IncidentTypeId = 1,
                 LocationId = Guid.NewGuid()
             };
 
@@ -52,7 +71,8 @@ namespace _211system.Tests
                 IncidentNumber = "112/2024/01/01/001",
                 Description = "Test",
                 Status = "Nowe",
-                Severity = "Niski",
+                SeverityLevelId = 1, // Zamiast tekstowego "Niski"
+                IncidentTypeId = 1,
                 ReportDate = DateTime.UtcNow,
                 LocationId = Guid.NewGuid()
             };
@@ -72,14 +92,15 @@ namespace _211system.Tests
             var service = new IncidentService(context);
             var incidentId = Guid.NewGuid();
             var operatorId = Guid.NewGuid();
-            
+
             var incident = new Incident
             {
                 Id = incidentId,
                 IncidentNumber = "123",
                 Description = "Test",
                 Status = "Nowe",
-                Severity = "Niski",
+                SeverityLevelId = 1,
+                IncidentTypeId = 1,
                 ReportDate = DateTime.UtcNow,
                 LocationId = Guid.NewGuid()
             };
@@ -89,15 +110,16 @@ namespace _211system.Tests
             var dto = new ChangeIncidentStatusDto
             {
                 NewStatus = "W toku",
-                NewSeverity = "Wysoki"
+
+                NewSeverityLevelId = 3
             };
 
             await service.ChangeIncidentStatusAsync(incidentId, operatorId, dto);
 
             var updatedIncident = await context.Incidents.FindAsync(incidentId);
             Assert.Equal("W toku", updatedIncident.Status);
-            Assert.Equal("Wysoki", updatedIncident.Severity);
-            Assert.True(context.StatusHistories.Any(h => h.IncidentId == incidentId && h.NewStatus == "W toku"));
+            Assert.Equal(3, updatedIncident.SeverityLevelId);
+            Assert.True(context.IncidentStatusHistories.Any(h => h.IncidentId == incidentId && h.NewStatus == "W toku"));
         }
 
         [Fact]
@@ -106,12 +128,13 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var service = new IncidentService(context);
             var incidentId = Guid.NewGuid();
-            
-            var incident = new Incident 
-            { 
-                Id = incidentId, 
-                Status = "Nowe", 
-                Severity = "Wysoki",
+
+            var incident = new Incident
+            {
+                Id = incidentId,
+                Status = "Nowe",
+                SeverityLevelId = 3,
+                IncidentTypeId = 1,
                 IncidentNumber = "123",
                 Description = "Test",
                 LocationId = Guid.NewGuid()
@@ -119,14 +142,14 @@ namespace _211system.Tests
             context.Incidents.Add(incident);
             await context.SaveChangesAsync();
 
-            var dto = new ChangeIncidentStatusDto 
-            { 
-                NewStatus = "Nowe", 
-                NewSeverity = "Wysoki",
+            var dto = new ChangeIncidentStatusDto
+            {
+                NewStatus = "Nowe",
+                NewSeverityLevelId = 3,
                 NewPhotoUrl = null
             };
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => 
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 service.ChangeIncidentStatusAsync(incidentId, Guid.NewGuid(), dto));
         }
 
@@ -136,12 +159,13 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var service = new IncidentService(context);
             var incidentId = Guid.NewGuid();
-            
-            var incident = new Incident 
-            { 
-                Id = incidentId, 
-                Status = "Nowe", 
-                Severity = "Wysoki",
+
+            var incident = new Incident
+            {
+                Id = incidentId,
+                Status = "Nowe",
+                SeverityLevelId = 3,
+                IncidentTypeId = 1,
                 IncidentNumber = "123",
                 Description = "Test",
                 LocationId = Guid.NewGuid()
@@ -149,16 +173,16 @@ namespace _211system.Tests
             context.Incidents.Add(incident);
             await context.SaveChangesAsync();
 
-            var dto = new ChangeIncidentStatusDto 
-            { 
-                NewStatus = "Nowe", 
-                NewSeverity = "Wysoki",
+            var dto = new ChangeIncidentStatusDto
+            {
+                NewStatus = "Nowe",
+                NewSeverityLevelId = 3,
                 NewPhotoUrl = "http://azure.com/newphoto.jpg"
             };
 
-            var exception = await Record.ExceptionAsync(() => 
+            var exception = await Record.ExceptionAsync(() =>
                 service.ChangeIncidentStatusAsync(incidentId, Guid.NewGuid(), dto));
-            
+
             Assert.Null(exception);
             var updated = await context.Incidents.FindAsync(incidentId);
             Assert.Equal("http://azure.com/newphoto.jpg", updated.PhotoUrl);

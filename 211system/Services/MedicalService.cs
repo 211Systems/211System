@@ -178,9 +178,9 @@ namespace _211system.Services
                 throw new InvalidOperationException("Ta karetka jest już w trakcie innej akcji.");
             
             ambulance.IsAvailable = false;
-            ambulance.CurrentIncidentId = incidentId; 
-            
-            var incident = await _context.Incidents.FindAsync(incidentId);
+            ambulance.CurrentIncidentId = incidentId;
+
+            var incident = await _context.Incidents.Include(i => i.SeverityLevel).FirstOrDefaultAsync(i => i.Id == incidentId);
             if (incident != null)
             {
                 incident.IsMedicalActive = true; 
@@ -230,7 +230,7 @@ namespace _211system.Services
                     IncidentId = incident.Id,
                     IncidentNumber = incident.IncidentNumber ?? "Brak",
                     Description = incident.Description,
-                    Severity = incident.Severity,
+                    Severity = incident.SeverityLevel != null ? incident.SeverityLevel.Name : "Brak",
                     DispatchTime = DateTime.UtcNow,
                     AssignedAmbulance = new 
                     {

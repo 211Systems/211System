@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using _211system.Models;
 
 namespace CPR112.Models;
 
@@ -15,7 +16,11 @@ public class Incident
     public string Description { get; set; }
 
     [Required]
-    public string Severity { get; set; }
+    public int? SeverityLevelId { get; set; }
+    public SeverityLevel SeverityLevel { get; set; }
+
+    public int? IncidentTypeId { get; set; }
+    public IncidentType IncidentType { get; set; }
 
     public DateTime ReportDate { get; set; } = DateTime.Now;
 
@@ -40,4 +45,6 @@ public class Incident
     public bool IsMedicalActive { get; set; } = false;
 
     public virtual ICollection<DispatcherComment> Comments { get; set; } = new List<DispatcherComment>();
+
+    public ICollection<IncidentStatusHistory> StatusHistories { get; set; } = new List<IncidentStatusHistory>();
 }

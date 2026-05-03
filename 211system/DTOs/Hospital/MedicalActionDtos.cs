@@ -53,5 +53,6 @@ public class UpdateAmbulanceDto
         public string Status { get; set; }
         public DateTime ReportDate { get; set; }
         public string Address { get; set; }
+        public string IncidentType { get; set; }
     }
 }
