@@ -150,13 +150,6 @@ window.dispatchUnit = async function (type, targetId) {
     } catch (e) { alert("Błąd sieci!"); }
 };
 
-window.refreshAll = async function () {
-    await Promise.all([
-        window.loadIncidents(),
-        window.updateCounters(),
-        window.loadIncidentStats()
-    ]);
-};
 window.deleteCenter = async function (id) {
     if (confirm("Usunąć tę placówkę?")) {
         await fetch(`/api/Enc/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
@@ -193,7 +186,6 @@ window.openEditRankModal = function (id, r) {
 };
 
 document.addEventListener("DOMContentLoaded", function () {
-
     const setupFileLabel = (inputId, labelId) => {
         document.getElementById(inputId)?.addEventListener('change', function (e) {
             document.getElementById(labelId).innerText = e.target.files[0] ? e.target.files[0].name : "Wybierz plik...";
@@ -206,23 +198,17 @@ document.addEventListener("DOMContentLoaded", function () {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-incident');
         const locSelect = document.getElementById('incLocationId');
+        const typeSelect = document.getElementById('incType');
 
-        if (!locSelect.value) {
-            alert("Wybierz lokalizację!");
-            return;
-        }
+        if (!locSelect.value) { alert("Wybierz lokalizację!"); return; }
+        if (!typeSelect.value) { alert("Wybierz typ zdarzenia!"); return; }
 
         btn.disabled = true;
         const formData = new FormData();
 
         formData.append('Description', document.getElementById('incDescription').value);
-
-        const severityValue = document.getElementById('incSeverity').value;
-        formData.append('SeverityLevelId', parseInt(severityValue));
-
-        const typeId = parseInt(document.getElementById('incType').value);
-        formData.append('IncidentTypeId', typeId);
-
+        formData.append('SeverityLevelId', parseInt(document.getElementById('incSeverity').value));
+        formData.append('IncidentTypeId', parseInt(typeSelect.value));
         formData.append('LocationId', locSelect.value);
 
         if (window.currentOperatorId) {
@@ -237,16 +223,15 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             const response = await fetch('/api/CPR112/Incidents', {
                 method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + window.jwtToken
-                },
+                headers: { 'Authorization': 'Bearer ' + window.jwtToken },
                 body: formData
             });
 
             if (response.ok) {
                 alert("Zgłoszenie zarejestrowane pomyślnie!");
                 document.getElementById('incDescription').value = '';
-                document.getElementById('incPhoto').value = '';
+                document.getElementById('incType').value = '';
+                if (fileInput) fileInput.value = '';
                 document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
                 window.refreshAll();
             } else {
@@ -269,7 +254,7 @@ document.addEventListener("DOMContentLoaded", function () {
         fd.append('NewSeverity', document.getElementById('editIncidentPriority').value);
 
         const fi = document.getElementById('editIncPhoto');
-        if (fi.files[0]) fd.append('newPhoto', fi.files[0]);
+        if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);
 
         try {
             const res = await fetch(`/api/CPR112/Incidents/${id}/status`, {
@@ -285,6 +270,101 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+window.loadIncidentTypes = async function () {
+    try {
+        const res = await fetch('/api/CPR112/Incidents/IncidentTypes', {
+            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
+        });
+        if (res.ok) {
+            const types = await res.json();
+            const select = document.getElementById('incType');
+            if (select) {
+                select.innerHTML = '<option value="">Wybierz typ...</option>' +
+                    types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            }
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.loadIncidentStats = async function () {
+    try {
+        const res = await fetch('/api/CPR112/Incidents/stats/summary', {
+            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const container = document.getElementById('stats-summary');
+            if (container) {
+                container.innerHTML = data.map(s => `
+                    <span class="badge badge-secondary p-2 shadow-sm" style="font-size: 14px;">
+                        ${s.name}: <span class="text-warning">${s.count}</span>
+                    </span>
+                `).join(' ');
+            }
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.showHistory = async function (id) {
+    try {
+        const res = await fetch(`/api/CPR112/Incidents/${id}/history`, {
+            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const container = document.getElementById('history-timeline');
+
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div>
+                        <i class="fas fa-info bg-secondary"></i>
+                        <div class="timeline-item bg-dark border-secondary">
+                            <div class="timeline-body text-white text-center p-3">Brak zarejestrowanych zmian dla tego zgłoszenia.</div>
+                        </div>
+                    </div>`;
+            } else {
+                container.innerHTML = data.map(h => {
+                    const dateObj = new Date(h.changedAt);
+                    const timeStr = dateObj.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const dateStr = dateObj.toLocaleDateString('pl-PL');
+
+                    let iconColor = 'bg-info';
+                    let textColor = 'text-info';
+                    let iconClass = 'fa-exchange-alt';
+
+                    if (h.newStatus === 'W toku') { iconColor = 'bg-primary'; textColor = 'text-primary'; iconClass = 'fa-play'; }
+                    if (h.newStatus === 'Zakończone') { iconColor = 'bg-success'; textColor = 'text-success'; iconClass = 'fa-check'; }
+                    if (h.newStatus === 'Fałszywy alarm') { iconColor = 'bg-warning'; textColor = 'text-warning'; iconClass = 'fa-exclamation-triangle'; }
+
+                    if (h.newStatus.includes('powrócił') || h.newStatus.includes('zakończył działania')) {
+                        iconColor = 'bg-secondary';
+                        textColor = 'text-light';
+                        iconClass = 'fa-undo';
+                    }
+
+                    return `
+                    <!-- element osi czasu -->
+                    <div>
+                        <i class="fas ${iconClass} ${iconColor} text-white"></i>
+                        <div class="timeline-item bg-dark border-secondary shadow-sm" style="border: 1px solid #6c757d;">
+                            <span class="time text-light mt-2 mr-2"><i class="fas fa-clock"></i> ${timeStr} <small>(${dateStr})</small></span>
+                            <h3 class="timeline-header border-secondary text-white border-bottom-0"><b class="${textColor}">Aktualizacja Statusu</b></h3>
+                            
+                            <!-- POPRAWKA: text-white dodane do kontenera z tekstem -->
+                            <div class="timeline-body pt-0 text-white">
+                                Stan zmieniony z <span class="text-secondary" style="text-decoration: line-through;">${h.oldStatus}</span> 
+                                <i class="fas fa-arrow-right mx-2 text-secondary"></i> 
+                                <b class="${textColor}">${h.newStatus}</b>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('') + `<div><i class="fas fa-stop bg-secondary text-white"></i></div>`;
+            }
+
+            $('#historyModal').modal('show');
+        }
+    } catch (e) { console.error("Błąd historii:", e); }
+};
 window.loadIncidents = async function () {
     const tableBody = document.getElementById('incidents-table-body');
     if (!tableBody) return;
@@ -302,32 +382,22 @@ window.loadIncidents = async function () {
 
             tableBody.innerHTML = incidents.map(inc => {
                 let bc = inc.severity === 'Wysoki' ? 'danger' : (inc.severity === 'Średni' ? 'warning' : 'info');
+                if (inc.severity === 'Krytyczny') bc = 'dark';
 
                 return `
                 <tr>
                     <td class="align-middle font-weight-bold text-primary">${inc.incidentNumber || inc.id.substring(0, 8)}</td>
                     <td class="align-middle">${inc.description}</td>
-                    <td class="align-middle text-muted font-weight-bold">${inc.incidentType || 'Brak'}</td> <!-- NOWA DANA -->
+                    <td class="align-middle text-muted font-weight-bold">${inc.incidentType || 'Brak'}</td>
                     <td class="align-middle"><span class="badge bg-${bc}">${inc.severity}</span></td>
                     <td class="align-middle font-weight-bold">${inc.status}</td>
                     <td class="align-middle text-right">
                         <div class="btn-group">
-                            <!-- Historia -->
                             <button class="btn btn-xs btn-outline-light ml-1 mr-1" onclick="window.showHistory('${inc.id}')" title="Historia logów"><i class="fas fa-history"></i></button>
-            
-                            <!-- Edycja statusu -->
                             <button class="btn btn-xs btn-info" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
-            
-                            <!-- Policja -->
                             <button class="btn btn-xs btn-primary ml-1" onclick="window.openDispatchModal('police', '${inc.id}')" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
-            
-                            <!-- Straż Pożarna -->
                             <button class="btn btn-xs btn-danger ml-1" onclick="window.openDispatchModal('fire', '${inc.id}')" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
-            
-                            <!-- Pogotowie -->
                             <button class="btn btn-xs btn-success ml-1" onclick="window.openDispatchModal('medic', '${inc.id}')" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
-            
-                            <!-- Usuwanie (tylko admin) -->
                             ${isAdmin ? `<button class="btn btn-xs btn-outline-danger ml-1" onclick="window.deleteIncident('${inc.id}')"><i class="fas fa-trash"></i></button>` : ''}
                         </div>
                     </td>
@@ -336,7 +406,7 @@ window.loadIncidents = async function () {
         }
     } catch (e) {
         console.error("Błąd ładowania incydentów:", e);
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Błąd połączenia z bazą danych.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Błąd połączenia z bazą danych.</td></tr>';
     }
 };
 
@@ -409,6 +479,14 @@ window.updateCounters = async function () {
     } catch (e) { console.error(e); }
 };
 
+window.refreshAll = async function () {
+    await Promise.all([
+        window.loadIncidents(),
+        window.updateCounters(),
+        window.loadIncidentStats()
+    ]);
+};
+
 window.togglePanels = function () {
     const h = window.location.hash;
     const ip = document.getElementById('incidents-panel');
@@ -441,48 +519,4 @@ window.checkAdminVisibility = function () {
             document.getElementById('nav-admin-centers-container')?.classList.remove('d-none');
         }
     } catch (e) { console.error(e); }
-};
-
-window.loadIncidentTypes = async function () {
-    const res = await fetch('/api/CPR112/Incidents/IncidentTypes', {
-        headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-    });
-    const types = await res.json();
-    const select = document.getElementById('incType');
-    if (select) {
-        select.innerHTML = '<option value="">Wybierz typ...</option>' +
-            types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    }
-};
-
-window.loadIncidentStats = async function () {
-    const res = await fetch('/api/CPR112/Incidents/stats/summary', {
-        headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-    });
-    const data = await res.json();
-    const container = document.getElementById('stats-summary');
-    if (!container) return;
-
-    container.innerHTML = data.map(s => `
-        <span class="badge badge-secondary p-2 shadow-sm" style="font-size: 14px;">
-            ${s.name}: <span class="text-warning">${s.count}</span>
-        </span>
-    `).join(' ');
-};
-
-window.showHistory = async function (id) {
-    const res = await fetch(`/api/CPR112/Incidents/${id}/history`, {
-        headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-    });
-    const data = await res.json();
-    const tbody = document.getElementById('history-table-body');
-
-    tbody.innerHTML = data.map(h => `
-        <tr>
-            <td><small class="text-muted">${new Date(h.changedAt).toLocaleString()}</small></td>
-            <td>${h.oldStatus} <i class="fas fa-arrow-right mx-1 text-secondary"></i> <b class="text-info">${h.newStatus}</b></td>
-        </tr>
-    `).join('') || '<tr><td colspan="2" class="text-center p-3 text-muted">Brak zarejestrowanych zmian</td></tr>';
-
-    $('#historyModal').modal('show');
 };

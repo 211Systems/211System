@@ -46,9 +46,16 @@ namespace _211system.Tests
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
             var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
-            var dto = new CreateIncidentDto { Description = "Test" };
-            
-            serviceMock.Setup(s => s.CreateIncidentAsync(dto)).ReturnsAsync(new IncidentDto());
+
+            var dto = new CreateIncidentDto
+            {
+                Description = "Test",
+                SeverityLevelId = 3,
+                IncidentTypeId = 1
+            };
+
+            serviceMock.Setup(s => s.CreateIncidentAsync(It.IsAny<CreateIncidentDto>()))
+                       .ReturnsAsync(new IncidentDto { Description = "Test" });
 
             var result = await controller.CreateIncident(dto, null);
 

@@ -52,6 +52,9 @@
                         <b>Numer:</b> <a class="float-right text-info" id="det-number">...</a>
                     </li>
                     <li class="list-group-item bg-light">
+                        <b>Typ Zdarzenia:</b> <span class="float-right text-uppercase text-danger font-weight-bold" id="det-type">...</span>
+                    </li>
+                    <li class="list-group-item bg-light">
                         <b>Priorytet:</b> <a class="float-right" id="det-severity">...</a>
                     </li>
                     <li class="list-group-item bg-light">
@@ -177,6 +180,7 @@
                 if (response.ok) {
                     const data = await response.json();
                     document.getElementById('det-number').textContent = data.incidentNumber;
+                    document.getElementById('det-type').textContent = data.incidentType || "Nie określono";
                     document.getElementById('det-desc').textContent = data.description;
                     document.getElementById('det-address').textContent = data.address;
                     document.getElementById('det-status').textContent = data.status;

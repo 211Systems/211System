@@ -1,12 +1,13 @@
-﻿using _211system.Data;
+﻿using System;
+using System.Threading.Tasks;
+using _211system.Data;
+using _211system.Models;
 using _211system.Models.Dtos.Fire;
 using _211system.Models.Interfaces;
 using FireDepartment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading.Tasks;
 using static _211system.Controllers.PoliceController;
 
 namespace _211system.Controllers
@@ -181,9 +182,18 @@ namespace _211system.Controllers
                 if (incident != null)
                 {
                     incident.IsFireActive = true;
-                    if (incident.Status == "Nowe")
+
+                    if (incident.Status != "W toku")
                     {
+                        var oldStatus = incident.Status;
                         incident.Status = "W toku";
+                        _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                        {
+                            IncidentId = incident.Id,
+                            OldStatus = oldStatus,
+                            NewStatus = "W toku",
+                            ChangedAt = DateTime.UtcNow
+                        });
                     }
                     _context.Incidents.Update(incident);
                 }
@@ -196,7 +206,6 @@ namespace _211system.Controllers
                 };
 
                 _context.FireOperations.Add(operation);
-
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "Wóz strażacki w drodze na miejsce zdarzenia!" });
@@ -219,7 +228,7 @@ namespace _211system.Controllers
 
             var truck = await _context.FireTrucks
                 .FirstOrDefaultAsync(t => t.FiremanId == operation.FiremanId && t.CurrentIncidentId == operation.IncidentId);
-            
+
             if (truck != null)
             {
                 truck.IsAvailable = true;
@@ -227,18 +236,33 @@ namespace _211system.Controllers
             }
 
             var incident = await _context.Incidents.FindAsync(operation.IncidentId);
-            if (incident != null)
+            if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
             {
-                incident.IsFireActive = false;
-
-                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                if (incident.Status != "Zakończone")
                 {
+                    var oldStatus = incident.Status;
                     incident.Status = "Zakończone";
+                    _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                    {
+                        IncidentId = incident.Id,
+                        OldStatus = oldStatus,
+                        NewStatus = "Zakończone",
+                        ChangedAt = DateTime.UtcNow
+                    });
                 }
+            }
+            else
+            {
+                _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                {
+                    IncidentId = incident.Id,
+                    OldStatus = incident.Status,
+                    NewStatus = "Wóz PSP powrócił do bazy",
+                    ChangedAt = DateTime.UtcNow
+                });
             }
 
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Akcja ratownicza zakończona. Wóz wraca do remizy." });
         }
 
@@ -246,10 +270,24 @@ namespace _211system.Controllers
         [Authorize]
         public async Task<IActionResult> GetIncidentDetails(Guid id)
         {
-            var incident = await _context.Incidents.FindAsync(id);
+            var incident = await _context.Incidents
+                .Where(i => i.Id == id)
+                .Select(i => new
+                {
+                    incidentNumber = i.IncidentNumber,
+                    description = i.Description,
+                    severity = i.SeverityLevel != null ? i.SeverityLevel.Name : "Brak",
+                    incidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
+                    status = i.Status,
+                    address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Nieznana",
+                    reportDate = i.ReportDate
+                })
+                .FirstOrDefaultAsync();
+
             if (incident == null) return NotFound();
             return Ok(incident);
         }
+
         [HttpPut("departments/{id}")]
         [Authorize(Roles = "Admin, Naczelnik")]
         public async Task<IActionResult> UpdateDepartment(Guid id, [FromBody] CreateFDepartmentDto dto)
