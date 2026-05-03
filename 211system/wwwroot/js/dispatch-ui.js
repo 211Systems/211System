@@ -151,9 +151,12 @@ window.dispatchUnit = async function (type, targetId) {
 };
 
 window.refreshAll = async function () {
-    await Promise.all([window.loadIncidents(), window.updateCounters()]);
+    await Promise.all([
+        window.loadIncidents(),
+        window.updateCounters(),
+        window.loadIncidentStats()
+    ]);
 };
-
 window.deleteCenter = async function (id) {
     if (confirm("Usunąć tę placówkę?")) {
         await fetch(`/api/Enc/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
@@ -217,7 +220,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const severityValue = document.getElementById('incSeverity').value;
         formData.append('SeverityLevelId', parseInt(severityValue));
 
-        formData.append('IncidentTypeId', 5);
+        const typeId = parseInt(document.getElementById('incType').value);
+        formData.append('IncidentTypeId', typeId);
 
         formData.append('LocationId', locSelect.value);
 
@@ -303,22 +307,26 @@ window.loadIncidents = async function () {
                 <tr>
                     <td class="align-middle font-weight-bold text-primary">${inc.incidentNumber || inc.id.substring(0, 8)}</td>
                     <td class="align-middle">${inc.description}</td>
+                    <td class="align-middle text-muted font-weight-bold">${inc.incidentType || 'Brak'}</td> <!-- NOWA DANA -->
                     <td class="align-middle"><span class="badge bg-${bc}">${inc.severity}</span></td>
                     <td class="align-middle font-weight-bold">${inc.status}</td>
                     <td class="align-middle text-right">
                         <div class="btn-group">
+                            <!-- Historia -->
+                            <button class="btn btn-xs btn-outline-light ml-1 mr-1" onclick="window.showHistory('${inc.id}')" title="Historia logów"><i class="fas fa-history"></i></button>
+            
                             <!-- Edycja statusu -->
                             <button class="btn btn-xs btn-info" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
-                            
+            
                             <!-- Policja -->
                             <button class="btn btn-xs btn-primary ml-1" onclick="window.openDispatchModal('police', '${inc.id}')" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
-                            
+            
                             <!-- Straż Pożarna -->
                             <button class="btn btn-xs btn-danger ml-1" onclick="window.openDispatchModal('fire', '${inc.id}')" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
-                            
+            
                             <!-- Pogotowie -->
                             <button class="btn btn-xs btn-success ml-1" onclick="window.openDispatchModal('medic', '${inc.id}')" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
-                            
+            
                             <!-- Usuwanie (tylko admin) -->
                             ${isAdmin ? `<button class="btn btn-xs btn-outline-danger ml-1" onclick="window.deleteIncident('${inc.id}')"><i class="fas fa-trash"></i></button>` : ''}
                         </div>
@@ -433,4 +441,48 @@ window.checkAdminVisibility = function () {
             document.getElementById('nav-admin-centers-container')?.classList.remove('d-none');
         }
     } catch (e) { console.error(e); }
+};
+
+window.loadIncidentTypes = async function () {
+    const res = await fetch('/api/CPR112/Incidents/IncidentTypes', {
+        headers: { 'Authorization': 'Bearer ' + window.jwtToken }
+    });
+    const types = await res.json();
+    const select = document.getElementById('incType');
+    if (select) {
+        select.innerHTML = '<option value="">Wybierz typ...</option>' +
+            types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+};
+
+window.loadIncidentStats = async function () {
+    const res = await fetch('/api/CPR112/Incidents/stats/summary', {
+        headers: { 'Authorization': 'Bearer ' + window.jwtToken }
+    });
+    const data = await res.json();
+    const container = document.getElementById('stats-summary');
+    if (!container) return;
+
+    container.innerHTML = data.map(s => `
+        <span class="badge badge-secondary p-2 shadow-sm" style="font-size: 14px;">
+            ${s.name}: <span class="text-warning">${s.count}</span>
+        </span>
+    `).join(' ');
+};
+
+window.showHistory = async function (id) {
+    const res = await fetch(`/api/CPR112/Incidents/${id}/history`, {
+        headers: { 'Authorization': 'Bearer ' + window.jwtToken }
+    });
+    const data = await res.json();
+    const tbody = document.getElementById('history-table-body');
+
+    tbody.innerHTML = data.map(h => `
+        <tr>
+            <td><small class="text-muted">${new Date(h.changedAt).toLocaleString()}</small></td>
+            <td>${h.oldStatus} <i class="fas fa-arrow-right mx-1 text-secondary"></i> <b class="text-info">${h.newStatus}</b></td>
+        </tr>
+    `).join('') || '<tr><td colspan="2" class="text-center p-3 text-muted">Brak zarejestrowanych zmian</td></tr>';
+
+    $('#historyModal').modal('show');
 };
