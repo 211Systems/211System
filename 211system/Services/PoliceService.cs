@@ -133,7 +133,7 @@ namespace _211system.Models.Services
             car.IsAvailable = false;
             car.CurrentIncidentId = incidentId;
 
-            var incident = await _context.Incidents.FindAsync(incidentId);
+            var incident = await _context.Incidents.Include(i => i.SeverityLevel).FirstOrDefaultAsync(i => i.Id == incidentId);
             if (incident != null)
             {
                 incident.IsPoliceActive = true;
@@ -185,7 +185,7 @@ namespace _211system.Models.Services
                     IncidentId = incident.Id,
                     IncidentNumber = incident.IncidentNumber ?? "Brak",
                     Description = incident.Description,
-                    Severity = incident.Severity,
+                    Severity = incident.SeverityLevel != null ? incident.SeverityLevel.Name : "Brak",
                     DispatchTime = DateTime.UtcNow,
                     AssignedUnit = new
                     {

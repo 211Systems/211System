@@ -29,6 +29,10 @@ namespace _211system.Controllers
         [HttpPost]
         public async Task<ActionResult<IncidentDto>> CreateIncident([FromForm] CreateIncidentDto dto, IFormFile? photo)
         {
+            Console.WriteLine($"Otrzymano: Desc={dto.Description}, SeverityId={dto.SeverityLevelId}");
+
+            if (dto.SeverityLevelId == 0) 
+                return BadRequest("Niepoprawny priorytet (ID=0)");
             try
             {
                 if (photo != null && photo.Length > 0)
@@ -50,6 +54,8 @@ namespace _211system.Controllers
         public async Task<IActionResult> GetAllIncidents()
         {
             var incidents = await _context.Incidents
+                .Include(i => i.SeverityLevel)
+                .Include(i => i.IncidentType)
                 .OrderByDescending(i => i.ReportDate)
                 .ToListAsync();
 
@@ -58,13 +64,14 @@ namespace _211system.Controllers
                 Id = inc.Id,
                 IncidentNumber = inc.IncidentNumber,
                 Description = inc.Description,
-                Severity = inc.Severity,
+                Severity = inc.SeverityLevel != null ? inc.SeverityLevel.Name : "Brak",
+                IncidentType = inc.IncidentType != null ? inc.IncidentType.Name : "Brak",
                 Status = inc.Status,
                 ReportedAt = inc.ReportDate,
                 LocationId = inc.LocationId,
                 OperatorId = inc.OperatorId,
-                PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl) 
-                    ? null 
+                PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl)
+                    ? null
                     : _blobStorageService.GetSecureFileUrl(inc.PhotoUrl, "incidents")
             }).ToList();
 

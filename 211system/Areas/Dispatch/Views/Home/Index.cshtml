@@ -48,9 +48,9 @@
                         <div class="form-group">
                             <label>Priorytet</label>
                             <select id="incSeverity" class="form-control" required>
-                                <option value="Wysoki">Wysoki</option>
-                                <option value="Średni">Średni</option>
-                                <option value="Niski">Niski</option>
+                                <option value="3">Wysoki</option>
+                                <option value="2">Średni</option>
+                                <option value="1">Niski</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -269,9 +269,9 @@
                     <div class="form-group">
                         <label>Poziom Zagrożenia (Severity)</label>
                         <select id="editIncidentPriority" class="form-control">
-                            <option value="Wysoki">Wysoki</option>
-                            <option value="Średni">Średni</option>
-                            <option value="Niski">Niski</option>
+                            <option value="3">Wysoki</option>
+                            <option value="2">Średni</option>
+                            <option value="1">Niski</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -321,6 +321,8 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/dispatch-ui.js" asp-append-version="true"></script>
+    
     <script>
         window.jwtToken = localStorage.getItem('jwt');
 
@@ -341,5 +343,4 @@
             }
         });
     </script>
-    <script src="~/js/dispatch-ui.js"></script>
 }

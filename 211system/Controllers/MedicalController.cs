@@ -1,6 +1,7 @@
-﻿using _211system.DTOs.Hospital;
+﻿using _211system.Data;
+using _211system.DTOs.Hospital;
 using _211system.Services;
-using _211system.Data;
+using CPR112.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -274,7 +275,7 @@ namespace _211system.Controllers
                 {
                     IncidentNumber = i.IncidentNumber,
                     Description = i.Description,
-                    Severity = i.Severity,
+                    Severity = i.SeverityLevel != null ? i.SeverityLevel.Name : "Brak",
                     Status = i.Status,
                     ReportDate = i.ReportDate,
                     Address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Brak dokładnej lokalizacji"
