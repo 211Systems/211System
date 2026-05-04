@@ -47,7 +47,9 @@ window.loadIncidents = async function () {
                     <td class="align-middle font-weight-bold">${inc.status}</td>
                     <td class="align-middle text-right">
                         <div class="btn-group">
-                            <button class="btn btn-xs btn-info" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-xs btn-secondary" onclick="window.flyToMap(${inc.latitude}, ${inc.longitude})" title="Pokaż na mapie"><i class="fas fa-map-marker-alt"></i></button>
+                            
+                            <button class="btn btn-xs btn-info ml-1" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
                             <button class="btn btn-xs btn-primary ml-1" onclick="window.startOperation('${inc.id}', 'police')" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
                             <button class="btn btn-xs btn-danger ml-1" onclick="window.startOperation('${inc.id}', 'fire')" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
                             <button class="btn btn-xs btn-success ml-1" onclick="window.openDispatchModal('${inc.id}')" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
@@ -146,21 +148,38 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('createIncidentForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-incident');
-        const locSelect = document.getElementById('incLocationId');
+        const typeSelect = document.getElementById('incType');
 
-        if (!locSelect || !locSelect.value) {
-            alert("Proszę wybrać lokalizację placówki!");
+        const latVal = document.getElementById('incLat').value;
+        const lngVal = document.getElementById('incLng').value;
+
+        if (!latVal || !lngVal) {
+            alert("Kliknij na mapie, aby wyznaczyć dokładną lokalizację zdarzenia!");
+            return;
+        }
+        if (!typeSelect.value) {
+            alert("Wybierz typ zdarzenia!");
             return;
         }
 
         btn.disabled = true;
         const formData = new FormData();
+
         formData.append('Description', document.getElementById('incDescription').value);
-        formData.append('Severity', document.getElementById('incSeverity').value);
-        formData.append('LocationId', locSelect.value);
+        formData.append('SeverityLevelId', parseInt(document.getElementById('incSeverity').value));
+        formData.append('IncidentTypeId', parseInt(typeSelect.value));
+
+        formData.append('Latitude', latVal);
+        formData.append('Longitude', lngVal);
+
+        if (window.currentOperatorId) {
+            formData.append('OperatorId', window.currentOperatorId);
+        }
 
         const fileInput = document.getElementById('incPhoto');
-        if (fileInput && fileInput.files[0]) formData.append('photo', fileInput.files[0]);
+        if (fileInput && fileInput.files[0]) {
+            formData.append('photo', fileInput.files[0]);
+        }
 
         try {
             const response = await fetch('/api/CPR112/Incidents', {
@@ -170,17 +189,21 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             if (response.ok) {
+                alert("Zgłoszenie zarejestrowane pomyślnie!");
                 document.getElementById('incDescription').value = '';
+                document.getElementById('incType').value = '';
+                document.getElementById('incLat').value = '';
+                document.getElementById('incLng').value = '';
                 if (fileInput) fileInput.value = '';
                 document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
-                await window.refreshAll();
+                window.refreshAll();
             } else {
-                const err = await response.json();
-                alert("Błąd: " + (err.title || err.message || "Niepoprawne dane zgłoszenia."));
+                const errData = await response.json();
+                console.error("Szczegóły błędu 400:", errData);
+                alert("Błąd serwera: Sprawdź konsolę, aby zobaczyć które pole nie przeszło walidacji.");
             }
-        } catch (e) {
-            console.error(e);
-            alert("Błąd połączenia z serwerem.");
+        } catch (err) {
+            console.error("Błąd sieci:", err);
         } finally {
             btn.disabled = false;
         }

@@ -16,6 +16,9 @@ namespace _211system.Models.Hospital
         [Required]
         [MaxLength(150)]
         public string Address { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double OperatingRadiusKm { get; set; } = 15.0;
 
         public virtual ICollection<Paramedic> Paramedics { get; set; } = new List<Paramedic>();
         public virtual ICollection<HospitalWard> Wards { get; set; } = new List<HospitalWard>();

@@ -88,14 +88,6 @@ namespace _211system.Data
                 .HasForeignKey(p => p.PoliceAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // POPRAWIONA RELACJA: Incident -> Enc (Placówka)
-            // To rozwiązuje błąd FK_Incidents_Locations_LocationId
-            builder.Entity<Incident>()
-                .HasOne(i => i.Location) // Właściwość nawigacyjna w klasie Incident (typu Enc)
-                .WithMany()
-                .HasForeignKey(i => i.LocationId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             // Policja - Relacje
             builder.Entity<Policeman>()
                 .HasOne(p => p.Department)

@@ -262,7 +262,7 @@ namespace _211system.Controllers
                     severity = i.SeverityLevel != null ? i.SeverityLevel.Name : "Brak",
                     incidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
                     status = i.Status,
-                    address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Nieznana",
+                    Address = $"GPS: {i.Latitude}, {i.Longitude}",
                     reportDate = i.ReportDate
                 })
                 .FirstOrDefaultAsync();

@@ -30,10 +30,10 @@ public class Incident
     public string? PhotoUrl { get; set; }
 
     [Required]
-    public Guid LocationId { get; set; }
+    public double Latitude { get; set; }
 
-    [ForeignKey("LocationId")]
-    public virtual Enc Location { get; set; }
+    [Required]
+    public double Longitude { get; set; }
 
     public Guid? OperatorId { get; set; }
 

@@ -1,4 +1,35 @@
-﻿window.registerNewCenter = async function () {
+﻿let currentRouteLayer = null;
+
+async function drawRoute(startLat, startLon, endLat, endLon) {
+    if (!map) return;
+
+    if (currentRouteLayer) {
+        map.removeLayer(currentRouteLayer);
+    }
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.routes && data.routes.length > 0) {
+            const coordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            const distance = (data.routes[0].distance / 1000).toFixed(2);
+            const duration = Math.round(data.routes[0].duration / 60);
+
+            currentRouteLayer = L.polyline(coordinates, { color: 'blue', weight: 5, opacity: 0.7 }).addTo(map);
+
+            map.fitBounds(currentRouteLayer.getBounds());
+
+            console.log(`Dystans: ${distance} km, Przewidywany czas: ${duration} min`);
+        }
+    } catch (e) {
+        console.error("Błąd routingu:", e);
+    }
+}
+
+window.registerNewCenter = async function () {
     const nameVal = document.getElementById('centerName').value;
     const regionVal = document.getElementById('centerRegion').value;
 
@@ -197,11 +228,19 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('createIncidentForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-incident');
-        const locSelect = document.getElementById('incLocationId');
         const typeSelect = document.getElementById('incType');
 
-        if (!locSelect.value) { alert("Wybierz lokalizację!"); return; }
-        if (!typeSelect.value) { alert("Wybierz typ zdarzenia!"); return; }
+        const latVal = document.getElementById('incLat').value;
+        const lngVal = document.getElementById('incLng').value;
+
+        if (!latVal || !lngVal) {
+            alert("Kliknij na mapie, aby wyznaczyć dokładną lokalizację zdarzenia!");
+            return;
+        }
+        if (!typeSelect.value) {
+            alert("Wybierz typ zdarzenia!");
+            return;
+        }
 
         btn.disabled = true;
         const formData = new FormData();
@@ -209,7 +248,9 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append('Description', document.getElementById('incDescription').value);
         formData.append('SeverityLevelId', parseInt(document.getElementById('incSeverity').value));
         formData.append('IncidentTypeId', parseInt(typeSelect.value));
-        formData.append('LocationId', locSelect.value);
+
+        formData.append('Latitude', latVal);
+        formData.append('Longitude', lngVal);
 
         if (window.currentOperatorId) {
             formData.append('OperatorId', window.currentOperatorId);
@@ -231,13 +272,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 alert("Zgłoszenie zarejestrowane pomyślnie!");
                 document.getElementById('incDescription').value = '';
                 document.getElementById('incType').value = '';
+                document.getElementById('incLat').value = '';
+                document.getElementById('incLng').value = '';
                 if (fileInput) fileInput.value = '';
                 document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
+
                 window.refreshAll();
             } else {
                 const errData = await response.json();
                 console.error("Szczegóły błędu 400:", errData);
-                alert("Błąd serwera: Sprawdź konsolę, aby zobaczyć które pole nie przeszło walidacji.");
+                alert("Błąd serwera. Sprawdź konsolę.");
             }
         } catch (err) {
             console.error("Błąd sieci:", err);
@@ -485,6 +529,7 @@ window.refreshAll = async function () {
         window.updateCounters(),
         window.loadIncidentStats()
     ]);
+    if (typeof window.refreshMapData === 'function') window.refreshMapData();
 };
 
 window.togglePanels = function () {

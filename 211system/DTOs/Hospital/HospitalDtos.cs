@@ -7,6 +7,10 @@ namespace _211system.DTOs.Hospital
         public string Name { get; set; }
         public bool HasSOR { get; set; }
         public string Address { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double OperatingRadiusKm { get; set; }
+
     }
 
     public class HospitalDto : CreateHospitalDto

@@ -22,10 +22,6 @@ namespace _211system.Models.Services
 
         public async Task<NasaFetchResultDto> FetchFireDataAndCreateIncidentsAsync(bool isDemo = false)
         {
-            var mainEnc = await _context.Encs.FirstOrDefaultAsync();
-            if (mainEnc == null)
-                throw new Exception("Błąd: System nie posiada żadnej placówki (Enc) w bazie danych.");
-
             var resultDto = new NasaFetchResultDto();
 
             var rawAnomalies = new List<(double Lat, double Lon, double Brightness)>();
@@ -93,8 +89,8 @@ namespace _211system.Models.Services
                         Description = $"ALARM SATELITARNY: Wykryto anomalię termiczną ({anomaly.Brightness} K). Współrzędne: {anomaly.Lat}, {anomaly.Lon}",
                         ReportDate = DateTime.UtcNow,
                         Status = "Nowe",
-                        LocationId = mainEnc.Id,
-                        Location = mainEnc,
+                        Latitude = anomaly.Lat,
+                        Longitude = anomaly.Lon,
                         OperatorId = null,
                         PhotoUrl = null
                     };

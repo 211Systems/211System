@@ -5,6 +5,9 @@
         public string Name { get; set; }
         public string Address { get; set; }
         public string District { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double OperatingRadiusKm { get; set; }
     }
 
     public class CreateFiremanDto

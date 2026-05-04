@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using _211system.Data;
@@ -11,9 +12,11 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    partial class _211DbContextModelSnapshot : ModelSnapshot
+    [Migration("20260504200401_mapki")]
+    partial class mapki
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -130,11 +133,8 @@ namespace _211system.Migrations
                     b.Property<bool>("IsPoliceActive")
                         .HasColumnType("boolean");
 
-                    b.Property<double>("Latitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("Longitude")
-                        .HasColumnType("double precision");
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("OperatorId")
                         .HasColumnType("uuid");
@@ -155,6 +155,8 @@ namespace _211system.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IncidentTypeId");
+
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("OperatorId");
 
@@ -1232,6 +1234,12 @@ namespace _211system.Migrations
                         .WithMany("Incidents")
                         .HasForeignKey("IncidentTypeId");
 
+                    b.HasOne("CPR112.Models.Enc", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("CPR112.Models.Operator112", "Operator")
                         .WithMany()
                         .HasForeignKey("OperatorId");
@@ -1243,6 +1251,8 @@ namespace _211system.Migrations
                         .IsRequired();
 
                     b.Navigation("IncidentType");
+
+                    b.Navigation("Location");
 
                     b.Navigation("Operator");
 

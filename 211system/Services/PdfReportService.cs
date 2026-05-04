@@ -29,7 +29,6 @@ public class PdfReportService : IPdfReportService
     {
 
         var closedIncidents = await _context.Incidents
-            .Include(i => i.Location)
             .Where(i => i.Status == "Zakończone" || i.Status == "Zakonczone")
             .Where(i => i.ReportDate >= from && i.ReportDate <= to)
             .OrderBy(i => i.ReportDate)
@@ -119,7 +118,7 @@ public class PdfReportService : IPdfReportService
                     table.Cell().Element(CellStyle).Text(incident.ReportDate.ToString("dd.MM.yyyy HH:mm"));
                     table.Cell().Element(CellStyle).Text(incident.Status ?? "Brak");
                     
-                    var locationInfo = incident.Location != null ? "Lokalizacja powiązana" : "Brak lokalizacji";
+                    var locationInfo = incident.Latitude != 0 && incident.Longitude != 0 ? $"GPS: {incident.Latitude}, {incident.Longitude}" : "Brak lokalizacji";
                     table.Cell().Element(CellStyle).Text(locationInfo); 
 
                     static IContainer CellStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
