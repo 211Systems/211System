@@ -2,6 +2,18 @@
     ViewData["Title"] = "Centrum Powiadamiania Ratunkowego 112";
 }
 
+<div class="card card-dark shadow mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title m-0"><i class="fas fa-map-marked-alt"></i> Mapa Operacyjna</h3>
+        <div>
+            <button class="btn btn-sm btn-outline-light" onclick="window.refreshMapData()"><i class="fas fa-sync-alt"></i> Odśwież Mapę</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="map" style="height: 450px; width: 100%; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;"></div>
+    </div>
+</div>
+
 <div id="incidents-panel" class="fade-panel">
     <div class="row mb-3" id="status-board">
         <div class="col-md-4 col-12">
@@ -95,17 +107,6 @@
         </div>
 
         <div class="col-md-8">
-            <div class="card card-dark shadow mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3 class="card-title m-0"><i class="fas fa-map-marked-alt"></i> Mapa Operacyjna</h3>
-                    <div>
-                        <button class="btn btn-sm btn-outline-light" onclick="window.refreshMapData()"><i class="fas fa-sync-alt"></i> Odśwież Mapę</button>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div id="map" style="height: 450px; width: 100%; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;"></div>
-                </div>
-            </div>
 
             <div class="card card-dark shadow">
                 <div class="card-header d-flex justify-content-between align-items-center">

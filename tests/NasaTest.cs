@@ -78,11 +78,13 @@ public class NasaServiceTests
     {
         var dbContext = await GetDatabaseContext();
 
-        var testCenter = new Enc 
-        { 
-            Id = Guid.NewGuid(), 
-            Name = "Testowe CPR", 
-            Region = "Podlaskie" 
+        var testCenter = new Enc
+        {
+            Id = Guid.NewGuid(),
+            Name = "Testowe CPR",
+            Region = "Podlaskie",
+            Latitude = 53.13,
+            Longitude = 23.16
         };
         await dbContext.Encs.AddAsync(testCenter);
         await dbContext.SaveChangesAsync();
@@ -104,16 +106,18 @@ public class NasaServiceTests
         var nasaPoints = await dbContext.NasaFlarePoints.ToListAsync();
         Assert.Equal(2, nasaPoints.Count);
 
-        var incidents = await dbContext.Incidents.Include(i => i.Location).ToListAsync();
+        var incidents = await dbContext.Incidents.ToListAsync();
         Assert.Single(incidents);
 
         var generatedIncident = incidents.First();
-        
+
         Assert.StartsWith("ALARM SATELITARNY", generatedIncident.Description);
-        Assert.Equal(testCenter.Id, generatedIncident.LocationId);
-        Assert.Equal("Testowe CPR", generatedIncident.Location.Name);
+
+        Assert.Equal(53.13, generatedIncident.Latitude);
+        Assert.Equal(23.16, generatedIncident.Longitude);
+
         Assert.Null(generatedIncident.OperatorId);
-        
+
         Assert.False(generatedIncident.IsPoliceActive);
         Assert.False(generatedIncident.IsFireActive);
         Assert.False(generatedIncident.IsMedicalActive);

@@ -127,7 +127,7 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetAllCars()
         {
-            var cars = await _context.PoliceCars.ToListAsync();
+            var cars = await _policeService.GetAllPoliceCarsAsync();
             return Ok(cars);
         }
 

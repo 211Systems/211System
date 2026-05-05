@@ -33,7 +33,10 @@ namespace _211system.Models.Services
             {
                 Name = dto.Name,
                 Address = dto.Address,
-                District = dto.District
+                District = dto.District,
+                Latitude = dto.Latitude,
+                Longitude = dto.Longitude,
+                OperatingRadiusKm = dto.OperatingRadiusKm > 0 ? dto.OperatingRadiusKm : 15.0
             };
             await _context.PoliceDepartments.AddAsync(department);
             await _context.SaveChangesAsync();
@@ -219,7 +222,10 @@ namespace _211system.Models.Services
                     Id = d.PDepartmentId,
                     Name = d.Name,
                     Address = d.Address,
-                    District = d.District
+                    District = d.District,
+                    Latitude = d.Latitude,
+                    Longitude = d.Longitude,
+                    OperatingRadiusKm = d.OperatingRadiusKm
                 })
                 .ToListAsync();
         }
@@ -242,16 +248,20 @@ namespace _211system.Models.Services
 
         public async Task<IEnumerable<PoliceCarDto>> GetAllPoliceCarsAsync()
         {
-            return await _context.PoliceCars
-                .Select(c => new PoliceCarDto
-                {
-                    Id = c.Id,
-                    LicensePlate = c.LicensePlate,
-                    PDepartmentId = c.PDepartmentId,
-                    IsAvailable = c.IsAvailable,
-                    PolicemanId = c.PolicemanId
-                })
+            var cars = await _context.PoliceCars
+                .Include(c => c.PDepartment)
                 .ToListAsync();
+
+            return cars.Select(c => new PoliceCarDto
+            {
+                Id = c.Id,
+                LicensePlate = c.LicensePlate,
+                PDepartmentId = c.PDepartmentId,
+                IsAvailable = c.IsAvailable,
+                PolicemanId = c.PolicemanId,
+                Latitude = c.PDepartment?.Latitude ?? 0,
+                Longitude = c.PDepartment?.Longitude ?? 0
+            });
         }
 
         public async Task UpdatePoliceCarAsync(Guid id, UpdatePoliceCarDto dto)

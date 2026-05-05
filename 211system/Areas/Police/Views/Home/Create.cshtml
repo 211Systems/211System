@@ -21,6 +21,25 @@
                         <label>Region / Rejon</label>
                         <input type="text" id="deptDistrict" class="form-control" required placeholder="np. Śródmieście">
                     </div>
+                    <div class="form-group mt-3">
+                        <label><i class="fas fa-map-marker-alt text-primary"></i> Wybierz lokalizację komendy na mapie</label>
+                        <div id="picker-map" style="height: 300px; width: 100%; border-radius: 5px; border: 1px solid #ccc;"></div>
+                    </div>
+
+                    <div class="row mt-2 mb-3">
+                        <div class="col-md-4">
+                            <label><small class="text-muted">Latitude (Z mapy)</small></label>
+                            <input type="text" id="deptLat" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
+                        </div>
+                        <div class="col-md-4">
+                            <label><small class="text-muted">Longitude (Z mapy)</small></label>
+                            <input type="text" id="deptLng" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
+                        </div>
+                        <div class="col-md-4">
+                            <label><small class="text-muted">Promień operacyjny (km)</small></label>
+                            <input type="number" id="deptRadius" class="form-control form-control-sm" value="15" min="1">
+                        </div>
+                    </div>
                     <p id="form-error" class="text-danger d-none mt-3"></p>
                 </div>
                 <div class="card-footer d-flex justify-content-between bg-light">
@@ -33,17 +52,75 @@
 </div>
 
 @section Scripts {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <script>
         const token = localStorage.getItem('jwt');
+
+        let pickerMap = L.map('picker-map').setView([52.2297, 21.0122], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(pickerMap);
+
+        let pickerMarker = null;
+        let pickerCircle = null;
+        const radiusInput = document.getElementById('deptRadius');
+        const latInput = document.getElementById('deptLat');
+        const lngInput = document.getElementById('deptLng');
+
+        function updateCircle(lat, lng, radiusKm) {
+            if (pickerCircle) pickerMap.removeLayer(pickerCircle);
+            pickerCircle = L.circle([lat, lng], {
+                color: '#007bff',
+                fillColor: '#007bff',
+                fillOpacity: 0.2,
+                radius: radiusKm * 1000
+            }).addTo(pickerMap);
+        }
+
+        pickerMap.on('click', function (e) {
+            const lat = e.latlng.lat.toFixed(5);
+            const lng = e.latlng.lng.toFixed(5);
+
+            latInput.value = lat;
+            lngInput.value = lng;
+
+            if (pickerMarker) pickerMarker.setLatLng(e.latlng);
+            else pickerMarker = L.marker(e.latlng).addTo(pickerMap);
+
+            updateCircle(lat, lng, radiusInput.value || 15);
+        });
+
+        radiusInput.addEventListener('change', function() {
+            if (pickerMarker) {
+                const pos = pickerMarker.getLatLng();
+                updateCircle(pos.lat, pos.lng, this.value);
+            }
+        });
+
+        setTimeout(() => { pickerMap.invalidateSize(); }, 500);
+
         document.getElementById('createDeptForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const errorMsg = document.getElementById('form-error');
             errorMsg.classList.add('d-none');
 
+            const latVal = latInput.value;
+            const lngVal = lngInput.value;
+
+            if (!latVal || !lngVal) {
+                alert("Proszę wskazać lokalizację komendy na mapie!");
+                return;
+            }
+
             const payload = {
                 name: document.getElementById('deptName').value,
                 address: document.getElementById('deptAddress').value,
-                district: document.getElementById('deptDistrict').value
+                district: document.getElementById('deptDistrict').value,
+                latitude: parseFloat(latVal),
+                longitude: parseFloat(lngVal),
+                operatingRadiusKm: parseFloat(radiusInput.value)
             };
 
             try {

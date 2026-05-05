@@ -28,12 +28,25 @@ namespace _211system.Services
             {
                 Name = dto.Name,
                 HasSOR = dto.HasSOR,
-                Address = dto.Address
+                Address = dto.Address,
+                Latitude = dto.Latitude,
+                Longitude = dto.Longitude,
+                OperatingRadiusKm = dto.OperatingRadiusKm > 0 ? dto.OperatingRadiusKm : 15.0
             };
 
             await _context.Hospitals.AddAsync(hospital);
             await _context.SaveChangesAsync();
-            return new HospitalDto { Id = hospital.Id, Name = hospital.Name, HasSOR = hospital.HasSOR, Address = hospital.Address };
+
+            return new HospitalDto
+            {
+                Id = hospital.Id,
+                Name = hospital.Name,
+                HasSOR = hospital.HasSOR,
+                Address = hospital.Address,
+                Latitude = hospital.Latitude,
+                Longitude = hospital.Longitude,
+                OperatingRadiusKm = hospital.OperatingRadiusKm
+            };
         }
 
         public async Task<IEnumerable<HospitalDto>> GetAllHospitalsAsync()
@@ -44,10 +57,13 @@ namespace _211system.Services
                 Id = h.Id,
                 Name = h.Name,
                 HasSOR = h.HasSOR,
-                Address = h.Address
+                Address = h.Address,
+                Latitude = h.Latitude,
+                Longitude = h.Longitude,
+                OperatingRadiusKm = h.OperatingRadiusKm
             });
         }
-        
+
         public async Task<IEnumerable<ParamedicDto>> GetAllParamedicsAsync()
         {
             var paramedics = await _context.Paramedics
@@ -137,7 +153,10 @@ namespace _211system.Services
 
         public async Task<IEnumerable<AmbulanceDto>> GetAllAmbulancesAsync()
         {
-            var ambulances = await _context.Ambulances.ToListAsync();
+            var ambulances = await _context.Ambulances
+                .Include(a => a.Hospital)
+                .ToListAsync();
+
             return ambulances.Select(a => new AmbulanceDto
             {
                 Id = a.Id,
@@ -145,13 +164,16 @@ namespace _211system.Services
                 LicensePlate = a.LicensePlate,
                 HospitalId = a.HospitalId,
                 IsAvailable = a.IsAvailable,
-                ParamedicId = a.ParamedicId
+                ParamedicId = a.ParamedicId,
+                Latitude = a.Hospital?.Latitude ?? 0,
+                Longitude = a.Hospital?.Longitude ?? 0
             });
         }
-        
+
         public async Task<IEnumerable<AmbulanceDto>> GetAvailableAmbulancesAsync()
         {
             var available = await _context.Ambulances
+                .Include(a => a.Hospital)
                 .Where(a => a.IsAvailable == true)
                 .ToListAsync();
 
@@ -162,10 +184,12 @@ namespace _211system.Services
                 LicensePlate = a.LicensePlate,
                 HospitalId = a.HospitalId,
                 IsAvailable = true,
-                ParamedicId = a.ParamedicId
+                ParamedicId = a.ParamedicId,
+                Latitude = a.Hospital?.Latitude ?? 0,
+                Longitude = a.Hospital?.Longitude ?? 0
             });
         }
-        
+
         public async Task AssignAmbulanceToIncidentAsync(Guid ambulanceId, Guid incidentId)
         {
             var ambulance = await _context.Ambulances

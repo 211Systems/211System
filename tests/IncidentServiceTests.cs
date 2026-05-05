@@ -48,8 +48,8 @@ namespace _211system.Tests
                 Description = "Test",
                 SeverityLevelId = 3,
                 IncidentTypeId = 1,
-                Latitude = 52.2297,
-                Longitude = 21.0122
+                Latitude = "52.2297",
+                Longitude = "21.0122"
             };
 
             var result = await service.CreateIncidentAsync(dto);
