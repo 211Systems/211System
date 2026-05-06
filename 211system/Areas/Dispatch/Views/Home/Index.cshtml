@@ -180,6 +180,7 @@
                     </button>
                 </div>
             </div>
+
             <div class="card card-dark shadow">
                 <div class="card-header border-0">
                     <h3 class="card-title m-0"><i class="fas fa-id-badge"></i> Aktywny personel CPR</h3>
@@ -191,12 +192,35 @@
                                 <th>Operator</th>
                                 <th>Uprawnienia</th>
                                 <th>Numer Stanowiska</th>
+                                <th>Email i Status</th>
                                 <th class="text-right">Zarządzanie</th>
                             </tr>
                         </thead>
                         <tbody id="operators-table-body"></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="unlockedAccountModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode border-info">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title"><i class="fas fa-lock-open"></i> Konto odblokowane!</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Konto zostało pomyślnie zresetowane i odblokowane.</p>
+                <p>Przekaż pracownikowi to nowe, tymczasowe hasło:</p>
+                <h2 class="text-warning font-weight-bold my-4" id="new-password-display"></h2>
+                <p class="text-muted small">Ze względów bezpieczeństwa hasło wyświetla się tylko raz. <br/>Zapisz je przed zamknięciem okna.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
             </div>
         </div>
     </div>
@@ -392,7 +416,7 @@
 
 @section Scripts {
     <script src="~/js/dispatch-ui.js" asp-append-version="true"></script>
-
+    <script src="~/js/dispatch-admin.js" asp-append-version="true"></script>
     <script>
         window.jwtToken = localStorage.getItem('jwt');
         let map;

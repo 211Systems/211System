@@ -1,7 +1,4 @@
-﻿@* 
-*@
-
-<div class="card card-@ViewBag.ThemeColor">
+﻿<div class="card card-@ViewBag.ThemeColor">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title m-0"><i class="@ViewBag.Icon"></i> @ViewBag.Title</h3>
         <button type="button" class="btn btn-sm btn-light ml-auto text-@ViewBag.ThemeColor d-none" id="btn-open-personnel-modal" data-toggle="modal" data-target="@ViewBag.AddModalTarget">
@@ -24,5 +21,28 @@
                 <tr><td colspan="6" class="text-center">Ładowanie personelu...</td></tr>
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- NOWY MODAL: Odblokowane Konto (Wspólny dla Policji i Straży) -->
+<div class="modal fade" id="unlockedAccountModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode border-info">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title"><i class="fas fa-lock-open"></i> Konto odblokowane!</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Konto zostało pomyślnie zresetowane i odblokowane.</p>
+                <p>Przekaż funkcjonariuszowi to nowe, tymczasowe hasło:</p>
+                <h2 class="text-warning font-weight-bold my-4" id="new-password-display"></h2>
+                <p class="text-muted small">Ze względów bezpieczeństwa hasło wyświetla się tylko raz. <br/>Zapisz je przed zamknięciem okna.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+            </div>
+        </div>
     </div>
 </div>

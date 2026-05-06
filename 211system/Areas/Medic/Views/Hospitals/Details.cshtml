@@ -37,32 +37,35 @@
                 </button>
             </div>
             <div class="card-body p-0">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th style="width: 70px;" class="text-center">Awatar</th>
-                            <th>Imię i Nazwisko</th>
-                            <th>Nr Prawa Wyk. Zawodu</th>
-                            <th>Specjalizacja</th>
-                            <th>Email</th>
-                            <th class="text-right">Akcje</th>
-                        </tr>
-                    </thead>
-                    <tbody id="staff-table-body">
-                        <tr><td colspan="6" class="text-center">Ładowanie personelu...</td></tr>
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;" class="text-center">Awatar</th>
+                                <th>Imię i Nazwisko</th>
+                                <th>Nr Prawa Wyk. Zawodu</th>
+                                <th>Specjalizacja</th>
+                                <th>Email i Status</th>
+                                <th class="text-right">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-table-body">
+                            <tr><td colspan="6" class="text-center">Ładowanie personelu...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Modal: Dodaj Pracownika -->
 <div class="modal fade" id="addParamedicModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode">
             <div class="modal-header bg-success">
                 <h5 class="modal-title">Rejestracja Medyka</h5>
-                <button type="button" class="close text-white test-end float-end" data-dismiss="modal" aria-label="Zamknij" style="outline: none; border: none;">
+                <button type="button" class="close text-white float-right" data-dismiss="modal" aria-label="Zamknij" style="outline: none; border: none;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -105,6 +108,7 @@
     </div>
 </div>
 
+<!-- Modal: Edytuj Szpital -->
 <div class="modal fade" id="editHospitalModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode">
@@ -141,6 +145,7 @@
     </div>
 </div>
 
+<!-- Modal: Edytuj Pracownika -->
 <div class="modal fade" id="editParamedicModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode">
@@ -179,8 +184,31 @@
     </div>
 </div>
 
+<!-- NOWY MODAL: Odblokowane Konto (Nowe Hasło) -->
+<div class="modal fade" id="unlockedAccountModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode border-info">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title"><i class="fas fa-lock-open"></i> Konto odblokowane!</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Konto zostało pomyślnie zresetowane i odblokowane.</p>
+                <p>Przekaż pracownikowi to nowe, tymczasowe hasło:</p>
+                <h2 class="text-warning font-weight-bold my-4" id="new-password-display"></h2>
+                <p class="text-muted small">Ze względów bezpieczeństwa hasło wyświetla się tylko raz. <br/>Zapisz je przed zamknięciem okna.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
-    <script src="~/js/api-details-handler.js"></script>
+    <script src="~/js/api-details-handler.js" asp-append-version="true"></script>
     <script>
         const currHospitalId = window.location.pathname.split('/').filter(Boolean).pop();
         const token = localStorage.getItem('jwt');
@@ -215,7 +243,6 @@
                 if (isAdmin) {
                     if (btnOpenModal) btnOpenModal.classList.remove('d-none');
                 } else if (isKierownik || isLekarz) {
-
                     try {
                         const res = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + token } });
                         if (res.ok) {
@@ -287,17 +314,42 @@
                 const employeeRank = p.rank || p.Rank || "Medyk";
                 const pLicense = p.licenseNumber || p.LicenseNumber;
                 const pId = p.id || p.Id;
+                const pEmail = p.email || p.Email;
                 const fallbackAvatar = `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff`;
                 const avatarSrc = p.avatarUrl || p.AvatarUrl || fallbackAvatar;
 
                 let actionBtns = '';
                 if (isAdmin || isKierownik || (isLekarz && isMyHospital && employeeRank === "Medyk")) {
                     actionBtns = `
+                        <button onclick="window.manageAccountLock('${pEmail}')" class="btn btn-sm btn-dark mr-1" title="Zarządzaj dostępem (Zablokuj/Odblokuj)"><i class="fas fa-user-lock"></i></button>
                         <button onclick="window.openEditEmpModal('${pId}', '${firstName}', '${lastName}', '${pLicense}', '${employeeRank}')" class="btn btn-sm btn-warning mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
                         <button onclick="window.deleteParamedic('${pId}')" class="btn btn-sm btn-danger" title="Zwolnij"><i class="fas fa-user-times"></i></button>
                     `;
                 }
 
+                if(pEmail && pEmail !== "Brak Emaila" && pEmail !== "Brak") {
+                    setTimeout(async () => {
+                        try {
+                            const statusRes = await fetch(`/api/Auth/status/${pEmail}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                            if (statusRes.ok) {
+                                const isLocked = await statusRes.json();
+                                const badgeEl = document.getElementById(`lock-status-${pId}`);
+                                if(badgeEl) {
+                                    badgeEl.innerHTML = isLocked 
+                                        ? '<span class="badge bg-danger"><i class="fas fa-lock"></i> Zablokowane</span>'
+                                        : '<span class="badge bg-success"><i class="fas fa-lock-open"></i> Aktywne</span>';
+                                }
+                            }
+                        } catch (e) {}
+                    }, 50);
+                } else {
+                     setTimeout(() => {
+                         const badgeEl = document.getElementById(`lock-status-${pId}`);
+                         if(badgeEl) badgeEl.innerHTML = '<span class="badge bg-dark">Brak konta</span>';
+                     }, 50);
+                }
+
+                // TUTAJ BYŁ BŁĄD: Teraz jest poprawnie ${avatarSrc}
                 return `
                     <tr>
                         <td class="text-center align-middle">
@@ -309,7 +361,10 @@
                         </td>
                         <td class="align-middle">${pLicense}</td>
                         <td class="align-middle"><span class="badge bg-success">${p.specialization || p.Specialization || "Medycyna"}</span></td>
-                        <td class="align-middle">${p.email || p.Email}</td>
+                        <td class="align-middle">
+                            ${pEmail}<br/>
+                            <span id="lock-status-${pId}"><span class="badge bg-secondary"><i class="fas fa-spinner fa-spin"></i> Sprawdzanie...</span></span>
+                        </td>
                         <td class="align-middle text-right" style="white-space: nowrap;">${actionBtns}</td>
                     </tr>
                 `;
@@ -406,5 +461,50 @@
                 } else alert("Błąd edycji placówki.");
             } catch (error) { alert("Błąd sieci."); }
         });
+
+        // --- GŁÓWNA LOGIKA KŁÓDKI (Blokada / Odblokowanie Konta) ---
+        window.manageAccountLock = async function(email) {
+            if (!email || email === "Brak Emaila" || email === "Brak") {
+                alert("Brak przypisanego adresu email. Skontaktuj się z administratorem.");
+                return;
+            }
+
+            try {
+                const statusRes = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const isLocked = await statusRes.json();
+
+                if (isLocked) {
+                    if(confirm(`UWAGA: Konto pracownika ${email} jest obecnie ZABLOKOWANE.\n\nCzy chcesz je ODBLOKOWAĆ i wygenerować nowe hasło dostępowe?`)) {
+                        const unlockRes = await fetch(`/api/Auth/unlock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+                        
+                        if(unlockRes.ok) {
+                            const data = await unlockRes.json();
+                            document.getElementById('new-password-display').innerText = data.newPassword;
+                            $('#unlockedAccountModal').modal('show');
+                            
+                            // Odświeżenie po odblokowaniu (żeby zmienić status na "Aktywne")
+                            $('#unlockedAccountModal').on('hidden.bs.modal', function () {
+                                window.location.reload();
+                            });
+                        } else {
+                            alert("Wystąpił błąd podczas odblokowywania konta.");
+                        }
+                    }
+                } else {
+                    if(confirm(`Konto pracownika ${email} jest obecnie AKTYWNE.\n\nCzy na pewno chcesz zablokować temu pracownikowi dostęp do systemu?`)) {
+                        const lockRes = await fetch(`/api/Auth/lock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+                        
+                        if(lockRes.ok) {
+                            alert("Konto zostało pomyślnie zablokowane!");
+                            window.location.reload(); // Odświeżenie po zablokowaniu (żeby pokazać "Zablokowane")
+                        } else {
+                            alert("Wystąpił błąd podczas blokowania konta.");
+                        }
+                    }
+                }
+            } catch (e) {
+                alert("Błąd połączenia z serwerem autoryzacji.");
+            }
+        };
     </script>
 }
