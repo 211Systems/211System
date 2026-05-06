@@ -366,3 +366,44 @@ globalThis.manageAccountLock = async function(email) {
         alert("Błąd połączenia z serwerem autoryzacji.");
     }
 };
+
+
+window.deleteDepartment = async function() {
+    console.log("Rozpoczynam procedurę usuwania placówki...");
+    console.log("URL endpointu: ", apiEndpoints.department);
+    console.log("ID placówki: ", departmentId);
+
+    if (!confirm("UWAGA! Czy na pewno chcesz usunąć całą placówkę? Zostaną usunięci również wszyscy pracownicy!")) {
+        return;
+    }
+
+    try {
+        const url = `${apiEndpoints.department}/${departmentId}`;
+        console.log("Wysyłam żądanie DELETE na adres: ", url);
+
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        console.log("Status odpowiedzi z serwera: ", response.status);
+
+        if (response.ok) {
+            alert("Placówka usunięta pomyślnie.");
+            if (currentPath.includes('/police/')) {
+                window.location.href = '/Police/Home';
+            } else if (currentPath.includes('/fire/')) {
+                window.location.href = '/Fire/Home';
+            } else {
+                window.location.href = '/';
+            }
+        } else {
+            const errorText = await response.text();
+            console.error("Błąd z serwera: ", errorText);
+            alert(`Błąd usuwania! Serwer zwrócił status: ${response.status}.\nSzczegóły w konsoli (F12). \n\nNajpierw upewnij się, że zwolniłeś wszystkich pracowników!`);
+        }
+    } catch (error) {
+        console.error("Krytyczny błąd sieci: ", error);
+        alert("Błąd połączenia z serwerem podczas usuwania.");
+    }
+};

@@ -303,6 +303,30 @@ namespace _211system.Controllers
             return Ok(new { message = "Zaktualizowano placówkę." });
         }
 
+        [HttpDelete("departments/{id}")]
+        [Authorize(Roles = "Admin, Naczelnik")]
+        public async Task<IActionResult> DeleteDepartment(Guid id)
+        {
+            var dept = await _context.FireDepartments.FindAsync(id);
+            if (dept == null) return NotFound(new { message = "Nie znaleziono placówki." });
+
+            try
+            {
+                _context.FireDepartments.Remove(dept);
+                await _context.SaveChangesAsync();
+                
+                return Ok(new { message = "Usunięto remizę strażacką." });
+            }
+            catch (DbUpdateException)
+            {
+                return BadRequest(new { message = "Nie można usunąć placówki. Najpierw usuń lub przenieś przypisanych do niej strażaków oraz sprzęt bojowy (wozy strażackie)." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPut("firemen/{id}")]
         [Authorize(Roles = "Admin, Naczelnik, Kapitan")]
         public async Task<IActionResult> UpdateFireman(Guid id, [FromBody] CreateFiremanDto dto)
