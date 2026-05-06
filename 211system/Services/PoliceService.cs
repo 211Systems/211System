@@ -56,7 +56,7 @@ namespace _211system.Models.Services
                 Rank = dto.Rank,
                 PDepartmentId = dto.PDepartmentId,
                 PoliceAccountId = accountResult.AccountId,
-                Department = department
+                Department = department,
             };
 
             await _context.Policemen.AddAsync(policeman);
@@ -226,6 +226,10 @@ namespace _211system.Models.Services
 
         public async Task<IEnumerable<PolicemanDto>> GetAllPolicemenAsync()
         {
+            var policemen = await _context.Policemen
+                .Include(p => p.PoliceAccount)
+                .ToListAsync();
+
             return await _context.Policemen
                 .Select(p => new PolicemanDto
                 {
@@ -235,7 +239,8 @@ namespace _211system.Models.Services
                     BadgeNumber = p.BadgeNumber,
                     Rank = p.Rank,
                     PDepartmentId = p.PDepartmentId,
-                    PoliceAccountId = p.PoliceAccountId
+                    PoliceAccountId = p.PoliceAccountId,
+                    Email = p.PoliceAccount != null ? p.PoliceAccount.Email : "Brak"
                 })
                 .ToListAsync();
         }

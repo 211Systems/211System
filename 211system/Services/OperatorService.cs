@@ -34,9 +34,12 @@ public class OperatorService : IOperatorService
         _userManager = userManager;
     }
 
-    public async Task<IEnumerable<OperatorDto>> GetAllAsync()
+  public async Task<IEnumerable<OperatorDto>> GetAllAsync()
     {
-        var ops = await _context.Operators112.ToListAsync();
+        var ops = await _context.Operators112
+            .Include(o => o.OpAccount) 
+            .ToListAsync();
+
         return ops.Select(o => new OperatorDto
         {
             Id = o.Id,
@@ -45,7 +48,8 @@ public class OperatorService : IOperatorService
             StationNumber = o.StationNumber,
             OpAccountId = o.OpAccountId,
             EncId = o.EncId,
-            Rank = o.Rank.ToString()
+            Rank = o.Rank.ToString(),
+            Email = o.OpAccount?.Email ?? "Brak"
         });
     }
 

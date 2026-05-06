@@ -230,7 +230,8 @@ namespace _211system.Models.Services
                     BadgeNumber = f.BadgeNumber,
                     Rank = f.Rank,
                     FDepartmentId = f.FDepartmentId,
-                    FireAccountId = f.FireAccountId
+                    FireAccountId = f.FireAccountId,
+                    Email = f.FireAccount != null ? f.FireAccount.Email : "Brak"
                 }).ToListAsync();
         }
 

@@ -1,4 +1,4 @@
-﻿using _211system.Models.Dtos.Police;
+﻿using System;
 
 namespace _211system.Models.Dtos.Police
 {
@@ -56,6 +56,8 @@ namespace _211system.Models.Dtos.Police
         public string Rank { get; set; }
         public Guid PDepartmentId { get; set; }
         public string PoliceAccountId { get; set; }
+        
+        public string Email { get; set; } 
     }
 
     public class PoliceCarDto

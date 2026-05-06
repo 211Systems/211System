@@ -1,4 +1,6 @@
-﻿using _211system.DTOs;
+﻿using System;
+using System.Threading.Tasks;
+using _211system.DTOs;
 using _211system.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -44,6 +46,38 @@ namespace _211system.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+
+        [HttpGet("status/{email}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Komendant, Naczelnik")]
+        public async Task<IActionResult> GetLockStatus(string email)
+        {
+            var isLocked = await _authService.IsAccountLockedAsync(email);
+            return Ok(isLocked);
+        }
+
+        [HttpPost("lock/{email}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Komendant, Naczelnik")]
+        public async Task<IActionResult> LockAccount(string email)
+        {
+            await _authService.LockAccountAsync(email);
+            return Ok(new { message = "Konto zostało pomyślnie zablokowane." });
+        }
+
+        [HttpPost("unlock/{email}")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Komendant, Naczelnik")]
+        public async Task<IActionResult> UnlockAccount(string email)
+        {
+            try
+            {
+                var newPassword = await _authService.UnlockAccountAsync(email);
+                return Ok(new { newPassword });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
     }

@@ -55,6 +55,7 @@
         public string Rank { get; set; }
         public Guid FDepartmentId { get; set; }
         public string FireAccountId { get; set; }
+        public string Email { get; set; }
     }
 
     public class FireTruckDto
