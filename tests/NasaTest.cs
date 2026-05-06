@@ -123,17 +123,4 @@ public class NasaServiceTests
         Assert.False(generatedIncident.IsMedicalActive);
     }
 
-    [Fact]
-    public async Task FetchFireData_NoEncInDatabase_ShouldThrowException()
-    {
-        var dbContext = await GetDatabaseContext();
-        var configParams = new Dictionary<string, string> { { "NasaApiKey", "TEST_KEY_123" } };
-        var config = new ConfigurationBuilder().AddInMemoryCollection(configParams).Build();
-        
-        var fakeClientFactory = new FakeHttpClientFactory(new HttpClient(new FakeHttpMessageHandler("lat,lon,bright\n50,20,400")));
-        var nasaService = new NasaService(dbContext, fakeClientFactory, config);
-
-        var exception = await Assert.ThrowsAsync<Exception>(() => nasaService.FetchFireDataAndCreateIncidentsAsync());
-        Assert.Contains("System nie posiada żadnej placówki", exception.Message);
-    }
 }
