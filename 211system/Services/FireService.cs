@@ -117,7 +117,10 @@ namespace _211system.Models.Services
                 FDepartmentId = dto.FDepartmentId,
                 Department = department,
                 FiremanId = dto.FiremanId,
-                IsAvailable = true
+                IsAvailable = true,
+                Latitude = department.Latitude,
+                Longitude = department.Longitude,
+                Status = VehicleOperationalStatus.InBase
             };
 
             await _context.FireTrucks.AddAsync(fireTruck);
@@ -255,7 +258,8 @@ namespace _211system.Models.Services
                 IsAvailable = t.IsAvailable,
                 FiremanId = t.FiremanId,
                 Latitude = t.Department?.Latitude ?? 0,
-                Longitude = t.Department?.Longitude ?? 0
+                Longitude = t.Department?.Longitude ?? 0,
+                Status = (int)t.Status
             });
         }
 

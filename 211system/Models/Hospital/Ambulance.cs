@@ -28,6 +28,9 @@ namespace _211system.Models.Hospital
         public Guid? CurrentIncidentId { get; set; }
 
         public Guid? ParamedicId { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public VehicleOperationalStatus Status { get; set; } = VehicleOperationalStatus.InBase;
 
         [ForeignKey(nameof(ParamedicId))]
         public virtual Paramedic Paramedic { get; set; }

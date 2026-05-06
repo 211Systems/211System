@@ -2,10 +2,11 @@
 using System.Text.Json;
 using _211system.Data;
 using _211system.DTOs.Hospital;
+using _211system.Models;
 using _211system.Models.Hospital;
 using _211system.Models.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using CPR112.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Services
 {
@@ -119,6 +120,10 @@ namespace _211system.Services
 
         public async Task<AmbulanceDto> CreateAmbulanceAsync(CreateAmbulanceDto dto)
         {
+            // 1. Pobieramy szpital z bazy danych
+            var hospital = await _context.Hospitals.FindAsync(dto.HospitalId);
+            if (hospital == null) throw new Exception("Szpital o podanym ID nie istnieje!");
+
             if (dto.ParamedicId.HasValue)
             {
                 bool isAlreadyAssigned = await _context.Ambulances.AnyAsync(a => a.ParamedicId == dto.ParamedicId.Value);
@@ -128,13 +133,17 @@ namespace _211system.Services
                 }
             }
 
+            // 2. Tworzymy karetkę z koordynatami pobranymi ze zmiennej 'hospital'
             var ambulance = new Ambulance
             {
                 Type = dto.Type,
                 LicensePlate = dto.LicensePlate,
                 HospitalId = dto.HospitalId,
                 ParamedicId = dto.ParamedicId,
-                IsAvailable = true
+                IsAvailable = true,
+                Latitude = hospital.Latitude,
+                Longitude = hospital.Longitude,
+                Status = VehicleOperationalStatus.InBase
             };
 
             await _context.Ambulances.AddAsync(ambulance);
@@ -147,7 +156,10 @@ namespace _211system.Services
                 LicensePlate = ambulance.LicensePlate,
                 HospitalId = ambulance.HospitalId,
                 IsAvailable = ambulance.IsAvailable,
-                ParamedicId = ambulance.ParamedicId
+                ParamedicId = ambulance.ParamedicId,
+                Latitude = ambulance.Latitude,
+                Longitude = ambulance.Longitude,
+                Status = (int)ambulance.Status
             };
         }
 

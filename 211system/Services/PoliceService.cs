@@ -117,7 +117,10 @@ namespace _211system.Models.Services
                 PDepartmentId = dto.PDepartmentId,
                 PDepartment = department,
                 PolicemanId = dto.PolicemanId,
-                IsAvailable = true
+                IsAvailable = true,
+                Latitude = department.Latitude,
+                Longitude = department.Longitude,
+                Status = VehicleOperationalStatus.InBase
             };
             await _context.PoliceCars.AddAsync(policeCar);
             await _context.SaveChangesAsync();
@@ -264,8 +267,9 @@ namespace _211system.Models.Services
                 PDepartmentId = c.PDepartmentId,
                 IsAvailable = c.IsAvailable,
                 PolicemanId = c.PolicemanId,
-                Latitude = c.PDepartment?.Latitude ?? 0,
-                Longitude = c.PDepartment?.Longitude ?? 0
+                Latitude = c.Latitude,
+                Longitude = c.Longitude,
+                Status = (int)c.Status
             });
         }
 

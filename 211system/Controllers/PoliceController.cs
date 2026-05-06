@@ -328,5 +328,25 @@ namespace _211system.Controllers
             if (eq != null) { _context.PoliceEquipments.Remove(eq); await _context.SaveChangesAsync(); }
             return Ok();
         }
+
+        [HttpPut("cars/{id}/location")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> UpdatePoliceCarLocation(Guid id, [FromBody] UpdateLocationDto dto)
+        {
+            var car = await _context.PoliceCars.FindAsync(id);
+            if (car == null) return NotFound();
+
+            car.Latitude = dto.Latitude;
+            car.Longitude = dto.Longitude;
+
+            if (dto.Status.HasValue)
+            {
+                car.Status = (VehicleOperationalStatus)dto.Status.Value;
+            }
+
+            _context.PoliceCars.Update(car);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
     }
 }

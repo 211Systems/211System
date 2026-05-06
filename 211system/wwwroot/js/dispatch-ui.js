@@ -161,7 +161,6 @@ window.openDispatchModal = async function (type, targetIncidentId = null, incLat
         const units = await res.json();
 
         tbody.innerHTML = '';
-
         const availableUnits = units.filter(u => u.isAvailable !== false);
 
         if (availableUnits.length === 0) {
@@ -196,7 +195,7 @@ window.openDispatchModal = async function (type, targetIncidentId = null, incLat
                                 <i class="fas fa-route"></i>
                             </button>` : ''
                 }
-                        <button class="btn btn-sm btn-dark font-weight-bold shadow-sm" onclick="window.dispatchUnit('${type}', '${id}')">WYŚLIJ</button>
+                        <button class="btn btn-sm btn-dark font-weight-bold shadow-sm" onclick="window.dispatchUnit('${type}', '${id}', ${unitLat}, ${unitLng}, ${incLat}, ${incLng})">WYŚLIJ</button>
                     </td>
                 </tr>`);
         });
@@ -206,7 +205,7 @@ window.openDispatchModal = async function (type, targetIncidentId = null, incLat
     }
 };
 
-window.dispatchUnit = async function (type, targetId) {
+window.dispatchUnit = async function (type, targetId, startLat, startLng, endLat, endLng) {
     let incidentId = document.getElementById('dispatchTargetIncidentId').value;
     if (!incidentId) incidentId = prompt("Podaj ID Zgłoszenia:");
     if (!incidentId) return;
@@ -220,6 +219,17 @@ window.dispatchUnit = async function (type, targetId) {
         const res = await fetch(url, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         if (res.ok) {
             $('#universalDispatchModal').modal('hide');
+
+            if (window.activeSimulations[targetId]) {
+                clearInterval(window.activeSimulations[targetId]);
+                delete window.activeSimulations[targetId];
+            }
+
+            if (startLat && startLng && endLat && endLng) {
+                console.log(`[ACTION] Jednostka ${targetId} wyjeżdża do zgłoszenia!`);
+                window.startVehicleSimulation(targetId, type, startLat, startLng, endLat, endLng);
+            }
+
             window.refreshAll();
         } else {
             const err = await res.json();
@@ -227,6 +237,147 @@ window.dispatchUnit = async function (type, targetId) {
         }
     } catch (e) { alert("Błąd sieci!"); }
 };
+
+window.activeSimulations = {};
+window.vehicleMarkers = {};
+
+
+const iconPoliceCar = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+const iconAmbulance = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+const iconFireTruck = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+
+function getIconByService(type) {
+    if (type === 'police') return iconPoliceCar;
+    if (type === 'medic') return iconAmbulance;
+    return iconFireTruck;
+}
+
+window.startVehicleSimulation = async function (vehicleId, serviceType, startLat, startLng, endLat, endLng) {
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.routes && data.routes.length > 0) {
+            const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+
+            const actionRouteLine = L.polyline(routeCoords, {
+                color: serviceType === 'police' ? '#007bff' : (serviceType === 'medic' ? '#28a745' : '#dc3545'),
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(map);
+
+            let step = 0;
+            const pingFrequency = 5;
+
+            if (window.activeSimulations[vehicleId]) clearInterval(window.activeSimulations[vehicleId]);
+
+            window.activeSimulations[vehicleId] = setInterval(async () => {
+                if (step >= routeCoords.length) {
+                    clearInterval(window.activeSimulations[vehicleId]);
+                    delete window.activeSimulations[vehicleId];
+
+                    if (typeof map !== 'undefined') {
+                        map.removeLayer(actionRouteLine);
+                    }
+
+                    await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 2);
+                    window.refreshMapData();
+                    return;
+                }
+
+                const curLat = routeCoords[step][0];
+                const curLng = routeCoords[step][1];
+
+                if (typeof map !== 'undefined') {
+                    if (!window.vehicleMarkers[vehicleId]) {
+                        window.vehicleMarkers[vehicleId] = L.marker([curLat, curLng], { icon: getIconByService(serviceType) })
+                            .addTo(map).bindPopup(`<b>Pojazd w akcji</b><br>Typ: ${serviceType}`);
+                    } else {
+                        window.vehicleMarkers[vehicleId].setLatLng([curLat, curLng]);
+                    }
+                }
+
+                if (step % pingFrequency === 0) {
+                    await pingVehicleLocation(vehicleId, serviceType, curLat, curLng, 1);
+                }
+                step++;
+            }, 1000);
+        }
+    } catch (e) { console.error("Błąd OSRM:", e); }
+};
+
+window.startPatrolSimulation = async function (vehicleId, serviceType, currentLat, currentLng, baseLat, baseLng, radiusKm) {
+    if (window.activeSimulations[vehicleId]) return;
+
+    const target = window.getRandomLocationInRadius(baseLat, baseLng, radiusKm || 10);
+    const url = `https://router.project-osrm.org/route/v1/driving/${currentLng},${currentLat};${target.lng},${target.lat}?overview=full&geometries=geojson`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.routes && data.routes.length > 0) {
+            const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            let step = 0;
+            const pingFrequency = 10;
+
+            window.activeSimulations[vehicleId] = setInterval(async () => {
+                if (step >= routeCoords.length) {
+                    clearInterval(window.activeSimulations[vehicleId]);
+                    delete window.activeSimulations[vehicleId];
+                    setTimeout(() => { window.refreshAll(); }, 20000);
+                    return;
+                }
+
+                const curLat = routeCoords[step][0];
+                const curLng = routeCoords[step][1];
+
+                if (typeof map !== 'undefined') {
+                    if (!window.vehicleMarkers[vehicleId]) {
+                        window.vehicleMarkers[vehicleId] = L.marker([curLat, curLng], { icon: getIconByService(serviceType) })
+                            .addTo(map).bindPopup(`<b>Pojazd na patrolu</b><br>Typ: ${serviceType}`);
+                    } else {
+                        window.vehicleMarkers[vehicleId].setLatLng([curLat, curLng]);
+                    }
+                }
+
+                if (step % pingFrequency === 0) {
+                    await pingVehicleLocation(vehicleId, serviceType, curLat, curLng, 0);
+                }
+                step++;
+            }, 1000);
+        }
+    } catch (e) { console.warn("OSRM Patrol Wait:", e); }
+};
+
+window.getRandomLocationInRadius = function (centerLat, centerLng, radiusKm) {
+    const radiusInDegrees = radiusKm / 111.3;
+    const u = Math.random();
+    const v = Math.random();
+    const w = radiusInDegrees * Math.sqrt(u);
+    const t = 2 * Math.PI * v;
+    const deltaLat = w * Math.sin(t);
+    const deltaLng = w * Math.cos(t) / Math.cos(centerLat * (Math.PI / 180));
+    return { lat: centerLat + deltaLat, lng: centerLng + deltaLng };
+};
+
+async function pingVehicleLocation(id, type, lat, lng, statusId) {
+    let url = '';
+    if (type === 'police') url = `/api/Police/cars/${id}/location`;
+    else if (type === 'fire') url = `/api/Fire/firetrucks/${id}/location`;
+    else if (type === 'medic') url = `/api/Medical/ambulances/${id}/location`;
+
+    try {
+        await fetch(url, {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude: lat, longitude: lng, status: statusId })
+        });
+    } catch (e) { console.error("PING Error:", e); }
+}
 
 window.deleteCenter = async function (id) {
     if (confirm("Usunąć tę placówkę?")) {
@@ -559,15 +710,53 @@ window.updateCounters = async function () {
     if (!window.jwtToken) return;
     const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
     try {
-        const [p, f, m] = await Promise.all([
+        const [p, f, m, polDepts, fireDepts, hospitals] = await Promise.all([
             fetch('/api/Police/cars', { headers }).then(r => r.json()),
             fetch('/api/Fire/firetrucks', { headers }).then(r => r.json()),
-            fetch('/api/Medical/ambulances', { headers }).then(r => r.json())
+            fetch('/api/Medical/ambulances', { headers }).then(r => r.json()),
+            fetch('/api/Police/departments', { headers }).then(r => r.json()),
+            fetch('/api/Fire/departments', { headers }).then(r => r.json()),
+            fetch('/api/Medical/hospitals', { headers }).then(r => r.json())
         ]);
+
         document.getElementById('status-police').textContent = `${p.filter(c => c.isAvailable).length} / ${p.length}`;
         document.getElementById('status-fire').textContent = `${f.filter(c => c.isAvailable).length} / ${f.length}`;
         document.getElementById('status-medic').textContent = `${m.filter(c => c.isAvailable).length} / ${m.length}`;
-    } catch (e) { console.error(e); }
+
+        p.filter(c => c.isAvailable).forEach(car => {
+            const dept = polDepts.find(d => d.id === car.pDepartmentId || d.Id === car.PDepartmentId);
+            if (dept && !window.activeSimulations[car.id || car.Id]) {
+                const baseLat = dept.latitude || dept.Latitude;
+                const baseLng = dept.longitude || dept.Longitude;
+                const rad = dept.operatingRadiusKm || 15;
+                window.startPatrolSimulation(car.id || car.Id, 'police', car.latitude, car.longitude, baseLat, baseLng, rad);
+            }
+        });
+
+        m.filter(c => c.isAvailable).forEach(amb => {
+            const hosp = hospitals.find(h => h.id === amb.hospitalId || h.Id === amb.HospitalId);
+            if (hosp && !window.activeSimulations[amb.id || amb.Id]) {
+                const baseLat = hosp.latitude || hosp.Latitude;
+                const baseLng = hosp.longitude || hosp.Longitude;
+                const rad = hosp.operatingRadiusKm || 15;
+                window.startPatrolSimulation(amb.id || amb.Id, 'medic', amb.latitude, amb.longitude, baseLat, baseLng, rad);
+            }
+        });
+
+        // Jeśli chcesz, żeby Straż też jeździła losowo, odkomentuj to:
+        /*
+        f.filter(c => c.isAvailable).forEach(truck => {
+            const fDept = fireDepts.find(d => d.id === truck.fDepartmentId || d.Id === truck.FDepartmentId);
+            if (fDept && !window.activeSimulations[truck.id || truck.Id]) {
+                const baseLat = fDept.latitude || fDept.Latitude;
+                const baseLng = fDept.longitude || fDept.Longitude;
+                const rad = fDept.operatingRadiusKm || 15;
+                window.startPatrolSimulation(truck.id || truck.Id, 'fire', truck.latitude, truck.longitude, baseLat, baseLng, rad);
+            }
+        });
+        */
+
+    } catch (e) { console.error("Błąd podczas aktualizacji liczników i patroli:", e); }
 };
 
 window.refreshAll = async function () {

@@ -322,5 +322,33 @@ namespace _211system.Controllers
 
             return Ok(incidentDetails);
         }
+
+        [HttpPut("ambulances/{id}/location")]
+        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> UpdateAmbulanceLocation(Guid id, [FromBody] UpdateLocationDto dto)
+        {
+            try
+            {
+                var ambulance = await _context.Ambulances.FindAsync(id);
+                if (ambulance == null) return NotFound(new { message = "Karetka o podanym ID nie istnieje." });
+
+                ambulance.Latitude = dto.Latitude;
+                ambulance.Longitude = dto.Longitude;
+
+                if (dto.Status.HasValue)
+                {
+                    ambulance.Status = (VehicleOperationalStatus)dto.Status.Value;
+                }
+
+                _context.Ambulances.Update(ambulance);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Pozycja karetki została zaktualizowana." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd podczas aktualizacji GPS: " + ex.Message });
+            }
+        }
     }
 }

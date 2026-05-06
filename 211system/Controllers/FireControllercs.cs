@@ -344,5 +344,33 @@ namespace _211system.Controllers
             if (eq != null) { _context.FireEquipments.Remove(eq); await _context.SaveChangesAsync(); }
             return Ok();
         }
+
+        [HttpPut("firetrucks/{id}/location")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Strazak, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> UpdateFireTruckLocation(Guid id, [FromBody] UpdateLocationDto dto)
+        {
+            try
+            {
+                var truck = await _context.FireTrucks.FindAsync(id);
+                if (truck == null) return NotFound(new { message = "Wóz strażacki o podanym ID nie istnieje." });
+
+                truck.Latitude = dto.Latitude;
+                truck.Longitude = dto.Longitude;
+
+                if (dto.Status.HasValue)
+                {
+                    truck.Status = (VehicleOperationalStatus)dto.Status.Value;
+                }
+
+                _context.FireTrucks.Update(truck);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Pozycja wozu strażackiego została zaktualizowana." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd podczas aktualizacji GPS: " + ex.Message });
+            }
+        }
     }
 }
