@@ -25,23 +25,61 @@ window.loadOperators = async function () {
         const response = await fetch('/api/Operators', { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         if (response.ok) {
             const data = await response.json();
-            tableBody.innerHTML = data.map(o => {
+            tableBody.innerHTML = '';
+
+            data.forEach(o => {
                 let bs = (o.rank === 'Admin112' || o.rank === 'Admin') ? "background-color: #dc3545; color: white;" : (o.rank === 'Dyspozytor112' ? "background-color: #343a40; color: white;" : "background-color: #6c757d; color: white;");
-                return `
+                const email = o.email || o.Email || "";
+
+                let actionBtns = `
+                    <button class="btn btn-sm btn-dark mr-1" onclick="window.manageAccountLock('${email}')" title="Zablokuj/Odblokuj dostęp"><i class="fas fa-user-lock"></i></button>
+                    <button class="btn btn-sm btn-outline-info mr-1" onclick="window.openEditRankModal('${o.id}', '${o.rank}')">Ranga</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="window.deleteOperator('${o.id}')"><i class="fas fa-trash-alt"></i></button>
+                `;
+
+                tableBody.insertAdjacentHTML('beforeend', `
                 <tr>
                     <td class="align-middle"><i class="fas fa-user-circle text-secondary mr-2"></i> <b>${o.firstName} ${o.lastName}</b></td>
                     <td class="align-middle"><span class="badge p-2 shadow-sm" style="${bs} min-width: 100px; display: inline-block;">${o.rank}</span></td>
                     <td class="align-middle font-italic">${o.stationNumber}</td>
-                    <td class="align-middle text-right">
-                        <button class="btn btn-sm btn-outline-info mr-1" onclick="window.openEditRankModal('${o.id}', '${o.rank}')">Ranga</button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="window.deleteOperator('${o.id}')"><i class="fas fa-trash-alt"></i></button>
+                    
+                    <!-- NOWA KOLUMNA (4) - Email i Status -->
+                    <td class="align-middle">
+                        ${email}<br/>
+                        <span id="lock-status-${o.id}"><span class="badge bg-secondary"><i class="fas fa-spinner fa-spin"></i> Sprawdzanie...</span></span>
                     </td>
-                </tr>`;
-            }).join('');
+                    
+                    <!-- KOLUMNA Z PRZYCISKAMI (5) -->
+                    <td class="align-middle text-right" style="white-space: nowrap;">
+                        ${actionBtns}
+                    </td>
+                </tr>`);
+
+                if(email && email !== "Brak Emaila" && email !== "Brak") {
+                    setTimeout(async () => {
+                        try {
+                            const statusRes = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                            if (statusRes.ok) {
+                                const isLocked = await statusRes.json();
+                                const badgeEl = document.getElementById(`lock-status-${o.id}`);
+                                if(badgeEl) {
+                                    badgeEl.innerHTML = isLocked 
+                                        ? '<span class="badge bg-danger"><i class="fas fa-lock"></i> Zablokowane</span>'
+                                        : '<span class="badge bg-success"><i class="fas fa-lock-open"></i> Aktywne</span>';
+                                }
+                            }
+                        } catch (e) {}
+                    }, 50);
+                } else {
+                    setTimeout(() => {
+                        const badgeEl = document.getElementById(`lock-status-${o.id}`);
+                        if(badgeEl) badgeEl.innerHTML = '<span class="badge bg-dark">Brak konta</span>';
+                    }, 50);
+                }
+            });
         }
     } catch (e) { console.error("Błąd loadOperators:", e); }
 };
-
 window.registerNewOperator = async function () {
     const dto = {
         firstName: document.getElementById('regFirstName').value,
@@ -59,7 +97,20 @@ window.registerNewOperator = async function () {
         });
         if (response.ok) {
             const result = await response.json();
-            alert(`Konto utworzone! Hasło tymczasowe: ${result.temporaryPassword}`);
+            document.getElementById('regFirstName').value = '';
+            document.getElementById('regLastName').value = '';
+            document.getElementById('regStation').value = '';
+            document.getElementById('regEmail').value = '';
+            
+            const generatedPass = result.temporaryPassword || result.password || "Zarządzane przez AzureAD";
+            const passDisplay = document.getElementById('new-password-display');
+            if(passDisplay) {
+                passDisplay.innerText = generatedPass;
+                $('#unlockedAccountModal').modal('show');
+            } else {
+                alert(`Konto utworzone! Hasło tymczasowe: ${generatedPass}`);
+            }
+
             window.loadOperators();
         } else {
             const err = await response.json();
@@ -100,6 +151,50 @@ window.deleteOperator = async function (id) {
     if (confirm("Usunąć operatora?")) {
         await fetch(`/api/Operators/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         await window.loadOperators();
+    }
+};
+
+window.manageAccountLock = async function(email) {
+    if (!email || email === "Brak Emaila" || email === "Brak") {
+        alert("Brak przypisanego adresu email. Skontaktuj się z administratorem.");
+        return;
+    }
+
+    try {
+        const statusRes = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+        if (!statusRes.ok) throw new Error("Błąd pobierania statusu.");
+        const isLocked = await statusRes.json();
+
+        if (isLocked) {
+            if(confirm(`UWAGA: Konto operatora ${email} jest obecnie ZABLOKOWANE.\n\nCzy chcesz je ODBLOKOWAĆ i wygenerować nowe hasło dostępowe?`)) {
+                const unlockRes = await fetch(`/api/Auth/unlock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                
+                if(unlockRes.ok) {
+                    const data = await unlockRes.json();
+                    document.getElementById('new-password-display').innerText = data.newPassword;
+                    $('#unlockedAccountModal').modal('show');
+                    
+                    $('#unlockedAccountModal').on('hidden.bs.modal', function () {
+                        window.loadOperators();
+                    });
+                } else {
+                    alert("Wystąpił błąd podczas odblokowywania konta.");
+                }
+            }
+        } else {
+            if(confirm(`Konto operatora ${email} jest obecnie AKTYWNE.\n\nCzy na pewno chcesz zablokować dostęp do systemu?`)) {
+                const lockRes = await fetch(`/api/Auth/lock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                
+                if(lockRes.ok) {
+                    alert("Konto zostało pomyślnie zablokowane!");
+                    window.loadOperators();
+                } else {
+                    alert("Wystąpił błąd podczas blokowania konta.");
+                }
+            }
+        }
+    } catch (e) {
+        alert("Błąd połączenia z serwerem autoryzacji.");
     }
 };
 

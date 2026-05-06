@@ -17,25 +17,18 @@ if (currentPath.includes('/medic/')) {
 }
 
 function parseJwt(tokenString) {
-    if (!tokenString || typeof tokenString !== 'string') {
-        return null;
-    }
-
+    if (!tokenString || typeof tokenString !== 'string') return null;
     const parts = tokenString.split('.');
-    if (parts.length !== 3) {
-        return null;
-    }
+    if (parts.length !== 3) return null;
 
     try {
         const base64Url = parts[1];
         const base64 = base64Url.replaceAll('-', '+').replaceAll('_', '/');
-
         const jsonPayload = decodeURIComponent(
             globalThis.atob(base64).split('').map(function (c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join('')
         );
-
         return JSON.parse(jsonPayload);
     } catch (e) {
         console.error("JWT Parsing Error:", e.message);
@@ -53,7 +46,19 @@ if (token) {
         let roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
         currentUserRoles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
         currentUserEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
-        currentUserRoles.forEach(r => { if (moduleConfig.hierarchy[r] && moduleConfig.hierarchy[r] > myRankValue) myRankValue = moduleConfig.hierarchy[r]; });
+        
+        const hierarchyKeys = Object.keys(moduleConfig.hierarchy);
+        
+        currentUserRoles.forEach(r => { 
+            if (!r) return;
+            const match = hierarchyKeys.find(k => k.toLowerCase() === r.toLowerCase());
+            if (match && moduleConfig.hierarchy[match] > myRankValue) {
+                myRankValue = moduleConfig.hierarchy[match]; 
+            }
+        });
+        if (currentUserRoles.some(r => r && r.toLowerCase() === "admin")) {
+            myRankValue = 100;
+        }
     }
 }
 
@@ -69,9 +74,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     const roleSelect = document.getElementById('staffRole');
     const editRoleSelect = document.getElementById('editStaffRole');
-    const btnAddModal = document.querySelector('[data-target="#addPersonnelModal"]');
+    const btnAddModal = document.getElementById('btn-open-personnel-modal');
 
-    const assignableRoles = Object.keys(moduleConfig.hierarchy).filter(role => role !== "Admin" && moduleConfig.hierarchy[role] < myRankValue);
+    let assignableRoles = [];
+    if (myRankValue >= 2) {
+        assignableRoles = Object.keys(moduleConfig.hierarchy).filter(role => role !== "Admin" && moduleConfig.hierarchy[role] <= myRankValue);
+    }
 
     if (assignableRoles.length > 0) {
         if (btnAddModal) btnAddModal.classList.remove('d-none');
@@ -111,7 +119,8 @@ async function loadDepartmentDetails() {
                     document.getElementById('dept-region').textContent = region || "Brak danych";
                     document.getElementById('editDeptRegion').value = region;
                 } else {
-                    document.getElementById('editDeptRegionContainer').classList.add('d-none');
+                    const regionContainer = document.getElementById('editDeptRegionContainer');
+                    if (regionContainer) regionContainer.classList.add('d-none');
                 }
             }
         }
@@ -135,7 +144,7 @@ async function loadPersonnel() {
 
             tableBody.innerHTML = '';
             if (deptStaff.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Brak przypisanego personelu.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak przypisanego personelu.</td></tr>';
                 return;
             }
 
@@ -145,13 +154,15 @@ async function loadPersonnel() {
                 const lName = p.lastName || p.LastName || p.lastname || p.Lastname || "";
                 const rank = p[moduleConfig.roleKey] || p[moduleConfig.roleKey.charAt(0).toUpperCase() + moduleConfig.roleKey.slice(1)] || "Pracownik";
                 const license = p[moduleConfig.licenseLabel] || p[moduleConfig.licenseLabel.charAt(0).toUpperCase() + moduleConfig.licenseLabel.slice(1)] || "";
+                const email = p.email || p.Email || "";
 
                 const avatarUrl = p.avatarUrl || p.AvatarUrl || `https://ui-avatars.com/api/?name=${fName}+${lName}&background=random&color=fff`;
                 const targetRankValue = moduleConfig.hierarchy[rank] || 0;
 
                 let actionBtns = '';
-                if (myRankValue > targetRankValue) {
+                if (myRankValue > targetRankValue || myRankValue === 100) {
                     actionBtns = `
+                        <button onclick="globalThis.manageAccountLock('${email}')" class="btn btn-sm btn-dark mr-1" title="Zarządzaj dostępem (Zablokuj/Odblokuj)"><i class="fas fa-user-lock"></i></button>
                         <button onclick="globalThis.openEditPersonnelModal('${pId}', '${fName}', '${lName}', '${license}', '${rank}')" class="btn btn-sm btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
                         <button onclick="globalThis.deletePersonnel('${pId}')" class="btn btn-sm btn-danger" title="Zwolnij"><i class="fas fa-trash"></i></button>
                     `;
@@ -163,9 +174,33 @@ async function loadPersonnel() {
                         <td class="align-middle"><b>${fName} ${lName}</b></td>
                         <td class="align-middle">${license}</td>
                         <td class="align-middle"><span class="badge ${moduleConfig.badgeColor} text-white" style="font-size: 0.9em; padding: 6px;">${rank}</span></td>
-                        <td class="align-middle text-right">${actionBtns}</td>
+                        <td class="align-middle">
+                            ${email}<br/>
+                            <span id="lock-status-${pId}"><span class="badge bg-secondary"><i class="fas fa-spinner fa-spin"></i> Sprawdzanie...</span></span>
+                        </td>
+                        <td class="align-middle text-right" style="white-space: nowrap;">${actionBtns}</td>
                     </tr>
                 `);
+
+                if(email && email !== "Brak Emaila" && email !== "Brak") {
+                    setTimeout(async () => {
+                        try {
+                            const statusRes = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                            if (statusRes.ok) {
+                                const isLocked = await statusRes.json();
+                                const badgeEl = document.getElementById(`lock-status-${pId}`);
+                                if(badgeEl) {
+                                    badgeEl.innerHTML = isLocked 
+                                        ? '<span class="badge bg-danger"><i class="fas fa-lock"></i> Zablokowane</span>'
+                                        : '<span class="badge bg-success"><i class="fas fa-lock-open"></i> Aktywne</span>';
+                                }
+                            }
+                        } catch (e) {}
+                    }, 50);
+                } else {
+                    const badgeEl = document.getElementById(`lock-status-${pId}`);
+                    if(badgeEl) badgeEl.innerHTML = '<span class="badge bg-dark">Brak konta</span>';
+                }
             });
         }
     } catch (e) {
@@ -178,7 +213,7 @@ document.getElementById('editDepartmentForm')?.addEventListener('submit', async 
     const payload = {
         name: document.getElementById('editDeptName').value,
         address: document.getElementById('editDeptAddress').value,
-        district: document.getElementById('editDeptRegion').value || ""
+        district: document.getElementById('editDeptRegion') ? document.getElementById('editDeptRegion').value : ""
     };
 
     try {
@@ -239,7 +274,7 @@ document.getElementById('addPersonnelForm')?.addEventListener('submit', async fu
     e.preventDefault();
     const btnSubmit = document.getElementById('btn-submit-staff');
     const successAlert = document.getElementById('generated-password-alert');
-    btnSubmit.disabled = true;
+    if (btnSubmit) btnSubmit.disabled = true;
 
     const payload = {
         name: document.getElementById('staffName').value,
@@ -259,21 +294,22 @@ document.getElementById('addPersonnelForm')?.addEventListener('submit', async fu
         });
         if (res.ok) {
             const data = await res.json();
-
             const fallbackUiText = "Auto-Generowane!";
             const generatedAuthToken = data.temporaryPassword || data.password;
-            document.getElementById('temp-password-display').textContent = generatedAuthToken ? generatedAuthToken : fallbackUiText;
+            
+            const passDisplay = document.getElementById('temp-password-display');
+            if (passDisplay) passDisplay.textContent = generatedAuthToken ? generatedAuthToken : fallbackUiText;
 
-            successAlert.classList.remove('d-none');
-            btnSubmit.classList.add('d-none');
+            if (successAlert) successAlert.classList.remove('d-none');
+            if (btnSubmit) btnSubmit.classList.add('d-none');
             await loadPersonnel();
         } else {
             alert("Błąd rejestracji.");
-            btnSubmit.disabled = false;
+            if (btnSubmit) btnSubmit.disabled = false;
         }
     } catch (e) {
         alert("Błąd sieci.");
-        btnSubmit.disabled = false;
+        if (btnSubmit) btnSubmit.disabled = false;
     }
 });
 
@@ -285,5 +321,48 @@ globalThis.deletePersonnel = async function (id) {
         else alert("Błąd usuwania.");
     } catch (e) {
         alert("Błąd sieci.");
+    }
+};
+
+globalThis.manageAccountLock = async function(email) {
+    if (!email || email === "Brak Emaila" || email === "Brak") {
+        alert("Brak przypisanego adresu email. Skontaktuj się z administratorem.");
+        return;
+    }
+
+    try {
+        const statusRes = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!statusRes.ok) throw new Error("Błąd pobierania statusu.");
+        const isLocked = await statusRes.json();
+
+        if (isLocked) {
+            if(confirm(`UWAGA: Konto funkcjonariusza ${email} jest obecnie ZABLOKOWANE.\n\nCzy chcesz je ODBLOKOWAĆ i wygenerować nowe hasło dostępowe?`)) {
+                const unlockRes = await fetch(`/api/Auth/unlock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+                
+                if(unlockRes.ok) {
+                    const data = await unlockRes.json();
+                    document.getElementById('new-password-display').innerText = data.newPassword;
+                    $('#unlockedAccountModal').modal('show');
+                    $('#unlockedAccountModal').on('hidden.bs.modal', function () {
+                        window.location.reload();
+                    });
+                } else {
+                    alert("Wystąpił błąd podczas odblokowywania konta.");
+                }
+            }
+        } else {
+            if(confirm(`Konto funkcjonariusza ${email} jest obecnie AKTYWNE.\n\nCzy na pewno chcesz zablokować dostęp do systemu 211?`)) {
+                const lockRes = await fetch(`/api/Auth/lock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+                
+                if(lockRes.ok) {
+                    alert("Konto zostało pomyślnie zablokowane!");
+                    window.location.reload();
+                } else {
+                    alert("Wystąpił błąd podczas blokowania konta.");
+                }
+            }
+        }
+    } catch (e) {
+        alert("Błąd połączenia z serwerem autoryzacji.");
     }
 };

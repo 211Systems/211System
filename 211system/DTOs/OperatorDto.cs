@@ -11,6 +11,7 @@ namespace _211system.DTOs
         public string OpAccountId { get; set; } = string.Empty;
         public Guid EncId { get; set; }
         public string Rank { get; set; } = string.Empty; 
+        public string Email { get; set; }
     }
 
     public class CreateOperatorDto
