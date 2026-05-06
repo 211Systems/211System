@@ -1,8 +1,9 @@
-﻿using _211system.Data;
+﻿using System.Globalization;
+using _211system.Data;
 using _211system.DTOs.CPR112;
-using Microsoft.EntityFrameworkCore;
-using CPR112.Models;
 using _211system.Models;
+using CPR112.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Services
 {
@@ -25,6 +26,14 @@ namespace _211system.Services
 
             var incidentNumber = $"112/{now:yyyy/MM/dd}/{(todayIncidentsCount + 1):D3}";
 
+            double lat = 0;
+            double lon = 0;
+            if (!string.IsNullOrEmpty(dto.Latitude))
+                lat = double.Parse(dto.Latitude.Replace(',', '.'), CultureInfo.InvariantCulture);
+
+            if (!string.IsNullOrEmpty(dto.Longitude))
+                lon = double.Parse(dto.Longitude.Replace(',', '.'), CultureInfo.InvariantCulture);
+
             var incident = new Incident
             {
                 Id = Guid.NewGuid(),
@@ -34,7 +43,8 @@ namespace _211system.Services
                 SeverityLevelId = dto.SeverityLevelId,
                 IncidentTypeId = dto.IncidentTypeId,
                 ReportDate = now,
-                LocationId = dto.LocationId,
+                Latitude = lat,
+                Longitude = lon,
                 OperatorId = dto.OperatorId,
                 PhotoUrl = dto.PhotoUrl
             };
@@ -54,7 +64,8 @@ namespace _211system.Services
                 Severity = incident.SeverityLevel != null ? incident.SeverityLevel.Name : "Brak",
                 IncidentType = incident.IncidentType != null ? incident.IncidentType.Name : "Brak",
                 ReportedAt = incident.ReportDate,
-                LocationId = incident.LocationId,
+                Latitude = incident.Latitude,
+                Longitude = incident.Longitude,
                 OperatorId = incident.OperatorId,
                 PhotoUrl = incident.PhotoUrl
             };
@@ -78,7 +89,8 @@ namespace _211system.Services
                 Severity = incident.SeverityLevel != null ? incident.SeverityLevel.Name : "Brak",
                 IncidentType = incident.IncidentType != null ? incident.IncidentType.Name : "Brak",
                 ReportedAt = incident.ReportDate,
-                LocationId = incident.LocationId,
+                Latitude = incident.Latitude,
+                Longitude = incident.Longitude,
                 OperatorId = incident.OperatorId,
                 PhotoUrl = incident.PhotoUrl
             };

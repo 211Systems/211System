@@ -1,13 +1,58 @@
-﻿window.registerNewCenter = async function () {
+﻿let currentRouteLayer = null;
+
+async function drawRoute(startLat, startLon, endLat, endLon) {
+    if (!map) return;
+
+    if (currentRouteLayer) {
+        map.removeLayer(currentRouteLayer);
+    }
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.routes && data.routes.length > 0) {
+            const coordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            const distance = (data.routes[0].distance / 1000).toFixed(2);
+            const duration = Math.round(data.routes[0].duration / 60);
+
+            currentRouteLayer = L.polyline(coordinates, { color: 'blue', weight: 5, opacity: 0.7 }).addTo(map);
+
+            map.fitBounds(currentRouteLayer.getBounds());
+
+            console.log(`Dystans: ${distance} km, Przewidywany czas: ${duration} min`);
+        }
+    } catch (e) {
+        console.error("Błąd routingu:", e);
+    }
+}
+
+window.registerNewCenter = async function () {
     const nameVal = document.getElementById('centerName').value;
     const regionVal = document.getElementById('centerRegion').value;
+
+    const latVal = document.getElementById('centerLat').value;
+    const lngVal = document.getElementById('centerLng').value;
+    const radiusVal = document.getElementById('centerRadius').value;
 
     if (!nameVal || !regionVal) {
         alert("Proszę uzupełnić nazwę placówki i region!");
         return;
     }
+    if (!latVal || !lngVal) {
+        alert("Kliknij na mapie, aby wyznaczyć lokalizację placówki!");
+        return;
+    }
 
-    const dto = { name: nameVal, region: regionVal };
+    const dto = {
+        name: nameVal,
+        region: regionVal,
+        latitude: parseFloat(latVal),
+        longitude: parseFloat(lngVal),
+        operatingRadiusKm: parseFloat(radiusVal)
+    };
 
     try {
         const response = await fetch('/api/Enc', {
@@ -21,10 +66,16 @@
 
         if (response.ok) {
             alert("Sukces! Placówka została dodana do systemu.");
+
             document.getElementById('centerName').value = '';
             document.getElementById('centerRegion').value = '';
+            document.getElementById('centerLat').value = '';
+            document.getElementById('centerLng').value = '';
+            document.getElementById('centerRadius').value = '15';
+
             if (typeof window.loadCenters === 'function') await window.loadCenters();
             if (typeof window.loadCentersToSelect === 'function') await window.loadCentersToSelect();
+            if (typeof window.refreshMapData === 'function') window.refreshMapData();
         } else {
             const errorText = await response.text();
             alert(`Błąd serwera: ${response.status}. Szczegóły: ${errorText}`);
@@ -73,7 +124,7 @@ window.registerNewOperator = async function () {
     }
 };
 
-window.openDispatchModal = async function (type, targetIncidentId = null) {
+window.openDispatchModal = async function (type, targetIncidentId = null, incLat = null, incLng = null) {
     document.getElementById('dispatchTargetIncidentId').value = targetIncidentId || '';
     const tbody = document.getElementById('available-units-list');
     tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4">Ładowanie... <i class="fas fa-spinner fa-spin"></i></td></tr>';
@@ -83,21 +134,24 @@ window.openDispatchModal = async function (type, targetIncidentId = null) {
     const headerEl = document.getElementById('dispatch-modal-header');
 
     let apiUrl = '';
+    let unitTypeMap = {};
+
     if (type === 'police') {
         titleEl.innerHTML = '<i class="fas fa-car-side mr-2"></i> Dysponowanie Radiowozu';
         headerEl.className = 'modal-header bg-primary text-white';
-        typeCol.textContent = 'Kierowca / Ranga';
+        typeCol.textContent = 'Typ';
         apiUrl = '/api/Police/cars';
     } else if (type === 'fire') {
         titleEl.innerHTML = '<i class="fas fa-fire-extinguisher mr-2"></i> Dysponowanie Wozu PSP';
         headerEl.className = 'modal-header bg-danger text-white';
-        typeCol.textContent = 'Dowódca Wozu';
+        typeCol.textContent = 'Typ';
         apiUrl = '/api/Fire/firetrucks';
     } else if (type === 'medic') {
         titleEl.innerHTML = '<i class="fas fa-ambulance mr-2"></i> Dysponowanie Karetki';
         headerEl.className = 'modal-header bg-success text-white';
         typeCol.textContent = 'Typ Karetki';
-        apiUrl = '/api/Medical/ambulances';
+        apiUrl = '/api/Medical/ambulances/available';
+        unitTypeMap = { 0: "S", 1: "T", 2: "P", 3: "N" };
     }
 
     $('#universalDispatchModal').modal('show');
@@ -107,24 +161,48 @@ window.openDispatchModal = async function (type, targetIncidentId = null) {
         const units = await res.json();
 
         tbody.innerHTML = '';
-        if (units.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4">Brak wolnych jednostek.</td></tr>';
+
+        const availableUnits = units.filter(u => u.isAvailable !== false);
+
+        if (availableUnits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center p-4">Brak wolnych jednostek w rejonie.</td></tr>';
             return;
         }
 
-        units.filter(u => u.isAvailable !== false).forEach(u => {
+        availableUnits.forEach(u => {
             const id = u.id || u.Id;
             const plate = u.licensePlate || u.LicensePlate;
+
+            let uType = "Wóz";
+            if (type === 'medic') {
+                uType = u.type !== undefined ? (unitTypeMap[u.type] || u.type) : "Karetka";
+            } else if (type === 'police') {
+                uType = "Radiowóz";
+            } else if (type === 'fire') {
+                uType = "Wóz Bojowy";
+            }
+
+            const unitLat = u.latitude || u.Latitude || 0;
+            const unitLng = u.longitude || u.Longitude || 0;
+
             tbody.insertAdjacentHTML('beforeend', `
-                <tr class="amb-row" onclick="window.dispatchUnit('${type}', '${id}')">
-                    <td><b>${plate}</b></td>
-                    <td>Aktywny</td>
-                    <td>Baza systemowa</td>
-                    <td class="text-right"><button class="btn btn-sm btn-dark">Wyślij</button></td>
+                <tr class="amb-row">
+                    <td class="align-middle"><b>${plate}</b></td>
+                    <td class="align-middle"><span class="badge badge-secondary">${uType}</span></td>
+                    <td class="align-middle">Baza macierzysta</td>
+                    <td class="text-right align-middle">
+                        ${(unitLat !== 0 && incLat !== null) ?
+                    `<button class="btn btn-sm btn-info shadow-sm mr-1" title="Podgląd dojazdu" onclick="window.drawRoute(${unitLat}, ${unitLng}, ${incLat}, ${incLng})">
+                                <i class="fas fa-route"></i>
+                            </button>` : ''
+                }
+                        <button class="btn btn-sm btn-dark font-weight-bold shadow-sm" onclick="window.dispatchUnit('${type}', '${id}')">WYŚLIJ</button>
+                    </td>
                 </tr>`);
         });
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Błąd ładowania danych.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Błąd ładowania danych z serwera.</td></tr>';
+        console.error("Szczegóły błędu dysponowania:", e);
     }
 };
 
@@ -197,11 +275,19 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('createIncidentForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-incident');
-        const locSelect = document.getElementById('incLocationId');
         const typeSelect = document.getElementById('incType');
 
-        if (!locSelect.value) { alert("Wybierz lokalizację!"); return; }
-        if (!typeSelect.value) { alert("Wybierz typ zdarzenia!"); return; }
+        const latVal = document.getElementById('incLat').value;
+        const lngVal = document.getElementById('incLng').value;
+
+        if (!latVal || !lngVal) {
+            alert("Kliknij na mapie, aby wyznaczyć dokładną lokalizację zdarzenia!");
+            return;
+        }
+        if (!typeSelect.value) {
+            alert("Wybierz typ zdarzenia!");
+            return;
+        }
 
         btn.disabled = true;
         const formData = new FormData();
@@ -209,7 +295,9 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append('Description', document.getElementById('incDescription').value);
         formData.append('SeverityLevelId', parseInt(document.getElementById('incSeverity').value));
         formData.append('IncidentTypeId', parseInt(typeSelect.value));
-        formData.append('LocationId', locSelect.value);
+
+        formData.append('Latitude', latVal);
+        formData.append('Longitude', lngVal);
 
         if (window.currentOperatorId) {
             formData.append('OperatorId', window.currentOperatorId);
@@ -231,13 +319,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 alert("Zgłoszenie zarejestrowane pomyślnie!");
                 document.getElementById('incDescription').value = '';
                 document.getElementById('incType').value = '';
+                document.getElementById('incLat').value = '';
+                document.getElementById('incLng').value = '';
                 if (fileInput) fileInput.value = '';
                 document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
+
                 window.refreshAll();
             } else {
                 const errData = await response.json();
                 console.error("Szczegóły błędu 400:", errData);
-                alert("Błąd serwera: Sprawdź konsolę, aby zobaczyć które pole nie przeszło walidacji.");
+                alert("Błąd serwera. Sprawdź konsolę.");
             }
         } catch (err) {
             console.error("Błąd sieci:", err);
@@ -395,9 +486,9 @@ window.loadIncidents = async function () {
                         <div class="btn-group">
                             <button class="btn btn-xs btn-outline-light ml-1 mr-1" onclick="window.showHistory('${inc.id}')" title="Historia logów"><i class="fas fa-history"></i></button>
                             <button class="btn btn-xs btn-info" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-xs btn-primary ml-1" onclick="window.openDispatchModal('police', '${inc.id}')" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
-                            <button class="btn btn-xs btn-danger ml-1" onclick="window.openDispatchModal('fire', '${inc.id}')" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
-                            <button class="btn btn-xs btn-success ml-1" onclick="window.openDispatchModal('medic', '${inc.id}')" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
+                            <button class="btn btn-xs btn-primary ml-1" onclick="window.openDispatchModal('police', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
+                            <button class="btn btn-xs btn-danger ml-1" onclick="window.openDispatchModal('fire', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
+                            <button class="btn btn-xs btn-success ml-1" onclick="window.openDispatchModal('medic', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
                             ${isAdmin ? `<button class="btn btn-xs btn-outline-danger ml-1" onclick="window.deleteIncident('${inc.id}')"><i class="fas fa-trash"></i></button>` : ''}
                         </div>
                     </td>
@@ -485,6 +576,7 @@ window.refreshAll = async function () {
         window.updateCounters(),
         window.loadIncidentStats()
     ]);
+    if (typeof window.refreshMapData === 'function') window.refreshMapData();
 };
 
 window.togglePanels = function () {

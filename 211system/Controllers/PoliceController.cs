@@ -127,7 +127,7 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
         public async Task<IActionResult> GetAllCars()
         {
-            var cars = await _context.PoliceCars.ToListAsync();
+            var cars = await _policeService.GetAllPoliceCarsAsync();
             return Ok(cars);
         }
 
@@ -262,7 +262,7 @@ namespace _211system.Controllers
                     severity = i.SeverityLevel != null ? i.SeverityLevel.Name : "Brak",
                     incidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
                     status = i.Status,
-                    address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Nieznana",
+                    Address = $"GPS: {i.Latitude}, {i.Longitude}",
                     reportDate = i.ReportDate
                 })
                 .FirstOrDefaultAsync();

@@ -314,7 +314,7 @@ namespace _211system.Controllers
                     IncidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
                     Status = i.Status,
                     ReportDate = i.ReportDate,
-                    Address = i.Location != null ? i.Location.Name + " (" + i.Location.Region + ")" : "Brak dokładnej lokalizacji"
+                    Address = i.Latitude != 0 && i.Longitude != 0 ? $"GPS: {i.Latitude}, {i.Longitude}" : "Brak dokładnej lokalizacji"
                 })
                 .FirstOrDefaultAsync();
 

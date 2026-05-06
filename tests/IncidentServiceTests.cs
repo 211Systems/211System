@@ -48,7 +48,8 @@ namespace _211system.Tests
                 Description = "Test",
                 SeverityLevelId = 3,
                 IncidentTypeId = 1,
-                LocationId = Guid.NewGuid()
+                Latitude = "52.2297",
+                Longitude = "21.0122"
             };
 
             var result = await service.CreateIncidentAsync(dto);
@@ -71,10 +72,11 @@ namespace _211system.Tests
                 IncidentNumber = "112/2024/01/01/001",
                 Description = "Test",
                 Status = "Nowe",
-                SeverityLevelId = 1, // Zamiast tekstowego "Niski"
+                SeverityLevelId = 1,
                 IncidentTypeId = 1,
                 ReportDate = DateTime.UtcNow,
-                LocationId = Guid.NewGuid()
+                Latitude = 52.2297,
+                Longitude = 21.0122
             };
             context.Incidents.Add(incident);
             await context.SaveChangesAsync();
@@ -102,7 +104,8 @@ namespace _211system.Tests
                 SeverityLevelId = 1,
                 IncidentTypeId = 1,
                 ReportDate = DateTime.UtcNow,
-                LocationId = Guid.NewGuid()
+                Latitude = 52.2297,
+                Longitude = 21.0122
             };
             context.Incidents.Add(incident);
             await context.SaveChangesAsync();
@@ -137,7 +140,8 @@ namespace _211system.Tests
                 IncidentTypeId = 1,
                 IncidentNumber = "123",
                 Description = "Test",
-                LocationId = Guid.NewGuid()
+                Latitude = 52.2297,
+                Longitude = 21.0122
             };
             context.Incidents.Add(incident);
             await context.SaveChangesAsync();
@@ -168,7 +172,8 @@ namespace _211system.Tests
                 IncidentTypeId = 1,
                 IncidentNumber = "123",
                 Description = "Test",
-                LocationId = Guid.NewGuid()
+                Latitude = 52.2297,
+                Longitude = 21.0122
             };
             context.Incidents.Add(incident);
             await context.SaveChangesAsync();

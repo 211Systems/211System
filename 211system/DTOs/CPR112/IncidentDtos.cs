@@ -8,7 +8,8 @@ namespace _211system.DTOs.CPR112
         public string Description { get; set; }
         public int SeverityLevelId { get; set; }
         public int IncidentTypeId { get; set; }
-        public Guid LocationId { get; set; }
+        public string Latitude { get; set; }
+        public string Longitude { get; set; }
         public Guid? OperatorId { get; set; }
         public string? PhotoUrl { get; set; }
     }
@@ -22,7 +23,8 @@ namespace _211system.DTOs.CPR112
         public string IncidentType { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime ReportedAt { get; set; }
-        public Guid LocationId { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
         public Guid? OperatorId { get; set; }
         public string? PhotoUrl { get; set; }
     }

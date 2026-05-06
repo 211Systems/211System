@@ -7,6 +7,9 @@ namespace _211system.Models.Dtos.Police
         public string Name { get; set; }
         public string Address { get; set; }
         public string District { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double OperatingRadiusKm { get; set; }
     }
 
     public class CreatePolicemanDto
@@ -45,6 +48,9 @@ namespace _211system.Models.Dtos.Police
         public string Name { get; set; }
         public string Address { get; set; }
         public string District { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double OperatingRadiusKm { get; set; }
     }
 
     public class PolicemanDto
@@ -65,5 +71,7 @@ namespace _211system.Models.Dtos.Police
         public Guid PDepartmentId { get; set; }
         public bool IsAvailable { get; set; }
         public Guid? PolicemanId { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
     }
 }

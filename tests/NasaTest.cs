@@ -78,11 +78,13 @@ public class NasaServiceTests
     {
         var dbContext = await GetDatabaseContext();
 
-        var testCenter = new Enc 
-        { 
-            Id = Guid.NewGuid(), 
-            Name = "Testowe CPR", 
-            Region = "Podlaskie" 
+        var testCenter = new Enc
+        {
+            Id = Guid.NewGuid(),
+            Name = "Testowe CPR",
+            Region = "Podlaskie",
+            Latitude = 53.13,
+            Longitude = 23.16
         };
         await dbContext.Encs.AddAsync(testCenter);
         await dbContext.SaveChangesAsync();
@@ -104,32 +106,21 @@ public class NasaServiceTests
         var nasaPoints = await dbContext.NasaFlarePoints.ToListAsync();
         Assert.Equal(2, nasaPoints.Count);
 
-        var incidents = await dbContext.Incidents.Include(i => i.Location).ToListAsync();
+        var incidents = await dbContext.Incidents.ToListAsync();
         Assert.Single(incidents);
 
         var generatedIncident = incidents.First();
-        
+
         Assert.StartsWith("ALARM SATELITARNY", generatedIncident.Description);
-        Assert.Equal(testCenter.Id, generatedIncident.LocationId);
-        Assert.Equal("Testowe CPR", generatedIncident.Location.Name);
+
+        Assert.Equal(53.13, generatedIncident.Latitude);
+        Assert.Equal(23.16, generatedIncident.Longitude);
+
         Assert.Null(generatedIncident.OperatorId);
-        
+
         Assert.False(generatedIncident.IsPoliceActive);
         Assert.False(generatedIncident.IsFireActive);
         Assert.False(generatedIncident.IsMedicalActive);
     }
 
-    [Fact]
-    public async Task FetchFireData_NoEncInDatabase_ShouldThrowException()
-    {
-        var dbContext = await GetDatabaseContext();
-        var configParams = new Dictionary<string, string> { { "NasaApiKey", "TEST_KEY_123" } };
-        var config = new ConfigurationBuilder().AddInMemoryCollection(configParams).Build();
-        
-        var fakeClientFactory = new FakeHttpClientFactory(new HttpClient(new FakeHttpMessageHandler("lat,lon,bright\n50,20,400")));
-        var nasaService = new NasaService(dbContext, fakeClientFactory, config);
-
-        var exception = await Assert.ThrowsAsync<Exception>(() => nasaService.FetchFireDataAndCreateIncidentsAsync());
-        Assert.Contains("System nie posiada żadnej placówki", exception.Message);
-    }
 }

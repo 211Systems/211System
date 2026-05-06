@@ -2,6 +2,18 @@
     ViewData["Title"] = "Centrum Powiadamiania Ratunkowego 112";
 }
 
+<div class="card card-dark shadow mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title m-0"><i class="fas fa-map-marked-alt"></i> Mapa Operacyjna</h3>
+        <div>
+            <button class="btn btn-sm btn-outline-light" onclick="window.refreshMapData()"><i class="fas fa-sync-alt"></i> Odśwież Mapę</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="map" style="height: 450px; width: 100%; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;"></div>
+    </div>
+</div>
+
 <div id="incidents-panel" class="fade-panel">
     <div class="row mb-3" id="status-board">
         <div class="col-md-4 col-12">
@@ -68,14 +80,24 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="form-group">
+                        @* <div class="form-group">
                             <label>Lokalizacja (Placówka)</label>
                             <select id="incLocationId" class="form-control" required>
                                 <option value="">Ładowanie placówek...</option>
                             </select>
-                        </div>
+                        </div> *@
                     </div>
                     <div class="card-footer">
+                        <div class="row">
+                            <div class="col-6">
+                                <label><small class="text-muted">Latitude (Z mapy)</small></label>
+                                <input type="text" id="incLat" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
+                            </div>
+                            <div class="col-6">
+                                <label><small class="text-muted">Longitude (Z mapy)</small></label>
+                                <input type="text" id="incLng" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
+                            </div>
+                        </div>
                         <button type="submit" class="btn btn-danger btn-block font-weight-bold" id="btn-submit-incident">
                             <i class="fas fa-plus"></i> Rejestruj Incydent
                         </button>
@@ -85,18 +107,18 @@
         </div>
 
         <div class="col-md-8">
+
             <div class="card card-dark shadow">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title m-0"><i class="fas fa-list-ul"></i> Aktywne Interwencje</h3>
                     <div>
                         <button class="btn btn-sm btn-warning text-dark mr-2" onclick="window.autoDispatchAI()"><i class="fas fa-magic"></i> Auto-Dyspozycja AI</button>
-                        <button class="btn btn-sm btn-outline-light" onclick="window.refreshAll()"><i class="fas fa-sync-alt"></i> Odśwież</button>
                     </div>
                 </div>
                 <div class="bg-dark p-2 border-bottom border-secondary d-flex flex-wrap gap-2 mb-2" id="stats-summary" style="gap: 10px;">
                     <!-- Statystyki wygeneruje JS -->
                 </div>
-                <div class="card-body p-0 table-responsive" style="max-height: 600px; overflow-y: auto;">
+                <div class="card-body p-0 table-responsive" style="max-height: 400px; overflow-y: auto;">
                     <table class="table table-striped table-hover m-0 table-valign-middle">
                         <thead class="bg-secondary">
                             <tr>
@@ -199,6 +221,21 @@
                             <label>Region / Lokalizacja</label>
                             <input type="text" id="centerRegion" class="form-control" placeholder="np. Mazowieckie" required>
                         </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6">
+                            <label><small class="text-muted">Latitude (Z mapy)</small></label>
+                            <input type="text" id="centerLat" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
+                        </div>
+                        <div class="col-6">
+                            <label><small class="text-muted">Longitude (Z mapy)</small></label>
+                            <input type="text" id="centerLng" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
+                        </div>
+                    </div>
+                    <div class="form-group mt-2">
+                        <label>Promień działania (KM)</label>
+                        <input type="number" id="centerRadius" class="form-control" value="15" required>
                     </div>
                     <div class="card-footer text-right">
                         <button type="button" onclick="window.registerNewCenter()" class="btn btn-warning text-bold">Dodaj Placówkę</button>
@@ -350,17 +387,49 @@
         </div>
     </div>
 </div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 @section Scripts {
     <script src="~/js/dispatch-ui.js" asp-append-version="true"></script>
+
     <script>
         window.jwtToken = localStorage.getItem('jwt');
+        let map;
+        let markersLayer;
+        let routeLayer;
+        let tempMarker = null;
 
         document.addEventListener("DOMContentLoaded", async function () {
             if (!window.jwtToken) {
                 window.location.href = "/AuthView/Login";
                 return;
             }
+
+            map = L.map('map').setView([52.2297, 21.0122], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            markersLayer = L.featureGroup().addTo(map);
+            routeLayer = L.featureGroup().addTo(map);
+
+            map.on('click', function(e) {
+                const lat = e.latlng.lat.toFixed(5);
+                const lng = e.latlng.lng.toFixed(5);
+
+                const incLatInput = document.getElementById('incLat');
+                const incLngInput = document.getElementById('incLng');
+                if(incLatInput && incLngInput) { incLatInput.value = lat; incLngInput.value = lng; }
+
+                const centerLatInput = document.getElementById('centerLat');
+                const centerLngInput = document.getElementById('centerLng');
+                if(centerLatInput && centerLngInput) { centerLatInput.value = lat; centerLngInput.value = lng; }
+
+                if (tempMarker) { tempMarker.setLatLng(e.latlng); }
+                else { tempMarker = L.marker(e.latlng).addTo(map).bindPopup("Wybrany punkt docelowy").openPopup(); }
+            });
+
             try {
                 if(typeof window.loadIncidentTypes === 'function') await window.loadIncidentTypes();
                 if(typeof window.loadCentersToSelect === 'function') await window.loadCentersToSelect();
@@ -373,5 +442,115 @@
                 console.error("Błąd podczas ładowania strony:", err);
             }
         });
+
+        window.refreshMapData = async function() {
+            if (!map || !markersLayer) return;
+            markersLayer.clearLayers();
+            routeLayer.clearLayers();
+
+            const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
+
+            const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+
+            try {
+                const [incRes, hospRes, polRes, fireRes] = await Promise.all([
+                    fetch('/api/CPR112/Incidents', { headers }),
+                    fetch('/api/Medical/hospitals', { headers }),
+                    fetch('/api/Police/departments', { headers }),
+                    fetch('/api/Fire/departments', { headers })
+                ]);
+
+                if (incRes.ok) {
+                    const incidents = await incRes.json();
+                    incidents.forEach(inc => {
+                        if (inc.latitude && inc.longitude && inc.status !== "Zakończone") {
+                            L.marker([inc.latitude, inc.longitude], {icon: redIcon})
+                             .bindPopup(`<b><i class="fas fa-exclamation-triangle text-danger"></i> ${inc.incidentNumber || 'Zgłoszenie'}</b><br>${inc.description}<br>Status: <b>${inc.status}</b>`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+
+                if (hospRes.ok) {
+                    const hospitals = await hospRes.json();
+                    hospitals.forEach(h => {
+                        if (h.latitude && h.longitude) {
+                            L.marker([h.latitude, h.longitude], {icon: greenIcon})
+                             .bindPopup(`<b><i class="fas fa-hospital text-success"></i> ${h.name}</b><br>SOR: ${h.hasSOR ? 'Tak' : 'Nie'}<br>Zasięg: ${h.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+
+                if (polRes.ok) {
+                    const polDepts = await polRes.json();
+                    polDepts.forEach(p => {
+                        if (p.latitude && p.longitude) {
+                            L.marker([p.latitude, p.longitude], {icon: blueIcon})
+                             .bindPopup(`<b><i class="fas fa-shield-alt text-primary"></i> ${p.name}</b><br>Zasięg: ${p.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+
+                if (fireRes.ok) {
+                    const fireDepts = await fireRes.json();
+                    fireDepts.forEach(f => {
+                        if (f.latitude && f.longitude) {
+                            L.marker([f.latitude, f.longitude], {icon: orangeIcon})
+                             .bindPopup(`<b><i class="fas fa-fire-extinguisher text-danger"></i> ${f.name}</b><br>Zasięg: ${f.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+            } catch(e) {
+                console.error("Błąd mapy operacyjnej:", e);
+            }
+        };
+        window.flyToMap = function(lat, lng) {
+            if(map) {
+                map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+            }
+        };
+
+        window.drawRoute = async function(startLat, startLng, endLat, endLng) {
+            if (!map) return;
+
+            routeLayer.clearLayers();
+
+            const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    const coordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+
+                    const distanceKm = (data.routes[0].distance / 1000).toFixed(2);
+                    const durationMin = Math.round(data.routes[0].duration / 60);
+
+                    const polyline = L.polyline(coordinates, {
+                        color: '#00d4ff',
+                        weight: 6,
+                        opacity: 0.8,
+                        dashArray: '10, 10'
+                    });
+
+                    routeLayer.addLayer(polyline);
+
+                    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+
+                    console.log(`Wyznaczono trasę: ${distanceKm} km, czas dojazdu: ok. ${durationMin} min.`);
+
+                }
+            } catch (e) {
+                console.error("Błąd wyznaczania trasy:", e);
+                alert("Nie udało się wyznaczyć trasy z serwerów OSRM.");
+            }
+        };
     </script>
 }

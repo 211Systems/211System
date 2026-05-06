@@ -33,7 +33,10 @@ namespace _211system.Models.Services
             {
                 Name = dto.Name,
                 Address = dto.Address,
-                District = dto.District
+                District = dto.District,
+                Latitude = dto.Latitude,
+                Longitude = dto.Longitude,
+                OperatingRadiusKm = dto.OperatingRadiusKm > 0 ? dto.OperatingRadiusKm : 15.0
             };
             await _context.FireDepartments.AddAsync(department);
             await _context.SaveChangesAsync();
@@ -215,7 +218,10 @@ namespace _211system.Models.Services
                     Id = d.FDepartmentId,
                     Name = d.Name,
                     Address = d.Address,
-                    District = d.District
+                    District = d.District,
+                    Latitude = d.Latitude,
+                    Longitude = d.Longitude,
+                    OperatingRadiusKm = d.OperatingRadiusKm
                 }).ToListAsync();
         }
 
@@ -236,15 +242,20 @@ namespace _211system.Models.Services
 
         public async Task<IEnumerable<FireTruckDto>> GetAllFireTrucksAsync()
         {
-            return await _context.FireTrucks
-                .Select(t => new FireTruckDto
-                {
-                    Id = t.Id,
-                    LicensePlate = t.LicensePlate,
-                    FDepartmentId = t.FDepartmentId,
-                    IsAvailable = t.IsAvailable,
-                    FiremanId = t.FiremanId
-                }).ToListAsync();
+            var trucks = await _context.FireTrucks
+                .Include(t => t.Department)
+                .ToListAsync();
+
+            return trucks.Select(t => new FireTruckDto
+            {
+                Id = t.Id,
+                LicensePlate = t.LicensePlate,
+                FDepartmentId = t.FDepartmentId,
+                IsAvailable = t.IsAvailable,
+                FiremanId = t.FiremanId,
+                Latitude = t.Department?.Latitude ?? 0,
+                Longitude = t.Department?.Longitude ?? 0
+            });
         }
 
         public async Task UpdateFireTruckAsync(Guid id, UpdateFireTruckDto dto)

@@ -68,7 +68,8 @@ namespace _211system.Controllers
                 IncidentType = inc.IncidentType != null ? inc.IncidentType.Name : "Brak",
                 Status = inc.Status,
                 ReportedAt = inc.ReportDate,
-                LocationId = inc.LocationId,
+                Latitude = inc.Latitude,
+                Longitude = inc.Longitude,
                 OperatorId = inc.OperatorId,
                 PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl)
                     ? null
