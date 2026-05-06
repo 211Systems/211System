@@ -101,6 +101,39 @@
 
         setTimeout(() => { pickerMap.invalidateSize(); }, 500);
 
+          async function loadExistingInfrastructure() {
+            const headers = { 'Authorization': 'Bearer ' + token };
+            const mapLayer = L.featureGroup().addTo(pickerMap);
+
+            const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
+            const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
+            const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
+
+            try {
+                const [hospRes, polRes, fireRes] = await Promise.all([
+                    fetch('/api/Medical/hospitals', { headers }),
+                    fetch('/api/Police/departments', { headers }),
+                    fetch('/api/Fire/departments', { headers })
+                ]);
+
+                if (hospRes.ok) {
+                    const data = await hospRes.json();
+                    data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: greenIcon, opacity: 0.7}).bindPopup(`Szpital: ${d.name}`).addTo(mapLayer); });
+                }
+                if (polRes.ok) {
+                    const data = await polRes.json();
+                    data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: blueIcon, opacity: 0.7}).bindPopup(`Policja: ${d.name}`).addTo(mapLayer); });
+                }
+                if (fireRes.ok) {
+                    const data = await fireRes.json();
+                    data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: orangeIcon, opacity: 0.7}).bindPopup(`Straż Pożarna: ${d.name}`).addTo(mapLayer); });
+                }
+            } catch(e) { console.error("Błąd ładowania placówek tła:", e); }
+        }
+
+        loadExistingInfrastructure();
+
+
         document.getElementById('createDeptForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const errorMsg = document.getElementById('form-error');

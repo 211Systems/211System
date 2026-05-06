@@ -446,65 +446,110 @@
         window.refreshMapData = async function() {
             if (!map || !markersLayer) return;
             markersLayer.clearLayers();
+            routeLayer.clearLayers();
+
+            const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
+
+            const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
 
             try {
-                const resInc = await fetch('/api/CPR112/Incidents', { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
-                if (resInc.ok) {
-                    const incidents = await resInc.json();
+                const [incRes, hospRes, polRes, fireRes] = await Promise.all([
+                    fetch('/api/CPR112/Incidents', { headers }),
+                    fetch('/api/Medical/hospitals', { headers }),
+                    fetch('/api/Police/departments', { headers }),
+                    fetch('/api/Fire/departments', { headers })
+                ]);
 
-                    let redIcon = new L.Icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-                    });
-
+                if (incRes.ok) {
+                    const incidents = await incRes.json();
                     incidents.forEach(inc => {
                         if (inc.latitude && inc.longitude && inc.status !== "Zakończone") {
                             L.marker([inc.latitude, inc.longitude], {icon: redIcon})
-                             .bindPopup(`<b><i class="fas fa-exclamation-triangle text-danger"></i> ${inc.incidentNumber}</b><br>${inc.description}<br>Status: <b>${inc.status}</b>`)
+                             .bindPopup(`<b><i class="fas fa-exclamation-triangle text-danger"></i> ${inc.incidentNumber || 'Zgłoszenie'}</b><br>${inc.description}<br>Status: <b>${inc.status}</b>`)
                              .addTo(markersLayer);
                         }
                     });
                 }
-            } catch(e) { console.error("Błąd mapy zgłoszeń:", e); }
 
-            try {
-                const resEnc = await fetch('/api/Enc', { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
-                if (resEnc.ok) {
-                    const centers = await resEnc.json();
-
-                    let blueIcon = new L.Icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-                    });
-
-                    centers.forEach(c => {
-                        if (c.latitude && c.longitude) {
-                            let marker = L.marker([c.latitude, c.longitude], {icon: blueIcon})
-                                .bindPopup(`<b><i class="fas fa-hospital text-primary"></i> ${c.name}</b><br>Zasięg: ${c.operatingRadiusKm || 15} km`)
-                                .addTo(markersLayer);
-
-                            let hoverCircle = null;
-
-                            marker.on('mouseover', function() {
-                                hoverCircle = L.circle([c.latitude, c.longitude], {
-                                    color: '#17a2b8', fillColor: '#17a2b8', fillOpacity: 0.15,
-                                    radius: (c.operatingRadiusKm || 15) * 1000
-                                }).addTo(map);
-                            });
-
-                            marker.on('mouseout', function() {
-                                if (hoverCircle) { map.removeLayer(hoverCircle); }
-                            });
+                if (hospRes.ok) {
+                    const hospitals = await hospRes.json();
+                    hospitals.forEach(h => {
+                        if (h.latitude && h.longitude) {
+                            L.marker([h.latitude, h.longitude], {icon: greenIcon})
+                             .bindPopup(`<b><i class="fas fa-hospital text-success"></i> ${h.name}</b><br>SOR: ${h.hasSOR ? 'Tak' : 'Nie'}<br>Zasięg: ${h.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
                         }
                     });
                 }
-            } catch(e) { console.error("Błąd mapy placówek:", e); }
+
+                if (polRes.ok) {
+                    const polDepts = await polRes.json();
+                    polDepts.forEach(p => {
+                        if (p.latitude && p.longitude) {
+                            L.marker([p.latitude, p.longitude], {icon: blueIcon})
+                             .bindPopup(`<b><i class="fas fa-shield-alt text-primary"></i> ${p.name}</b><br>Zasięg: ${p.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+
+                if (fireRes.ok) {
+                    const fireDepts = await fireRes.json();
+                    fireDepts.forEach(f => {
+                        if (f.latitude && f.longitude) {
+                            L.marker([f.latitude, f.longitude], {icon: orangeIcon})
+                             .bindPopup(`<b><i class="fas fa-fire-extinguisher text-danger"></i> ${f.name}</b><br>Zasięg: ${f.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+            } catch(e) {
+                console.error("Błąd mapy operacyjnej:", e);
+            }
         };
         window.flyToMap = function(lat, lng) {
             if(map) {
                 map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+            }
+        };
+
+        window.drawRoute = async function(startLat, startLng, endLat, endLng) {
+            if (!map) return;
+
+            routeLayer.clearLayers();
+
+            const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    const coordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+
+                    const distanceKm = (data.routes[0].distance / 1000).toFixed(2);
+                    const durationMin = Math.round(data.routes[0].duration / 60);
+
+                    const polyline = L.polyline(coordinates, {
+                        color: '#00d4ff',
+                        weight: 6,
+                        opacity: 0.8,
+                        dashArray: '10, 10'
+                    });
+
+                    routeLayer.addLayer(polyline);
+
+                    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+
+                    console.log(`Wyznaczono trasę: ${distanceKm} km, czas dojazdu: ok. ${durationMin} min.`);
+
+                }
+            } catch (e) {
+                console.error("Błąd wyznaczania trasy:", e);
+                alert("Nie udało się wyznaczyć trasy z serwerów OSRM.");
             }
         };
     </script>
