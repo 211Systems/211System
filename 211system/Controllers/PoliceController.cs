@@ -284,6 +284,30 @@ namespace _211system.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "Zaktualizowano placówkę." });
         }
+        [HttpDelete("departments/{id}")]
+        [Authorize(Roles = "Admin, Inspektor")]
+        public async Task<IActionResult> DeleteDepartment(Guid id)
+        {
+            var dept = await _context.PoliceDepartments.FindAsync(id);
+            if (dept == null) return NotFound(new { message = "Nie znaleziono placówki." });
+
+            try
+            {
+                _context.PoliceDepartments.Remove(dept);
+                await _context.SaveChangesAsync();
+                
+                return Ok(new { message = "Usunięto placówkę pomyślnie." });
+            }
+            catch (DbUpdateException)
+            {
+
+                return BadRequest(new { message = "Nie można usunąć placówki. Najpierw usuń lub przenieś przypisanych do niej funkcjonariuszy oraz sprzęt (radiowozy)." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
         [HttpPut("policemen/{id}")]
         [Authorize(Roles = "Admin, Inspektor, Komendant")]
