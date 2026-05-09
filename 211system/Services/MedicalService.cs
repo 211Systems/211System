@@ -177,8 +177,10 @@ namespace _211system.Services
                 HospitalId = a.HospitalId,
                 IsAvailable = a.IsAvailable,
                 ParamedicId = a.ParamedicId,
-                Latitude = a.Hospital?.Latitude ?? 0,
-                Longitude = a.Hospital?.Longitude ?? 0
+
+                Latitude = a.Latitude,
+                Longitude = a.Longitude,
+                Status = (int)a.Status
             });
         }
 
@@ -535,6 +537,49 @@ namespace _211system.Services
 
                 EndTime = o.EndTime
             });
+        }
+
+        public async Task TransportToHospitalAsync(Guid operationId, Guid targetHospitalId)
+        {
+            var operation = await _context.MedicalOperations.FindAsync(operationId);
+            if (operation == null) throw new ArgumentException("Operacja nie istnieje.");
+
+            var ambulance = await _context.Ambulances
+                .FirstOrDefaultAsync(a => a.CurrentIncidentId == operation.ReportId);
+
+            if (ambulance == null) throw new ArgumentException("Nie znaleziono karetki przypisanej do tej akcji.");
+
+            ambulance.Status = VehicleOperationalStatus.Transporting;
+            _context.Ambulances.Update(ambulance);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task ReturnToBaseAsync(Guid operationId)
+        {
+            var operation = await _context.MedicalOperations.FindAsync(operationId);
+            if (operation == null) throw new ArgumentException("Operacja nie istnieje.");
+
+            var ambulance = await _context.Ambulances
+                .FirstOrDefaultAsync(a => a.CurrentIncidentId == operation.ReportId);
+
+            if (ambulance == null) throw new ArgumentException("Nie znaleziono karetki przypisanej do tej akcji.");
+
+            ambulance.Status = VehicleOperationalStatus.ReturningToBase;
+
+            _context.Ambulances.Update(ambulance);
+
+            var incident = await _context.Incidents.FindAsync(operation.ReportId);
+            if (incident != null)
+            {
+                incident.IsMedicalActive = false;
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+                _context.Incidents.Update(incident);
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }

@@ -252,7 +252,7 @@ function getIconByService(type) {
     return iconFireTruck;
 }
 
-window.startVehicleSimulation = async function (vehicleId, serviceType, startLat, startLng, endLat, endLng) {
+window.startVehicleSimulation = async function (vehicleId, serviceType, startLat, startLng, endLat, endLng, currentStatus = 1) {
     const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
 
     try {
@@ -262,11 +262,10 @@ window.startVehicleSimulation = async function (vehicleId, serviceType, startLat
         if (data.routes && data.routes.length > 0) {
             const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
 
+            const routeColor = (currentStatus === 3 || currentStatus === 4) ? '#f39c12' : (serviceType === 'police' ? '#007bff' : (serviceType === 'medic' ? '#28a745' : '#dc3545'));
+
             const actionRouteLine = L.polyline(routeCoords, {
-                color: serviceType === 'police' ? '#007bff' : (serviceType === 'medic' ? '#28a745' : '#dc3545'),
-                weight: 5,
-                opacity: 0.8,
-                dashArray: '10, 10'
+                color: routeColor, weight: 5, opacity: 0.8, dashArray: '10, 10'
             }).addTo(map);
 
             let step = 0;
@@ -278,12 +277,18 @@ window.startVehicleSimulation = async function (vehicleId, serviceType, startLat
                 if (step >= routeCoords.length) {
                     clearInterval(window.activeSimulations[vehicleId]);
                     delete window.activeSimulations[vehicleId];
+                    if (typeof map !== 'undefined') map.removeLayer(actionRouteLine);
 
-                    if (typeof map !== 'undefined') {
-                        map.removeLayer(actionRouteLine);
+                    if (currentStatus === 1) {
+                        await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 2);
+                    }
+                    else if (currentStatus === 3 || currentStatus === 4) {
+                        if (serviceType === 'medic') {
+                            await fetch(`/api/Medical/ambulances/${vehicleId}/free`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                        }
+                        await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 0);
                     }
 
-                    await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 2);
                     window.refreshMapData();
                     return;
                 }
@@ -293,18 +298,19 @@ window.startVehicleSimulation = async function (vehicleId, serviceType, startLat
 
                 if (typeof map !== 'undefined') {
                     if (!window.vehicleMarkers[vehicleId]) {
-                        window.vehicleMarkers[vehicleId] = L.marker([curLat, curLng], { icon: getIconByService(serviceType) })
-                            .addTo(map).bindPopup(`<b>Pojazd w akcji</b><br>Typ: ${serviceType}`);
+                        window.vehicleMarkers[vehicleId] = L.marker([curLat, curLng], { icon: getIconByService(serviceType) }).addTo(map);
                     } else {
                         window.vehicleMarkers[vehicleId].setLatLng([curLat, curLng]);
                     }
                 }
 
                 if (step % pingFrequency === 0) {
-                    await pingVehicleLocation(vehicleId, serviceType, curLat, curLng, 1);
+                    await pingVehicleLocation(vehicleId, serviceType, curLat, curLng, currentStatus);
                 }
                 step++;
             }, 1000);
+        } else {
+            console.warn(`[OSRM] Nie znaleziono drogi z ${startLat},${startLng} do ${endLat},${endLng}`);
         }
     } catch (e) { console.error("Błąd OSRM:", e); }
 };
@@ -709,6 +715,7 @@ window.loadOperators = async function () {
 window.updateCounters = async function () {
     if (!window.jwtToken) return;
     const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
+
     try {
         const [p, f, m, polDepts, fireDepts, hospitals] = await Promise.all([
             fetch('/api/Police/cars', { headers }).then(r => r.json()),
@@ -719,45 +726,97 @@ window.updateCounters = async function () {
             fetch('/api/Medical/hospitals', { headers }).then(r => r.json())
         ]);
 
-        document.getElementById('status-police').textContent = `${p.filter(c => c.isAvailable).length} / ${p.length}`;
-        document.getElementById('status-fire').textContent = `${f.filter(c => c.isAvailable).length} / ${f.length}`;
-        document.getElementById('status-medic').textContent = `${m.filter(c => c.isAvailable).length} / ${m.length}`;
+        document.getElementById('status-police').textContent = `${p.filter(c => c.isAvailable !== false && c.IsAvailable !== false).length} / ${p.length}`;
+        document.getElementById('status-fire').textContent = `${f.filter(c => c.isAvailable !== false && c.IsAvailable !== false).length} / ${f.length}`;
+        document.getElementById('status-medic').textContent = `${m.filter(c => c.isAvailable !== false && c.IsAvailable !== false).length} / ${m.length}`;
 
-        p.filter(c => c.isAvailable).forEach(car => {
-            const dept = polDepts.find(d => d.id === car.pDepartmentId || d.Id === car.PDepartmentId);
+        if (typeof map !== 'undefined' && window.vehicleMarkers) {
+            const allVehicles = [
+                ...p.map(v => ({ ...v, serviceType: 'police' })),
+                ...f.map(v => ({ ...v, serviceType: 'fire' })),
+                ...m.map(v => ({ ...v, serviceType: 'medic' }))
+            ];
+
+            allVehicles.forEach(v => {
+                const id = v.id || v.Id;
+                const lat = parseFloat(v.latitude || v.Latitude);
+                const lng = parseFloat(v.longitude || v.Longitude);
+
+                const isAvail = (v.isAvailable !== undefined) ? v.isAvailable : ((v.IsAvailable !== undefined) ? v.IsAvailable : true);
+                const currentStatus = (v.status !== undefined) ? v.status : ((v.Status !== undefined) ? v.Status : 0);
+                const hId = v.hospitalId || v.HospitalId;
+
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                    const statusText = isAvail ? 'Wolny (W bazie/Patrol)' : `Zajęty (Status: ${currentStatus})`;
+
+                    if (!window.vehicleMarkers[id]) {
+                        window.vehicleMarkers[id] = L.marker([lat, lng], { icon: getIconByService(v.serviceType) })
+                            .addTo(map).bindPopup(`<b>${v.licensePlate || v.LicensePlate}</b><br>Status: ${statusText}`);
+                    } else if (!window.activeSimulations[id]) {
+                        window.vehicleMarkers[id].setLatLng([lat, lng]);
+                        window.vehicleMarkers[id].setPopupContent(`<b>${v.licensePlate || v.LicensePlate}</b><br>Status: ${statusText}`);
+                    }
+
+                    if (!isAvail && (currentStatus === 3 || currentStatus === 4) && !window.activeSimulations[id]) {
+
+                        console.log(`[CADD] Wykryto pojazd zgłaszający Powrót/Transport! ID: ${id} | Status: ${currentStatus}`);
+
+                        let targetLat = 0; let targetLng = 0;
+                        if (v.serviceType === 'medic') {
+                            const hosp = hospitals.find(h => (h.id || h.Id) === hId);
+                            if (hosp) {
+                                targetLat = parseFloat(hosp.latitude || hosp.Latitude);
+                                targetLng = parseFloat(hosp.longitude || hosp.Longitude);
+                            } else {
+                                console.warn(`[CADD] Nie odnaleziono danych GPS szpitala (ID: ${hId}) dla powrotu karetki!`);
+                            }
+                        }
+
+                        if (targetLat !== 0 && targetLng !== 0) {
+                            console.log(`[CADD] Generowanie trasy... GPS Start: [${lat}, ${lng}] -> Cel: [${targetLat}, ${targetLng}]`);
+                            window.startVehicleSimulation(id, v.serviceType, lat, lng, targetLat, targetLng, currentStatus);
+                        }
+                    }
+                }
+            });
+        }
+
+        p.filter(c => c.isAvailable !== false && c.IsAvailable !== false).forEach(car => {
+            const dept = polDepts.find(d => (d.id || d.Id) === (car.pDepartmentId || car.PDepartmentId));
             if (dept && !window.activeSimulations[car.id || car.Id]) {
                 const baseLat = dept.latitude || dept.Latitude;
                 const baseLng = dept.longitude || dept.Longitude;
                 const rad = dept.operatingRadiusKm || 15;
-                window.startPatrolSimulation(car.id || car.Id, 'police', car.latitude, car.longitude, baseLat, baseLng, rad);
+                window.startPatrolSimulation(car.id || car.Id, 'police', car.latitude || car.Latitude, car.longitude || car.Longitude, baseLat, baseLng, rad);
             }
         });
 
-        m.filter(c => c.isAvailable).forEach(amb => {
-            const hosp = hospitals.find(h => h.id === amb.hospitalId || h.Id === amb.HospitalId);
+        m.filter(c => c.isAvailable !== false && c.IsAvailable !== false).forEach(amb => {
+            const hosp = hospitals.find(h => (h.id || h.Id) === (amb.hospitalId || amb.HospitalId));
             if (hosp && !window.activeSimulations[amb.id || amb.Id]) {
                 const baseLat = hosp.latitude || hosp.Latitude;
                 const baseLng = hosp.longitude || hosp.Longitude;
                 const rad = hosp.operatingRadiusKm || 15;
-                window.startPatrolSimulation(amb.id || amb.Id, 'medic', amb.latitude, amb.longitude, baseLat, baseLng, rad);
+                window.startPatrolSimulation(amb.id || amb.Id, 'medic', amb.latitude || amb.Latitude, amb.longitude || amb.Longitude, baseLat, baseLng, rad);
             }
         });
 
-        // Jeśli chcesz, żeby Straż też jeździła losowo, odkomentuj to:
-        /*
-        f.filter(c => c.isAvailable).forEach(truck => {
-            const fDept = fireDepts.find(d => d.id === truck.fDepartmentId || d.Id === truck.FDepartmentId);
-            if (fDept && !window.activeSimulations[truck.id || truck.Id]) {
-                const baseLat = fDept.latitude || fDept.Latitude;
-                const baseLng = fDept.longitude || fDept.Longitude;
-                const rad = fDept.operatingRadiusKm || 15;
-                window.startPatrolSimulation(truck.id || truck.Id, 'fire', truck.latitude, truck.longitude, baseLat, baseLng, rad);
-            }
-        });
-        */
-
-    } catch (e) { console.error("Błąd podczas aktualizacji liczników i patroli:", e); }
+    } catch (e) {
+        console.error("Błąd aktualizacji liczników i pojazdów:", e);
+    }
 };
+
+/*
+f.filter(c => c.isAvailable).forEach(truck => {
+    const fDept = fireDepts.find(d => d.id === truck.fDepartmentId || d.Id === truck.FDepartmentId);
+    if (fDept && !window.activeSimulations[truck.id || truck.Id]) {
+        const baseLat = fDept.latitude || fDept.Latitude;
+        const baseLng = fDept.longitude || fDept.Longitude;
+        const rad = fDept.operatingRadiusKm || 15;
+        window.startPatrolSimulation(truck.id || truck.Id, 'fire', truck.latitude, truck.longitude, baseLat, baseLng, rad);
+    }
+});
+*/
 
 window.refreshAll = async function () {
     await Promise.all([
