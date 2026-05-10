@@ -117,7 +117,10 @@ namespace _211system.Models.Services
                 FDepartmentId = dto.FDepartmentId,
                 Department = department,
                 FiremanId = dto.FiremanId,
-                IsAvailable = true
+                IsAvailable = true,
+                Latitude = department.Latitude,
+                Longitude = department.Longitude,
+                Status = VehicleOperationalStatus.InBase
             };
 
             await _context.FireTrucks.AddAsync(fireTruck);
@@ -255,7 +258,8 @@ namespace _211system.Models.Services
                 IsAvailable = t.IsAvailable,
                 FiremanId = t.FiremanId,
                 Latitude = t.Department?.Latitude ?? 0,
-                Longitude = t.Department?.Longitude ?? 0
+                Longitude = t.Department?.Longitude ?? 0,
+                Status = (int)t.Status
             });
         }
 
@@ -302,6 +306,34 @@ namespace _211system.Models.Services
                 _context.FireTrucks.Remove(truck);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task ReturnToBaseAsync(Guid operationId)
+        {
+            var operation = await _context.FireOperations.FindAsync(operationId);
+            if (operation == null) throw new ArgumentException("Operacja nie istnieje.");
+
+            var truck = await _context.FireTrucks
+                .FirstOrDefaultAsync(t => t.CurrentIncidentId == operation.IncidentId && t.FiremanId == operation.FiremanId);
+
+            if (truck != null)
+            {
+                truck.Status = VehicleOperationalStatus.ReturningToBase;
+                _context.FireTrucks.Update(truck);
+            }
+
+            var incident = await _context.Incidents.FindAsync(operation.IncidentId);
+            if (incident != null)
+            {
+                incident.IsFireActive = false;
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+                _context.Incidents.Update(incident);
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }

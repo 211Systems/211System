@@ -352,5 +352,63 @@ namespace _211system.Controllers
             if (eq != null) { _context.PoliceEquipments.Remove(eq); await _context.SaveChangesAsync(); }
             return Ok();
         }
+
+        [HttpPut("cars/{id}/location")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> UpdatePoliceCarLocation(Guid id, [FromBody] UpdateLocationDto dto)
+        {
+            var car = await _context.PoliceCars.FindAsync(id);
+            if (car == null) return NotFound();
+
+            car.Latitude = dto.Latitude;
+            car.Longitude = dto.Longitude;
+
+            if (dto.Status.HasValue)
+            {
+                car.Status = (VehicleOperationalStatus)dto.Status.Value;
+            }
+
+            _context.PoliceCars.Update(car);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPost("operations/{id}/transport")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> TransportToStation(Guid id, [FromBody] Guid targetDepartmentId)
+        {
+            await _policeService.TransportToStationAsync(id, targetDepartmentId);
+            return Ok(new { message = "Rozpoczęto transport na komendę." });
+        }
+
+        [HttpPost("operations/{id}/return")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> ReturnToBase(Guid id)
+        {
+            await _policeService.ReturnToBaseAsync(id);
+            return Ok(new { message = "Radiowóz wraca do bazy." });
+        }
+
+        [HttpPost("cars/{id}/free")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> FreePoliceCar(Guid id)
+        {
+            var car = await _context.PoliceCars.FindAsync(id);
+            if (car == null) return NotFound();
+
+            car.IsAvailable = true;
+            car.Status = VehicleOperationalStatus.InBase;
+
+            if (car.CurrentIncidentId.HasValue && car.PolicemanId.HasValue)
+            {
+                var op = await _context.PoliceOperations.FirstOrDefaultAsync(o => o.IncidentId == car.CurrentIncidentId && o.PolicemanId == car.PolicemanId && o.EndTime == null);
+                if (op != null) { op.EndTime = DateTime.UtcNow; _context.PoliceOperations.Update(op); }
+                car.CurrentIncidentId = null;
+            }
+
+            _context.PoliceCars.Update(car);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
     }
 }

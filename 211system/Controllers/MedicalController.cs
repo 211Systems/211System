@@ -322,5 +322,90 @@ namespace _211system.Controllers
 
             return Ok(incidentDetails);
         }
+
+        [HttpPut("ambulances/{id}/location")]
+        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> UpdateAmbulanceLocation(Guid id, [FromBody] UpdateLocationDto dto)
+        {
+            try
+            {
+                var ambulance = await _context.Ambulances.FindAsync(id);
+                if (ambulance == null) return NotFound(new { message = "Karetka o podanym ID nie istnieje." });
+
+                ambulance.Latitude = dto.Latitude;
+                ambulance.Longitude = dto.Longitude;
+
+                if (dto.Status.HasValue)
+                {
+                    ambulance.Status = (VehicleOperationalStatus)dto.Status.Value;
+                }
+
+                _context.Ambulances.Update(ambulance);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Pozycja karetki została zaktualizowana." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd podczas aktualizacji GPS: " + ex.Message });
+            }
+        }
+
+        [HttpPost("operations/{id}/transport")]
+        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> TransportToHospital(Guid id, [FromBody] Guid targetHospitalId)
+        {
+            try
+            {
+                await _medicalService.TransportToHospitalAsync(id, targetHospitalId);
+                return Ok(new { message = "Rozpoczęto transport do szpitala." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("operations/{id}/return")]
+        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> ReturnToBase(Guid id)
+        {
+            try
+            {
+                await _medicalService.ReturnToBaseAsync(id);
+                return Ok(new { message = "Jednostka wraca do bazy. Działania na miejscu zakończone." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("ambulances/{id}/free")]
+        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> FreeAmbulance(Guid id)
+        {
+            var ambulance = await _context.Ambulances.FindAsync(id);
+            if (ambulance == null) return NotFound();
+
+            ambulance.IsAvailable = true;
+            ambulance.Status = VehicleOperationalStatus.InBase;
+
+            if (ambulance.CurrentIncidentId.HasValue && ambulance.ParamedicId.HasValue)
+            {
+                var op = await _context.MedicalOperations.FirstOrDefaultAsync(o => o.ReportId == ambulance.CurrentIncidentId && o.ParamedicId == ambulance.ParamedicId && o.EndTime == null);
+                if (op != null)
+                {
+                    op.EndTime = DateTime.UtcNow;
+                    _context.MedicalOperations.Update(op);
+                }
+                ambulance.CurrentIncidentId = null;
+            }
+
+            _context.Ambulances.Update(ambulance);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
     }
 }

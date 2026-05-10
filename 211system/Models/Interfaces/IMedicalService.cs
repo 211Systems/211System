@@ -33,5 +33,7 @@ namespace _211system.Services
         Task UpdateParamedicAsync(Guid id, UpdateParamedicDto dto);
 
         Task<IEnumerable<MedicalOperationDto>> GetAllOperationsAsync();
+        Task TransportToHospitalAsync(Guid operationId, Guid targetHospitalId);
+        Task ReturnToBaseAsync(Guid operationId);
     }
 }

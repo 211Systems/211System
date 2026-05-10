@@ -76,6 +76,30 @@
     </div>
 </div>
 
+<div class="modal fade" id="transportModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white"><i class="fas fa-building"></i> Wybierz Komendę Docelową</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="transport-operation-id">
+                <div class="form-group">
+                    <label>Komenda / Komisariat</label>
+                    <select id="transport-dept-select" class="form-control" required>
+                        <option value="">Ładowanie listy komend...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="btn btn-primary font-weight-bold" onclick="window.confirmTransport()">Rozpocznij Transport</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         const token = localStorage.getItem('jwt');
@@ -118,58 +142,89 @@
         });
 
         async function loadOperations() {
-            const tableBody = document.getElementById('operations-table-body');
-            try {
-                const response = await fetch('/api/Police/operations', { headers: { 'Authorization': 'Bearer ' + token } });
-                if (response.ok) {
-                    const operations = await response.json();
-                    tableBody.innerHTML = '';
+             const tableBody = document.getElementById('operations-table-body');
+             try {
+                 const [opRes, vehRes] = await Promise.all([
+                     fetch('/api/Police/operations', { headers: { 'Authorization': 'Bearer ' + token } }),
+                     fetch('/api/Police/cars', { headers: { 'Authorization': 'Bearer ' + token } })
+                 ]);
 
-                    if (operations.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak zarejestrowanych interwencji w systemie.</td></tr>';
-                        return;
-                    }
+                 if (opRes.ok && vehRes.ok) {
+                     const operations = await opRes.json();
+                     const vehicles = await vehRes.json();
+                     tableBody.innerHTML = '';
 
-                    operations.forEach(op => {
-                        const isFinished = op.endTime || op.EndTime;
+                     if (operations.length === 0) {
+                         tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak zarejestrowanych interwencji w systemie.</td></tr>';
+                         return;
+                     }
 
-                        const startStr = new Date(op.startTime || op.StartTime).toLocaleString('pl-PL');
-                        const endStr = isFinished ? new Date(op.endTime || op.EndTime).toLocaleString('pl-PL') : "W toku...";
+                     operations.forEach(op => {
+                         const isFinished = op.endTime || op.EndTime;
+                         const startStr = new Date(op.startTime || op.StartTime).toLocaleString('pl-PL');
+                         const endStr = isFinished ? new Date(op.endTime || op.EndTime).toLocaleString('pl-PL') : "W toku...";
 
-                        const statusBadge = isFinished 
-                            ? '<span class="badge bg-secondary">Zakończona</span>' 
-                            : '<span class="badge bg-primary border-primary blink_me">Aktywna</span>';
+                         const opPolicemanId = op.policemanId || op.PolicemanId;
+                         const myVehicle = vehicles.find(v => (v.policemanId || v.PolicemanId) === opPolicemanId);
+                         const vStatus = myVehicle ? (myVehicle.status !== undefined ? myVehicle.status : myVehicle.Status) : 0;
 
-                        const opPolicemanId = op.policemanId || op.PolicemanId;
-                        const reportId = op.incidentId || op.IncidentId;
-                        
-                        let actions = `<button onclick="window.showIncidentDetails('${reportId}')" class="btn btn-sm btn-info mr-1" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>`;
+                         const opStatusBadge = isFinished
+                             ? '<span class="badge bg-secondary">Zakończona</span>'
+                             : '<span class="badge bg-primary border-primary blink_me">Aktywna</span>';
 
-                        const isAdminOrManager = currentUserRoles.includes("Admin") || currentUserRoles.includes("Komendant") || currentUserRoles.includes("Inspektor");
+                         let vehStatusBadge = '';
+                         const reportId = op.incidentId || op.IncidentId;
+                         let actions = `<button onclick="window.showIncidentDetails('${reportId}')" class="btn btn-sm btn-info mr-1" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>`;
 
-                        if (!isFinished && (myPolicemanId === opPolicemanId || isAdminOrManager)) {
-                            actions += `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ</button>`;
-                        } else if (!isFinished) {
-                            actions += `<span class="text-muted small ml-2">Tylko podgląd</span>`;
-                        }
+                         const isAdminOrManager = currentUserRoles.includes("Admin") || currentUserRoles.includes("Komendant") || currentUserRoles.includes("Inspektor");
 
-                        const row = `<tr>
-                            <td>${startStr}</td>
-                            <td>${endStr}</td>
-                            <td><small class="text-muted">${reportId}</small></td>
-                            <td><b>${op.policemanName || op.PolicemanName || "Brak Danych"}</b></td>
-                            <td>${statusBadge}</td>
-                            <td class="text-right" style="white-space: nowrap;">${actions}</td>
-                        </tr>`;
-                        
-                        tableBody.insertAdjacentHTML('beforeend', row);
-                    });
-                }
-            } catch (error) {
-                console.error(error);
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd połączenia z serwerem.</td></tr>';
-            }
-        }
+                         if (!isFinished && (myPolicemanId === opPolicemanId || isAdminOrManager)) {
+
+                             if (vStatus === 1) {
+                                 vehStatusBadge = '<span class="badge bg-primary blink_me"><i class="fas fa-car-side"></i> W drodze...</span>';
+                                 actions += `<span class="badge badge-light border text-muted mr-2">Oczekuj na dojazd</span>`;
+                             } else if (vStatus === 2) {
+                                 vehStatusBadge = '<span class="badge bg-success"><i class="fas fa-map-marker-alt"></i> Na Miejscu</span>';
+                                 actions += `
+                                     <button onclick="window.transportSuspect('${op.id || op.Id}')" class="btn btn-sm btn-info text-white mr-1" title="Transport na Komendę">
+                                         <i class="fas fa-car"></i> Transport
+                                     </button>
+                                     <button onclick="window.returnToBase('${op.id || op.Id}')" class="btn btn-sm btn-secondary mr-1" title="Zakończ i wróć na patrol">
+                                         <i class="fas fa-undo"></i> Wróć
+                                     </button>
+                                 `;
+                             } else if (vStatus === 3) {
+                                 vehStatusBadge = '<span class="badge bg-warning text-dark blink_me"><i class="fas fa-building"></i> Transport...</span>';
+                                 actions += `<span class="badge badge-warning text-dark border mr-2">Trwa Transport</span>`;
+                             } else if (vStatus === 4) {
+                                 vehStatusBadge = '<span class="badge bg-info text-white blink_me"><i class="fas fa-undo"></i> Powrót...</span>';
+                                 actions += `<span class="badge badge-info border mr-2">Wraca do bazy</span>`;
+                             }
+
+                             actions += `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ Awaryjnie</button>`;
+                         } else if (!isFinished) {
+                             actions += `<span class="text-muted small ml-2">Tylko podgląd</span>`;
+                         }
+
+                         const combinedStatus = `${opStatusBadge}<br><div class="mt-1">${vehStatusBadge}</div>`;
+
+                         const row = `<tr>
+                             <td>${startStr}</td>
+                             <td>${endStr}</td>
+                             <td><small class="text-muted">${reportId}</small></td>
+                             <td><b>${op.policemanName || op.PolicemanName || "Brak Danych"}</b></td>
+                             <td class="text-center">${combinedStatus}</td>
+                             <td class="text-right" style="white-space: nowrap;">${actions}</td>
+                         </tr>`;
+
+                         tableBody.insertAdjacentHTML('beforeend', row);
+                     });
+                 }
+             } catch (error) {
+                 console.error(error);
+                 tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd połączenia z serwerem.</td></tr>';
+             }
+         }
 
         window.showIncidentDetails = async function(incidentId) {
             try {
@@ -242,6 +297,52 @@
                 }
             } catch (error) { alert("Błąd sieci."); }
         }
+
+        window.transportSuspect = async function(operationId) {
+            document.getElementById('transport-operation-id').value = operationId;
+            const select = document.getElementById('transport-dept-select');
+            select.innerHTML = '<option value="">Pobieranie listy komend...</option>';
+            try {
+                const res = await fetch('/api/Police/departments', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (res.ok) {
+                    const depts = await res.json();
+                    select.innerHTML = '<option value="">-- Wybierz komendę --</option>';
+                    depts.forEach(d => {
+                        select.innerHTML += `<option value="${d.id || d.Id}">${d.name || d.Name}</option>`;
+                    });
+                } else select.innerHTML = '<option value="">Błąd ładowania komend</option>';
+            } catch(e) { select.innerHTML = '<option value="">Błąd sieci</option>'; }
+
+            $('#transportModal').modal('show');
+        };
+
+        window.confirmTransport = async function() {
+            const operationId = document.getElementById('transport-operation-id').value;
+            const deptId = document.getElementById('transport-dept-select').value;
+            if (!deptId) { alert("Proszę wybrać komendę z listy!"); return; }
+
+            try {
+                const res = await fetch(`/api/Police/operations/${operationId}/transport`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(deptId)
+                });
+                if(res.ok) {
+                    $('#transportModal').modal('hide');
+                    alert("Zgłoszono transport!"); window.location.reload();
+                } else alert("Błąd połączenia podczas zmiany statusu.");
+            } catch(e) { alert("Błąd sieci!"); }
+        };
+
+        window.returnToBase = async function(operationId) {
+            if(!confirm("Czy na pewno chcesz zakończyć interwencję i wrócić do bazy/na patrol?")) return;
+            const res = await fetch(`/api/Police/operations/${operationId}/return`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if(res.ok) { alert("Zakończono działania. Wracasz!"); window.location.reload(); }
+            else alert("Błąd połączenia podczas zmiany statusu.");
+        };
     </script>
     
     <style>

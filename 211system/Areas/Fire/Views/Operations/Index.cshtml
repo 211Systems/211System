@@ -118,58 +118,83 @@
         });
 
         async function loadOperations() {
-            const tableBody = document.getElementById('operations-table-body');
-            try {
-                const response = await fetch('/api/Fire/operations', { headers: { 'Authorization': 'Bearer ' + token } });
-                if (response.ok) {
-                    const operations = await response.json();
-                    tableBody.innerHTML = '';
+             const tableBody = document.getElementById('operations-table-body');
+             try {
+                 const [opRes, vehRes] = await Promise.all([
+                     fetch('/api/Fire/operations', { headers: { 'Authorization': 'Bearer ' + token } }),
+                     fetch('/api/Fire/firetrucks', { headers: { 'Authorization': 'Bearer ' + token } })
+                 ]);
 
-                    if (operations.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak zarejestrowanych akcji w systemie.</td></tr>';
-                        return;
-                    }
+                 if (opRes.ok && vehRes.ok) {
+                     const operations = await opRes.json();
+                     const vehicles = await vehRes.json();
+                     tableBody.innerHTML = '';
 
-                    operations.forEach(op => {
-                        const isFinished = op.endTime || op.EndTime;
+                     if (operations.length === 0) {
+                         tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Brak zarejestrowanych akcji w systemie.</td></tr>';
+                         return;
+                     }
 
-                        const startStr = new Date(op.startTime || op.StartTime).toLocaleString('pl-PL');
-                        const endStr = isFinished ? new Date(op.endTime || op.EndTime).toLocaleString('pl-PL') : "W toku...";
+                     operations.forEach(op => {
+                         const isFinished = op.endTime || op.EndTime;
+                         const startStr = new Date(op.startTime || op.StartTime).toLocaleString('pl-PL');
+                         const endStr = isFinished ? new Date(op.endTime || op.EndTime).toLocaleString('pl-PL') : "W toku...";
 
-                        const statusBadge = isFinished 
-                            ? '<span class="badge bg-secondary">Zakończona</span>' 
-                            : '<span class="badge bg-danger border-danger blink_me">Aktywna</span>';
+                         const opFiremanId = op.firemanId || op.FiremanId;
+                         const myVehicle = vehicles.find(v => (v.firemanId || v.FiremanId) === opFiremanId);
+                         const vStatus = myVehicle ? (myVehicle.status !== undefined ? myVehicle.status : myVehicle.Status) : 0;
 
-                        const opFiremanId = op.firemanId || op.FiremanId;
-                        const reportId = op.reportId || op.ReportId;
-                        
-                        let actions = `<button onclick="window.showIncidentDetails('${reportId}')" class="btn btn-sm btn-info mr-1" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>`;
+                         const opStatusBadge = isFinished
+                             ? '<span class="badge bg-secondary">Zakończona</span>'
+                             : '<span class="badge bg-danger border-danger blink_me">Aktywna</span>';
 
-                        const isAdminOrManager = currentUserRoles.includes("Admin") || currentUserRoles.includes("Naczelnik") || currentUserRoles.includes("Kapitan");
+                         let vehStatusBadge = '';
+                         const reportId = op.reportId || op.ReportId;
+                         let actions = `<button onclick="window.showIncidentDetails('${reportId}')" class="btn btn-sm btn-info mr-1" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>`;
 
-                        if (!isFinished && (myFiremanId === opFiremanId || isAdminOrManager)) {
-                            actions += `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ Akcję</button>`;
-                        } else if (!isFinished) {
-                            actions += `<span class="text-muted small ml-2">Tylko podgląd</span>`;
-                        }
+                         const isAdminOrManager = currentUserRoles.includes("Admin") || currentUserRoles.includes("Naczelnik") || currentUserRoles.includes("Kapitan");
 
-                        const row = `<tr>
-                            <td>${startStr}</td>
-                            <td>${endStr}</td>
-                            <td><small class="text-muted">${reportId}</small></td>
-                            <td><b>${op.firemanName || op.FiremanName || "Brak Danych"}</b></td>
-                            <td>${statusBadge}</td>
-                            <td class="text-right" style="white-space: nowrap;">${actions}</td>
-                        </tr>`;
-                        
-                        tableBody.insertAdjacentHTML('beforeend', row);
-                    });
-                }
-            } catch (error) {
-                console.error(error);
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd połączenia z serwerem.</td></tr>';
-            }
-        }
+                         if (!isFinished && (myFiremanId === opFiremanId || isAdminOrManager)) {
+
+                             if (vStatus === 1) {
+                                 vehStatusBadge = '<span class="badge bg-primary blink_me"><i class="fas fa-truck-moving"></i> W drodze...</span>';
+                                 actions += `<span class="badge badge-light border text-muted mr-2">Oczekuj na dojazd</span>`;
+                             } else if (vStatus === 2) {
+                                 vehStatusBadge = '<span class="badge bg-success"><i class="fas fa-fire-extinguisher"></i> W Akcji</span>';
+                                 actions += `
+                                     <button onclick="window.returnToBase('${op.id || op.Id}')" class="btn btn-sm btn-secondary mr-1" title="Powrót do remizy">
+                                         <i class="fas fa-undo"></i> Zakończ i Wróć
+                                     </button>
+                                 `;
+                             } else if (vStatus === 4) {
+                                 vehStatusBadge = '<span class="badge bg-info text-white blink_me"><i class="fas fa-undo"></i> Powrót...</span>';
+                                 actions += `<span class="badge badge-info border mr-2">Wraca do remizy</span>`;
+                             }
+
+                             actions += `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ Awaryjnie</button>`;
+                         } else if (!isFinished) {
+                             actions += `<span class="text-muted small ml-2">Tylko podgląd</span>`;
+                         }
+
+                         const combinedStatus = `${opStatusBadge}<br><div class="mt-1">${vehStatusBadge}</div>`;
+
+                         const row = `<tr>
+                             <td>${startStr}</td>
+                             <td>${endStr}</td>
+                             <td><small class="text-muted">${reportId}</small></td>
+                             <td><b>${op.firemanName || op.FiremanName || "Brak Danych"}</b></td>
+                             <td class="text-center">${combinedStatus}</td>
+                             <td class="text-right" style="white-space: nowrap;">${actions}</td>
+                         </tr>`;
+
+                         tableBody.insertAdjacentHTML('beforeend', row);
+                     });
+                 }
+             } catch (error) {
+                 console.error(error);
+                 tableBody.innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd połączenia z serwerem.</td></tr>';
+             }
+         }
 
         window.showIncidentDetails = async function(incidentId) {
             try {
@@ -242,6 +267,16 @@
                 }
             } catch (error) { alert("Błąd sieci."); }
         }
+
+        window.returnToBase = async function(operationId) {
+            if(!confirm("Czy na pewno chcesz zakończyć działania ratownicze i wrócić do remizy?")) return;
+            const res = await fetch(`/api/Fire/operations/${operationId}/return`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if(res.ok) { alert("Zakończono działania. Wóz wraca do remizy!"); window.location.reload(); }
+            else alert("Błąd połączenia podczas zmiany statusu.");
+        };
     </script>
     
     <style>

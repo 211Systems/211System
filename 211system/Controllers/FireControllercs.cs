@@ -368,5 +368,63 @@ namespace _211system.Controllers
             if (eq != null) { _context.FireEquipments.Remove(eq); await _context.SaveChangesAsync(); }
             return Ok();
         }
+
+        [HttpPut("firetrucks/{id}/location")]
+        [Authorize(Roles = "Admin, Komendant, Inspektor, Strazak, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> UpdateFireTruckLocation(Guid id, [FromBody] UpdateLocationDto dto)
+        {
+            try
+            {
+                var truck = await _context.FireTrucks.FindAsync(id);
+                if (truck == null) return NotFound(new { message = "Wóz strażacki o podanym ID nie istnieje." });
+
+                truck.Latitude = dto.Latitude;
+                truck.Longitude = dto.Longitude;
+
+                if (dto.Status.HasValue)
+                {
+                    truck.Status = (VehicleOperationalStatus)dto.Status.Value;
+                }
+
+                _context.FireTrucks.Update(truck);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Pozycja wozu strażackiego została zaktualizowana." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd podczas aktualizacji GPS: " + ex.Message });
+            }
+        }
+
+        [HttpPost("operations/{id}/return")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> ReturnToBase(Guid id)
+        {
+            await _fireService.ReturnToBaseAsync(id);
+            return Ok(new { message = "Wóz wraca do remizy." });
+        }
+
+        [HttpPost("firetrucks/{id}/free")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> FreeFireTruck(Guid id)
+        {
+            var truck = await _context.FireTrucks.FindAsync(id);
+            if (truck == null) return NotFound();
+
+            truck.IsAvailable = true;
+            truck.Status = VehicleOperationalStatus.InBase;
+
+            if (truck.CurrentIncidentId.HasValue && truck.FiremanId.HasValue)
+            {
+                var op = await _context.FireOperations.FirstOrDefaultAsync(o => o.IncidentId == truck.CurrentIncidentId && o.FiremanId == truck.FiremanId && o.EndTime == null);
+                if (op != null) { op.EndTime = DateTime.UtcNow; _context.FireOperations.Update(op); }
+                truck.CurrentIncidentId = null;
+            }
+
+            _context.FireTrucks.Update(truck);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
     }
 }

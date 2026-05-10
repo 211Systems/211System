@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using _211system.Models;
 
 namespace Police
 {
@@ -24,6 +25,9 @@ namespace Police
 
         public bool IsAvailable { get; set; } = true;
         public Guid? CurrentIncidentId { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public VehicleOperationalStatus Status { get; set; } = VehicleOperationalStatus.InBase;
 
         public PoliceCar()
         {

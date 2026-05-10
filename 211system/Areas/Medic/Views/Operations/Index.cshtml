@@ -76,6 +76,33 @@
     </div>
 </div>
 
+<div class="modal fade" id="transportModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark"><i class="fas fa-hospital"></i> Wybierz Szpital Docelowy</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Do jakiego szpitala wieziecie pacjenta?</p>
+                <input type="hidden" id="transport-operation-id">
+                <div class="form-group">
+                    <label>Szpital (SOR / Izba Przyjęć)</label>
+                    <select id="transport-hospital-select" class="form-control" required>
+                        <option value="">Ładowanie listy szpitali...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                <button type="button" class="btn btn-warning text-dark font-weight-bold" onclick="window.confirmTransport()">Rozpocznij Transport</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         const token = localStorage.getItem('jwt');
@@ -147,8 +174,18 @@
 
                         const isAdminOrManager = currentUserRoles.includes("Admin") || currentUserRoles.includes("Kierownik Szpitala");
 
-                        if (!isFinished && (myParamedicId === opParamedicId || isAdminOrManager)) {
-                            actions += `<button onclick="endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-stop-circle"></i> Zakończ Akcję</button>`;
+                    if (!isFinished && (myParamedicId === opParamedicId || isAdminOrManager)) {
+                            actions += `
+                        <button onclick="window.transportPatient('${op.id || op.Id}')" class="btn btn-sm btn-info text-white mr-1" title="Transport pacjenta do szpitala">
+                            <i class="fas fa-ambulance"></i> Transport
+                        </button>
+                        <button onclick="window.returnToBase('${op.id || op.Id}')" class="btn btn-sm btn-secondary mr-1" title="Powrót do bazy">
+                            <i class="fas fa-undo"></i> Wróć
+                        </button>
+                        <button onclick="window.endOperation('${op.id || op.Id}')" class="btn btn-sm btn-warning text-dark">
+                            <i class="fas fa-stop-circle"></i> Awaryjne Zamknięcie
+                        </button>
+                        `;
                         } else if (!isFinished) {
                             actions += `<span class="text-muted small ml-2">Tylko podgląd</span>`;
                         }
@@ -225,9 +262,71 @@
             } catch (error) { alert("Błąd sieci."); }
         });
 
-        async function endOperation(operationId) {
-            if (!confirm("Czy na pewno chcesz zakończyć tę akcję medyczną i wrócić do bazy?")) return;
+                    window.transportPatient = async function(operationId) {
+                    document.getElementById('transport-operation-id').value = operationId;
+                    const select = document.getElementById('transport-hospital-select');
 
+                    select.innerHTML = '<option value="">Pobieranie listy szpitali...</option>';
+
+                    try {
+                        const res = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + token } });
+                        if (res.ok) {
+                            const hospitals = await res.json();
+                            select.innerHTML = '<option value="">-- Wybierz szpital z listy --</option>';
+
+                            hospitals.forEach(h => {
+                                select.innerHTML += `<option value="${h.id || h.Id}">${h.name || h.Name} ${h.hasSOR ? '(SOR)' : ''}</option>`;
+                            });
+                        } else {
+                            select.innerHTML = '<option value="">Błąd ładowania szpitali</option>';
+                        }
+                    } catch(e) {
+                        select.innerHTML = '<option value="">Błąd sieci</option>';
+                    }
+
+                    $('#transportModal').modal('show');
+                };
+
+                window.confirmTransport = async function() {
+            const operationId = document.getElementById('transport-operation-id').value;
+            const hospitalId = document.getElementById('transport-hospital-select').value;
+
+            if (!hospitalId) {
+                alert("Proszę wybrać szpital docelowy z listy!");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/Medical/operations/${operationId}/transport`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(hospitalId)
+                });
+
+                if(res.ok) {
+                    $('#transportModal').modal('hide');
+                    alert("Zgłoszono transport! Informacja przekazana do CPR.");
+                    window.location.reload();
+                } else {
+                    alert("Błąd połączenia podczas zmiany statusu. Brak uprawnień lub błąd serwera.");
+                }
+            } catch(e) {
+                alert("Błąd sieci!");
+            }
+        };
+
+                window.returnToBase = async function(operationId) {
+                    if(!confirm("Czy na pewno chcesz zakończyć działania i wrócić do bazy?")) return;
+                    const res = await fetch(`/api/Medical/operations/${operationId}/return`, {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if(res.ok) { alert("Zakończono działania. Wracasz do bazy!"); window.location.reload(); }
+                    else alert("Błąd połączenia podczas zmiany statusu. Brak uprawnień lub błąd serwera.");
+                };
+
+                window.endOperation = async function(operationId) {
+            if (!confirm("Czy na pewno chcesz natychmiastowo zakończyć akcję (z pominięciem powrotu do bazy)?")) return;
             try {
                 const response = await fetch(`/api/Medical/operations/${operationId}/end`, {
                     method: 'PUT',
@@ -241,7 +340,7 @@
                     alert("Błąd: " + err);
                 }
             } catch (error) { alert("Błąd sieci."); }
-        }
+        };
     </script>
     
     <style>

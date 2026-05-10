@@ -117,7 +117,10 @@ namespace _211system.Models.Services
                 PDepartmentId = dto.PDepartmentId,
                 PDepartment = department,
                 PolicemanId = dto.PolicemanId,
-                IsAvailable = true
+                IsAvailable = true,
+                Latitude = department.Latitude,
+                Longitude = department.Longitude,
+                Status = VehicleOperationalStatus.InBase
             };
             await _context.PoliceCars.AddAsync(policeCar);
             await _context.SaveChangesAsync();
@@ -264,8 +267,9 @@ namespace _211system.Models.Services
                 PDepartmentId = c.PDepartmentId,
                 IsAvailable = c.IsAvailable,
                 PolicemanId = c.PolicemanId,
-                Latitude = c.PDepartment?.Latitude ?? 0,
-                Longitude = c.PDepartment?.Longitude ?? 0
+                Latitude = c.Latitude,
+                Longitude = c.Longitude,
+                Status = (int)c.Status
             });
         }
 
@@ -312,6 +316,46 @@ namespace _211system.Models.Services
                 _context.PoliceCars.Remove(car);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task TransportToStationAsync(Guid operationId, Guid departmentId)
+        {
+            var operation = await _context.PoliceOperations.FindAsync(operationId);
+            if (operation == null) throw new ArgumentException("Operacja nie istnieje.");
+
+            var car = await _context.PoliceCars.FirstOrDefaultAsync(c => c.CurrentIncidentId == operation.IncidentId && c.PolicemanId == operation.PolicemanId);
+            if (car != null)
+            {
+                car.Status = VehicleOperationalStatus.Transporting;
+                _context.PoliceCars.Update(car);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task ReturnToBaseAsync(Guid operationId)
+        {
+            var operation = await _context.PoliceOperations.FindAsync(operationId);
+            if (operation == null) throw new ArgumentException("Operacja nie istnieje.");
+
+            var car = await _context.PoliceCars.FirstOrDefaultAsync(c => c.CurrentIncidentId == operation.IncidentId && c.PolicemanId == operation.PolicemanId);
+            if (car != null)
+            {
+                car.Status = VehicleOperationalStatus.ReturningToBase;
+                _context.PoliceCars.Update(car);
+            }
+
+            var incident = await _context.Incidents.FindAsync(operation.IncidentId);
+            if (incident != null)
+            {
+                incident.IsPoliceActive = false;
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+                _context.Incidents.Update(incident);
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }
