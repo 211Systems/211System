@@ -184,10 +184,21 @@ namespace tests
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
-            
+
             var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
 
             var hospitalId = Guid.NewGuid();
+            var hospital = new Hospital
+            {
+                Id = hospitalId,
+                Name = "Szpital Główny",
+                Address = "ul. Ratownicza 1",
+                Latitude = 52.2297,
+                Longitude = 21.0122
+            };
+            context.Hospitals.Add(hospital);
+            await context.SaveChangesAsync();
+
             var dto = new _211system.DTOs.Hospital.CreateAmbulanceDto
             {
                 Type = AmbulanceType.S,
@@ -202,14 +213,19 @@ namespace tests
             Assert.Equal("GD 12345", result.LicensePlate);
             Assert.Equal(AmbulanceType.S, result.Type);
 
+            Assert.Equal(52.2297, result.Latitude);
+            Assert.Equal(21.0122, result.Longitude);
+
             var inDb = await context.Ambulances.FindAsync(result.Id);
             Assert.NotNull(inDb);
             Assert.Equal(hospitalId, inDb.HospitalId);
+            Assert.Equal((int)VehicleOperationalStatus.InBase, (int)inDb.Status);
         }
 
         [Fact]
-        public async Task GetAllAmbulancesAsync_Should_Return_All_Ambulances_With_Hospital_GPS()
+        public async Task GetAllAmbulancesAsync_Should_Return_All_Ambulances_With_Their_Own_GPS()
         {
+            // Arrange
             var context = GetInMemoryDbContext();
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
@@ -224,19 +240,29 @@ namespace tests
                 Latitude = 52.0,
                 Longitude = 21.0
             };
-            var hospital2 = new Hospital
-            {
-                Id = Guid.NewGuid(),
-                Name = "Szpital 2",
-                Address = "ul. Testowa 2",
-                Latitude = 51.0,
-                Longitude = 19.0
-            };
-            context.Hospitals.AddRange(hospital1, hospital2);
+            context.Hospitals.Add(hospital1);
 
             context.Ambulances.AddRange(
-                new Ambulance { Id = Guid.NewGuid(), Type = AmbulanceType.P, LicensePlate = "POZ 111", HospitalId = hospital1.Id },
-                new Ambulance { Id = Guid.NewGuid(), Type = AmbulanceType.N, LicensePlate = "POZ 222", HospitalId = hospital2.Id }
+                new Ambulance
+                {
+                    Id = Guid.NewGuid(),
+                    Type = AmbulanceType.P,
+                    LicensePlate = "POZ 111",
+                    HospitalId = hospital1.Id,
+                    Latitude = 52.3333,
+                    Longitude = 21.1111,
+                    Status = VehicleOperationalStatus.EnRouteToIncident
+                },
+                new Ambulance
+                {
+                    Id = Guid.NewGuid(),
+                    Type = AmbulanceType.N,
+                    LicensePlate = "POZ 222",
+                    HospitalId = hospital1.Id,
+                    Latitude = 51.5555,
+                    Longitude = 19.2222,
+                    Status = VehicleOperationalStatus.InBase
+                }
             );
             await context.SaveChangesAsync();
 
@@ -246,8 +272,10 @@ namespace tests
             Assert.Equal(2, result.Count());
 
             var amb1 = result.First(a => a.LicensePlate == "POZ 111");
-            Assert.Equal(52.0, amb1.Latitude);
-            Assert.Equal(21.0, amb1.Longitude);
+
+            Assert.Equal(52.3333, amb1.Latitude);
+            Assert.Equal(21.1111, amb1.Longitude);
+            Assert.Equal(1, amb1.Status);
         }
     }
 }
