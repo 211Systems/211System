@@ -307,5 +307,33 @@ namespace _211system.Models.Services
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task ReturnToBaseAsync(Guid operationId)
+        {
+            var operation = await _context.FireOperations.FindAsync(operationId);
+            if (operation == null) throw new ArgumentException("Operacja nie istnieje.");
+
+            var truck = await _context.FireTrucks
+                .FirstOrDefaultAsync(t => t.CurrentIncidentId == operation.IncidentId && t.FiremanId == operation.FiremanId);
+
+            if (truck != null)
+            {
+                truck.Status = VehicleOperationalStatus.ReturningToBase;
+                _context.FireTrucks.Update(truck);
+            }
+
+            var incident = await _context.Incidents.FindAsync(operation.IncidentId);
+            if (incident != null)
+            {
+                incident.IsFireActive = false;
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+                {
+                    incident.Status = "Zakończone";
+                }
+                _context.Incidents.Update(incident);
+            }
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

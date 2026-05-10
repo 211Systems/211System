@@ -372,5 +372,35 @@ namespace _211system.Controllers
                 return BadRequest(new { message = "Błąd podczas aktualizacji GPS: " + ex.Message });
             }
         }
+
+        [HttpPost("operations/{id}/return")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> ReturnToBase(Guid id)
+        {
+            await _fireService.ReturnToBaseAsync(id);
+            return Ok(new { message = "Wóz wraca do remizy." });
+        }
+
+        [HttpPost("firetrucks/{id}/free")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
+        public async Task<IActionResult> FreeFireTruck(Guid id)
+        {
+            var truck = await _context.FireTrucks.FindAsync(id);
+            if (truck == null) return NotFound();
+
+            truck.IsAvailable = true;
+            truck.Status = VehicleOperationalStatus.InBase;
+
+            if (truck.CurrentIncidentId.HasValue && truck.FiremanId.HasValue)
+            {
+                var op = await _context.FireOperations.FirstOrDefaultAsync(o => o.IncidentId == truck.CurrentIncidentId && o.FiremanId == truck.FiremanId && o.EndTime == null);
+                if (op != null) { op.EndTime = DateTime.UtcNow; _context.FireOperations.Update(op); }
+                truck.CurrentIncidentId = null;
+            }
+
+            _context.FireTrucks.Update(truck);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
     }
 }

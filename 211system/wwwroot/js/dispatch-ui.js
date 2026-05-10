@@ -283,9 +283,15 @@ window.startVehicleSimulation = async function (vehicleId, serviceType, startLat
                         await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 2);
                     }
                     else if (currentStatus === 3 || currentStatus === 4) {
-                        if (serviceType === 'medic') {
-                            await fetch(`/api/Medical/ambulances/${vehicleId}/free`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                        let freeUrl = '';
+                        if (serviceType === 'medic') freeUrl = `/api/Medical/ambulances/${vehicleId}/free`;
+                        else if (serviceType === 'police') freeUrl = `/api/Police/cars/${vehicleId}/free`;
+                        else if (serviceType === 'fire') freeUrl = `/api/Fire/firetrucks/${vehicleId}/free`;
+
+                        if (freeUrl !== '') {
+                            await fetch(freeUrl, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
                         }
+
                         await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 0);
                     }
 

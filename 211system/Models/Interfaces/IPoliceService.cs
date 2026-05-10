@@ -20,5 +20,7 @@ namespace _211system.Models.Interfaces
         Task UpdatePoliceCarAsync(Guid id, UpdatePoliceCarDto dto);
         Task DeletePoliceCarAsync(Guid id);
         Task AssignPoliceCarToIncidentAsync(Guid carId, Guid incidentId);
+        Task TransportToStationAsync(Guid operationId, Guid departmentId);
+        Task ReturnToBaseAsync(Guid operationId);
     }
 }

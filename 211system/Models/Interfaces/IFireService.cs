@@ -16,5 +16,6 @@ namespace _211system.Models.Interfaces
         Task UpdateFireTruckAsync(Guid id, UpdateFireTruckDto dto);
         Task DeleteFireTruckAsync(Guid id);
         Task AssignFireTruckToIncidentAsync(Guid truckId, Guid incidentId);
+        Task ReturnToBaseAsync(Guid operationId);
     }
 }
