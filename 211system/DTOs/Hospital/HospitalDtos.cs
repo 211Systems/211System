@@ -10,6 +10,7 @@ namespace _211system.DTOs.Hospital
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public double OperatingRadiusKm { get; set; }
+        public bool HasHelipad { get; set; } = false;
 
     }
 

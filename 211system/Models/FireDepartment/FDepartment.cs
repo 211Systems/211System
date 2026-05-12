@@ -13,6 +13,7 @@ public class FDepartment
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double OperatingRadiusKm { get; set; } = 15.0;
+    public bool HasHelipad { get; set; } = false;
     public ICollection<Fireman> Firemen { get; set; }
 
     public FDepartment()
