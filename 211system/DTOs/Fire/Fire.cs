@@ -8,6 +8,7 @@
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public double OperatingRadiusKm { get; set; }
+        public bool HasHelipad { get; set; } = false;
     }
 
     public class CreateFiremanDto
@@ -50,6 +51,7 @@
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public double OperatingRadiusKm { get; set; }
+        public bool HasHelipad { get; set; } = false;
     }
 
     public class FiremanDto

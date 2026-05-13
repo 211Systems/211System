@@ -261,6 +261,37 @@
                         <label>Promień działania (KM)</label>
                         <input type="number" id="centerRadius" class="form-control" value="15" required>
                     </div>
+                    <div class="form-group mt-2">
+                        <label>Typ Placówki</label>
+                        <select id="centerType" class="form-control" onchange="toggleHelipadOptions()">
+                            <option value="Hospital">Szpital (Medyczna)</option>
+                            <option value="Police">Komenda Policji</option>
+                            <option value="Fire">Remiza Straży Pożarnej</option>
+                            <option value="Airbase">Baza Lotnicza (HEMS/Policja/Straż)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group mt-2" id="helipadOptionGroup">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="hasHelipad">
+                            <label class="custom-control-label" for="hasHelipad">Posiada lądowisko dla śmigłowców</label>
+                        </div>
+                    </div>
+
+                    <div id="airbaseOptionGroup" class="d-none border p-2 rounded bg-dark">
+                        <div class="form-group">
+                            <label>Kod lotniska (ICAO - np. EPWA, EPBC)</label>
+                            <input type="text" id="centerIcao" class="form-control text-uppercase" placeholder="ABCD">
+                        </div>
+                        <div class="form-group">
+                            <label>Przypisana Służba</label>
+                            <select id="centerAirService" class="form-control">
+                                <option value="0">Medyczna (LPR / HEMS)</option>
+                                <option value="1">Policja</option>
+                                <option value="2">Straż Pożarna</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="card-footer text-right">
                         <button type="button" onclick="window.registerNewCenter()" class="btn btn-warning text-bold">Dodaj Placówkę</button>
                     </div>
@@ -297,8 +328,31 @@
             </div>
             <div class="modal-body p-0">
                 <input type="hidden" id="dispatchTargetIncidentId">
+                <div id="weather-widget-container" class="alert alert-dark p-2 m-3 d-none shadow-sm border-secondary">
+                    <div class="row align-items-center">
+                        <div class="col-md-6 border-right border-secondary">
+                            <h6 class="mb-1 text-light"><i class="fas fa-road text-info"></i> Warunki drogowe z OWM</h6>
+                            <div class="d-flex align-items-center">
+                                <img id="w-icon" src="" alt="Pogoda" width="50" height="50">
+                                <div class="ml-2 text-white">
+                                    <span id="w-temp" class="font-weight-bold" style="font-size: 1.2rem;"></span>°C - <span id="w-desc" class="text-capitalize"></span><br>
+                                    <span id="w-ground-alerts"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-1 text-light"><i class="fas fa-helicopter text-warning"></i> Lotnictwo AVWX</h6>
+                            <div class="text-white">
+                                Reguły: <span id="w-flight-rules" class="badge" style="font-size: 1rem;"></span>
+                                <small class="text-muted ml-1" id="w-station"></small><br>
+                                <span id="w-flight-alerts" class="mt-1 d-inline-block"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <table class="table table-hover m-0">
-                    <thead class="bg-light">
+                    <thead class="bg-light text-dark">
                         <tr>
                             <th>Tablice / Nr</th>
                             <th id="dispatch-col-type">Typ/Model</th>
@@ -576,5 +630,16 @@
                 alert("Nie udało się wyznaczyć trasy z serwerów OSRM.");
             }
         };
+
+                function toggleHelipadOptions() {
+            const type = document.getElementById('centerType').value;
+            if (type === 'Airbase') {
+                document.getElementById('helipadOptionGroup').classList.add('d-none');
+                document.getElementById('airbaseOptionGroup').classList.remove('d-none');
+            } else {
+                document.getElementById('helipadOptionGroup').classList.remove('d-none');
+                document.getElementById('airbaseOptionGroup').classList.add('d-none');
+            }
+        }
     </script>
 }

@@ -19,6 +19,7 @@ namespace _211system.Models.Hospital
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public double OperatingRadiusKm { get; set; } = 15.0;
+        public bool HasHelipad { get; set; } = false;
 
         public virtual ICollection<Paramedic> Paramedics { get; set; } = new List<Paramedic>();
         public virtual ICollection<HospitalWard> Wards { get; set; } = new List<HospitalWard>();

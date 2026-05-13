@@ -27,9 +27,9 @@ public class PdfReportService : IPdfReportService
 
     public async Task<(byte[] FileBytes, string FileName)> GenerateIncidentsReportAsync(DateTime from, DateTime to)
     {
-
-        var closedIncidents = await _context.Incidents
-            .Where(i => i.Status == "Zakończone" || i.Status == "Zakonczone")
+        var incidents = await _context.Incidents
+            .Include(i => i.IncidentType)
+            .Include(i => i.SeverityLevel)
             .Where(i => i.ReportDate >= from && i.ReportDate <= to)
             .OrderBy(i => i.ReportDate)
             .ToListAsync();
@@ -38,13 +38,13 @@ public class PdfReportService : IPdfReportService
         {
             container.Page(page =>
             {
-                page.Size(PageSizes.A4);
-                page.Margin(2, Unit.Centimetre);
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1.5f, Unit.Centimetre);
                 page.PageColor(Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(11));
+                page.DefaultTextStyle(x => x.FontSize(10));
 
                 page.Header().Element(ComposeHeader);
-                page.Content().Element(x => ComposeContent(x, closedIncidents));
+                page.Content().Element(x => ComposeContent(x, incidents));
                 page.Footer().AlignCenter().Text(x =>
                 {
                     x.Span("Strona ");
@@ -82,9 +82,9 @@ public class PdfReportService : IPdfReportService
             {
                 row.RelativeItem().Column(column =>
                 {
-                    column.Item().Text("Centrum Powiadamiania Ratunkowego").FontSize(20).SemiBold().FontColor(Colors.Blue.Darken2);
-                    column.Item().Text($"Raport zamkniętych zgłoszeń").FontSize(14);
-                    column.Item().Text($"Za okres: {from:dd.MM.yyyy} - {to:dd.MM.yyyy}").FontSize(12);
+                    column.Item().Text("Centrum Powiadamiania Ratunkowego 112").FontSize(20).SemiBold().FontColor(Colors.Blue.Darken2);
+                    column.Item().Text($"Szczegółowy Raport Zdarzeń (Wszystkie Statusy)").FontSize(14);
+                    column.Item().Text($"Za okres: {from:dd.MM.yyyy} - {to:dd.MM.yyyy}").FontSize(12).FontColor(Colors.Grey.Darken1);
                 });
             });
         }
@@ -95,31 +95,46 @@ public class PdfReportService : IPdfReportService
             {
                 table.ColumnsDefinition(columns =>
                 {
+                    columns.ConstantColumn(80);
                     columns.ConstantColumn(90);
-                    columns.ConstantColumn(100);
-                    columns.RelativeColumn();
-                    columns.RelativeColumn();
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(1);
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(3);
+                    columns.RelativeColumn(3);
                 });
 
                 table.Header(header =>
                 {
-                    header.Cell().Element(CellStyle).Text("Nr Zgłoszenia");
+                    header.Cell().Element(CellStyle).Text("Numer");
                     header.Cell().Element(CellStyle).Text("Data");
-                    header.Cell().Element(CellStyle).Text("Status");
+                    header.Cell().Element(CellStyle).Text("Typ");
+                    header.Cell().Element(CellStyle).Text("Priorytet");
+                    header.Cell().Element(CellStyle).Text("Służby");
                     header.Cell().Element(CellStyle).Text("Położenie");
+                    header.Cell().Element(CellStyle).Text("Opis");
 
                     static IContainer CellStyle(IContainer container) => container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
                 });
 
                 foreach (var incident in incidents)
                 {
-
-                    table.Cell().Element(CellStyle).Text(incident.IncidentNumber ?? "Brak numeru");
+                    table.Cell().Element(CellStyle).Text(incident.IncidentNumber ?? "Brak");
                     table.Cell().Element(CellStyle).Text(incident.ReportDate.ToString("dd.MM.yyyy HH:mm"));
-                    table.Cell().Element(CellStyle).Text(incident.Status ?? "Brak");
+                    table.Cell().Element(CellStyle).Text(incident.IncidentType?.Name ?? "Brak");
+                    table.Cell().Element(CellStyle).Text(incident.SeverityLevel?.Name ?? "Brak");
+                    
+                    string services = "";
+                    if (incident.IsPoliceActive) services += "POL ";
+                    if (incident.IsFireActive) services += "PSP ";
+                    if (incident.IsMedicalActive) services += "ZRM ";
+                    table.Cell().Element(CellStyle).Text(string.IsNullOrEmpty(services) ? "-" : services);
                     
                     var locationInfo = incident.Latitude != 0 && incident.Longitude != 0 ? $"GPS: {incident.Latitude}, {incident.Longitude}" : "Brak lokalizacji";
                     table.Cell().Element(CellStyle).Text(locationInfo); 
+                    
+                    var desc = incident.Description?.Length > 50 ? incident.Description.Substring(0, 50) + "..." : incident.Description;
+                    table.Cell().Element(CellStyle).Text(desc ?? "");
 
                     static IContainer CellStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
                 }

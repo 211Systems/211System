@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Reflection.Emit;
 using _211system.Models;
+using _211system.Models.Aviation;
 using _211system.Models.Hospital;
 using CPR112.Models;
 using FireDepartment;
@@ -55,6 +56,9 @@ namespace _211system.Data
         public DbSet<PoliceEquipment> PoliceEquipments { get; set; }
         public DbSet<Policeman> Policemen { get; set; }
         public DbSet<PoliceOperation> PoliceOperations { get; set; }
+
+        public DbSet<Airbase> Airbases { get; set; }
+        public DbSet<AirUnit> AirUnits { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -125,6 +129,12 @@ namespace _211system.Data
                 .HasOne(mo => mo.Paramedic)
                 .WithMany(p => p.MedicalOperations)
                 .HasForeignKey(mo => mo.ParamedicId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<AirUnit>()
+                .HasOne(a => a.Airbase)
+                .WithMany(b => b.AirUnits)
+                .HasForeignKey(a => a.AirbaseId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<SeverityLevel>().HasData(
