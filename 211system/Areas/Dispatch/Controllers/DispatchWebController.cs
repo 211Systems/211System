@@ -14,5 +14,10 @@ namespace _211system.Areas.Dispatch.Controllers
         {
             return View();
         }
+        [HttpGet("/Dispatch/Home/Report")]
+        public IActionResult Report()
+        {
+            return View("~/Areas/Dispatch/Views/Home/Report.cshtml"); 
+        }
     }
 }
