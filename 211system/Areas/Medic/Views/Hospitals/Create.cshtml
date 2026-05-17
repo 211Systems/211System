@@ -8,7 +8,7 @@
             <div class="card-header">
                 <h3 class="card-title">Nowa Placówka Medyczna</h3>
             </div>
-            
+
             <form id="createHospitalForm">
                 <div class="card-body">
                     <div class="form-group">
@@ -16,14 +16,21 @@
                         <input type="text" class="form-control" id="name" placeholder="np. Wojewódzki Szpital Zespolony" required>
                     </div>
                     <div class="form-group">
-                        <label for="address">Adres</label>
+                        <label for="address">Adres Placówki</label>
                         <input type="text" class="form-control" id="address" placeholder="np. ul. Medyczna 1" required>
                     </div>
-                    <div class="form-group custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
-                        <input type="checkbox" class="custom-control-input" id="hasSOR">
-                        <label class="custom-control-label" for="hasSOR">Placówka posiada Szpitalny Oddział Ratunkowy (SOR)</label>
+
+                    <div class="form-group form-check mt-4 mb-2">
+                        <input type="checkbox" class="form-check-input" id="hasSOR">
+                        <label class="form-check-label font-weight-bold" for="hasSOR">Placówka posiada Szpitalny Oddział Ratunkowy (SOR)</label>
                     </div>
                     <div class="form-group mt-3">
+                        <div class="custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+                            <input type="checkbox" class="custom-control-input" id="hasHelipad">
+                            <label class="custom-control-label font-weight-bold" for="hasHelipad"><i class="fas fa-h-square text-success"></i> Posiada lądowisko przyszpitalne</label>
+                        </div>
+                    </div>
+                    <div class="form-group mt-4">
                         <label><i class="fas fa-map-marker-alt text-danger"></i> Wybierz lokalizację placówki na mapie</label>
                         <div id="picker-map" style="height: 300px; width: 100%; border-radius: 5px; border: 1px solid #ccc;"></div>
                     </div>
@@ -42,12 +49,13 @@
                             <input type="number" id="deptRadius" class="form-control form-control-sm" value="15" min="1">
                         </div>
                     </div>
-                    <p id="form-error" class="text-danger d-none mt-3"></p>
+
+                    <p id="form-error" class="text-danger d-none"></p>
                 </div>
 
                 <div class="card-footer d-flex justify-content-between">
-                    <a href="/Medic/Hospitals" class="btn btn-default">Anuluj</a>
-                    <button type="submit" class="btn btn-success">Zarejestruj Szpital</button>
+                    <a href="/Admin/Hospitals" class="btn btn-default">Anuluj</a>
+                    <button type="submit" class="btn btn-success">Utwórz placówkę</button>
                 </div>
             </form>
         </div>
@@ -139,30 +147,62 @@
 
             setTimeout(() => { pickerMap.invalidateSize(); }, 500);
 
-            setupApiFormSubmit({
-                formId: 'createHospitalForm',
-                apiUrl: '/api/Medical/hospitals',
-                redirectUrl: '/Medic/Hospitals',
-                defaultErrorMsg: 'Błąd podczas dodawania szpitala.',
-                buildPayload: () => {
-                    const latVal = latInput.value;
-                    const lngVal = lngInput.value;
+        // USUŃ setupApiFormSubmit i wklej to:
+                    document.getElementById('createHospitalForm').addEventListener('submit', async function(e) {
+                        e.preventDefault();
+                        const errorMsg = document.getElementById('form-error');
+                        errorMsg.classList.add('d-none');
 
-                    if (!latVal || !lngVal) {
-                        alert("Proszę wskazać lokalizację placówki na mapie!");
-                        throw new Error("Validation Failed");
-                    }
+                        const latVal = latInput.value;
+                        const lngVal = lngInput.value;
 
-                    return {
-                        name: document.getElementById('name').value,
-                        address: document.getElementById('address').value,
-                        hasSOR: document.getElementById('hasSOR').checked,
-                        latitude: parseFloat(latVal),
-                        longitude: parseFloat(lngVal),
-                        operatingRadiusKm: parseFloat(radiusInput.value)
-                    };
-                }
-            });
+                        if (!latVal || !lngVal) {
+                            alert("Proszę wskazać lokalizację placówki na mapie!");
+                            return;
+                        }
+
+                        const payload = {
+                            name: document.getElementById('name').value,
+                            address: document.getElementById('address').value,
+                            hasSOR: document.getElementById('hasSOR').checked,
+                            hasHelipad: document.getElementById('hasHelipad').checked,
+                            latitude: parseFloat(latVal),
+                            longitude: parseFloat(lngVal),
+                            operatingRadiusKm: parseFloat(radiusInput.value)
+                        };
+
+                        try {
+                            const res = await fetch('/api/Medical/hospitals', {
+                                method: 'POST',
+                                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+
+                            if (res.ok) {
+                                if (payload.hasHelipad) {
+                                    await fetch('/api/Aviation/airbases', {
+                                        method: 'POST',
+                                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            name: `Lądowisko: ${payload.name}`,
+                                            icaoCode: "MEDIC",
+                                            serviceType: 0,
+                                            latitude: payload.latitude,
+                                            longitude: payload.longitude
+                                        })
+                                    }).catch(err => console.error("Błąd lądowiska:", err));
+                                }
+
+                                window.location.href = '/Medic/Hospitals';
+                            } else {
+                                errorMsg.textContent = "Błąd podczas dodawania szpitala.";
+                                errorMsg.classList.remove('d-none');
+                            }
+                        } catch(e) {
+                            errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
+                            errorMsg.classList.remove('d-none');
+                        }
+                    });
         });
     </script>
 }

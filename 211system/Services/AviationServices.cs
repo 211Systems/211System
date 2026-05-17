@@ -59,9 +59,22 @@ namespace _211system.Services
             return unit;
         }
 
-        public async Task<IEnumerable<AirUnit>> GetAllAirUnitsAsync()
+        public async Task<IEnumerable<AirUnitDto>> GetAllAirUnitsAsync()
         {
-            return await _context.AirUnits.Include(u => u.Airbase).ToListAsync();
+            var units = await _context.AirUnits.ToListAsync();
+
+            return units.Select(u => new AirUnitDto
+            {
+                Id = u.Id,
+                Callsign = u.Callsign,
+                Type = (int)u.Type,
+                ServiceType = (int)u.ServiceType,
+                IsAvailable = u.IsAvailable,
+                Status = (int)u.Status,
+                Latitude = u.Latitude,
+                Longitude = u.Longitude,
+                AirbaseId = u.AirbaseId
+            });
         }
 
         public async Task AssignAirUnitToIncidentAsync(Guid unitId, Guid incidentId)

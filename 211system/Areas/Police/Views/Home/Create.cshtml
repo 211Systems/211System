@@ -39,6 +39,10 @@
                             <label><small class="text-muted">Promień operacyjny (km)</small></label>
                             <input type="number" id="deptRadius" class="form-control form-control-sm" value="15" min="1">
                         </div>
+                        <div class="form-group custom-control custom-switch mt-2">
+                            <input type="checkbox" class="custom-control-input" id="hasHelipad">
+                            <label class="custom-control-label" for="hasHelipad"><i class="fas fa-h-square text-primary"></i> Lądowisko na komendzie</label>
+                        </div>
                     </div>
                     <p id="form-error" class="text-danger d-none mt-3"></p>
                 </div>
@@ -151,6 +155,7 @@
                 name: document.getElementById('deptName').value,
                 address: document.getElementById('deptAddress').value,
                 district: document.getElementById('deptDistrict').value,
+                hasHelipad: document.getElementById('hasHelipad').checked,
                 latitude: parseFloat(latVal),
                 longitude: parseFloat(lngVal),
                 operatingRadiusKm: parseFloat(radiusInput.value)
@@ -164,6 +169,20 @@
                 });
 
                 if (res.ok) {
+                    if (payload.hasHelipad) {
+                        await fetch('/api/Aviation/airbases', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: `Lądowisko: ${payload.name}`,
+                                icaoCode: "POL",
+                                serviceType: 1,
+                                latitude: payload.latitude,
+                                longitude: payload.longitude
+                            })
+                        }).catch(err => console.error("Błąd lądowiska:", err));
+                    }
+
                     window.location.href = '/Police/Home';
                 } else {
                     if (res.status === 401 || res.status === 403) {

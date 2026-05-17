@@ -56,6 +56,7 @@ window.registerNewCenter = async function () {
 
     let url = '';
     let dto = {};
+    const hasHelipad = document.getElementById('hasHelipad') ? document.getElementById('hasHelipad').checked : false;
 
     if (type === 'Airbase') {
         url = '/api/Aviation/airbases';
@@ -67,18 +68,11 @@ window.registerNewCenter = async function () {
             longitude: parseFloat(lngVal)
         };
     } else {
-        const hasHelipad = document.getElementById('hasHelipad') ? document.getElementById('hasHelipad').checked : false;
         const regionVal = document.getElementById('centerRegion').value || "Brak Danych";
-
         dto = {
-            name: nameVal,
-            region: regionVal,
-            address: regionVal,
-            district: regionVal,
-            latitude: parseFloat(latVal),
-            longitude: parseFloat(lngVal),
-            operatingRadiusKm: parseFloat(radiusVal),
-            hasHelipad: hasHelipad
+            name: nameVal, region: regionVal, address: regionVal, district: regionVal,
+            latitude: parseFloat(latVal), longitude: parseFloat(lngVal),
+            operatingRadiusKm: parseFloat(radiusVal), hasHelipad: hasHelipad
         };
 
         if (type === 'Hospital') url = '/api/Medical/hospitals';
@@ -95,6 +89,25 @@ window.registerNewCenter = async function () {
         });
 
         if (response.ok) {
+            if (type !== 'Airbase' && hasHelipad) {
+                let airServiceType = 0;
+                if (type === 'Police') airServiceType = 1;
+                if (type === 'Fire') airServiceType = 2;
+
+                const airbaseDto = {
+                    name: `Lądowisko: ${nameVal}`,
+                    icaoCode: "HLPD",
+                    serviceType: airServiceType,
+                    latitude: parseFloat(latVal), longitude: parseFloat(lngVal)
+                };
+
+                await fetch('/api/Aviation/airbases', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(airbaseDto)
+                });
+            }
+
             alert("Sukces! Placówka została dodana do systemu.");
             document.getElementById('createCenterForm').reset();
             window.toggleHelipadOptions();
@@ -103,13 +116,9 @@ window.registerNewCenter = async function () {
             if (typeof window.loadCentersToSelect === 'function') await window.loadCentersToSelect();
             if (typeof window.refreshMapData === 'function') window.refreshMapData();
         } else {
-            const errorText = await response.text();
-            alert(`Błąd serwera: ${response.status}. Szczegóły: ${errorText}`);
+            alert(`Błąd serwera: ${response.status}. Szczegóły: ${await response.text()}`);
         }
-    } catch (e) {
-        console.error("Błąd registerNewCenter:", e);
-        alert("Błąd krytyczny połączenia z serwerem.");
-    }
+    } catch (e) { alert("Błąd krytyczny połączenia z serwerem."); }
 };
 
 window.registerNewOperator = async function () {
@@ -788,6 +797,7 @@ window.loadIncidents = async function () {
                             <button class="btn btn-xs btn-primary ml-1" onclick="window.openDispatchModal('police', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
                             <button class="btn btn-xs btn-danger ml-1" onclick="window.openDispatchModal('fire', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
                             <button class="btn btn-xs btn-success ml-1" onclick="window.openDispatchModal('medic', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
+                            <button class="btn btn-xs btn-dark ml-1" onclick="window.openDispatchModal('aviation', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Lotnictwo (HEMS/Policja)"><i class="fas fa-helicopter"></i></button>
                             ${isAdmin ? `<button class="btn btn-xs btn-outline-danger ml-1" onclick="window.deleteIncident('${inc.id}')"><i class="fas fa-trash"></i></button>` : ''}
                         </div>
                     </td>

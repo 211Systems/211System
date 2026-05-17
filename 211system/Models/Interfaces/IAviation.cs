@@ -8,7 +8,7 @@ namespace _211system.Models.Interfaces
         Task<Airbase> CreateAirbaseAsync(CreateAirbaseDto dto);
         Task<IEnumerable<Airbase>> GetAllAirbasesAsync();
         Task<AirUnit> CreateAirUnitAsync(CreateAirUnitDto dto);
-        Task<IEnumerable<AirUnit>> GetAllAirUnitsAsync();
+        Task<IEnumerable<AirUnitDto>> GetAllAirUnitsAsync();
         Task AssignAirUnitToIncidentAsync(Guid unitId, Guid incidentId);
         Task ReturnToBaseAsync(Guid unitId);
     }

@@ -39,6 +39,11 @@
                             <label><small class="text-muted">Promień operacyjny (km)</small></label>
                             <input type="number" id="deptRadius" class="form-control form-control-sm" value="15" min="1">
                         </div>
+
+                        <div class="form-group custom-control custom-switch mt-2">
+                            <input type="checkbox" class="custom-control-input" id="hasHelipad">
+                            <label class="custom-control-label" for="hasHelipad"><i class="fas fa-h-square text-danger"></i> Posiada lądowisko dla maszyn gaśniczych</label>
+                        </div>
                     </div>
                     <p id="form-error" class="text-danger d-none mt-3"></p>
                 </div>
@@ -135,50 +140,65 @@
 
 
         document.getElementById('createDeptForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const errorMsg = document.getElementById('form-error');
-            errorMsg.classList.add('d-none');
+                    e.preventDefault();
+                    const errorMsg = document.getElementById('form-error');
+                    errorMsg.classList.add('d-none');
 
-            const latVal = latInput.value;
-            const lngVal = lngInput.value;
+                    const latVal = latInput.value;
+                    const lngVal = lngInput.value;
 
-            if (!latVal || !lngVal) {
-                alert("Proszę wskazać lokalizację remizy na mapie!");
-                return;
-            }
-
-            const payload = {
-                name: document.getElementById('deptName').value,
-                address: document.getElementById('deptAddress').value,
-                district: document.getElementById('deptDistrict').value,
-                latitude: parseFloat(latVal),
-                longitude: parseFloat(lngVal),
-                operatingRadiusKm: parseFloat(radiusInput.value)
-            };
-
-            try {
-                const res = await fetch('/api/Fire/departments', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (res.ok) {
-                    window.location.href = '/Fire/Home';
-                } else {
-                    if (res.status === 401 || res.status === 403) {
-                        errorMsg.textContent = "Brak uprawnień lub token wygasł! Wyloguj się i zaloguj ponownie.";
-                    } else if (res.status === 400) {
-                        errorMsg.textContent = "Błąd 400: Uzupełnij wszystkie pola prawidłowo.";
-                    } else {
-                        errorMsg.textContent = "Błąd serwera (Kod: " + res.status + ").";
+                    if (!latVal || !lngVal) {
+                        alert("Proszę wskazać lokalizację remizy na mapie!");
+                        return;
                     }
-                    errorMsg.classList.remove('d-none');
-                }
-            } catch(e) {
-                errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
-                errorMsg.classList.remove('d-none');
-            }
-        });
+
+                    const payload = {
+                        name: document.getElementById('deptName').value,
+                        address: document.getElementById('deptAddress').value,
+                        district: document.getElementById('deptDistrict').value,
+                        hasHelipad: document.getElementById('hasHelipad').checked,
+                        latitude: parseFloat(latVal),
+                        longitude: parseFloat(lngVal),
+                        operatingRadiusKm: parseFloat(radiusInput.value)
+                    };
+
+                    try {
+                        const res = await fetch('/api/Fire/departments', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (res.ok) {
+                            if (payload.hasHelipad) {
+                                await fetch('/api/Aviation/airbases', {
+                                    method: 'POST',
+                                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        name: `Lądowisko: ${payload.name}`,
+                                        icaoCode: "FIRE",
+                                        serviceType: 2,
+                                        latitude: payload.latitude,
+                                        longitude: payload.longitude
+                                    })
+                                }).catch(err => console.error("Błąd lądowiska:", err));
+                            }
+
+                            window.location.href = '/Fire/Home';
+                        } else {
+                            if (res.status === 401 || res.status === 403) {
+                                errorMsg.textContent = "Brak uprawnień lub token wygasł! Wyloguj się i zaloguj ponownie.";
+                            } else if (res.status === 400) {
+                                errorMsg.textContent = "Błąd 400: Uzupełnij wszystkie pola prawidłowo.";
+                            } else {
+                                errorMsg.textContent = "Błąd serwera (Kod: " + res.status + ").";
+                            }
+                            errorMsg.classList.remove('d-none');
+                        }
+                    } catch(e) {
+                        errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
+                        errorMsg.classList.remove('d-none');
+                    }
+                });
     </script>
 }
