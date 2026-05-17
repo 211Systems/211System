@@ -59,5 +59,17 @@ namespace _211system.Controllers
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
+
+        [HttpPost("units/{unitId}/free")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
+        public async Task<IActionResult> FreeAirUnit(Guid unitId)
+        {
+            try
+            {
+                await _aviationService.FreeUnitAsync(unitId);
+                return Ok(new { message = "Maszyna zwolniona i zawrócona do bazy." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
     }
 }

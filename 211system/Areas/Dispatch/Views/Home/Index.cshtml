@@ -16,30 +16,40 @@
 
 <div id="incidents-panel" class="fade-panel">
     <div class="row mb-3" id="status-board">
-        <div class="col-md-4 col-12">
+        <div class="col-md-3 col-6 mb-2">
             <div class="info-box bg-primary shadow status-tile" onclick="window.openDispatchModal('police')">
                 <span class="info-box-icon"><i class="fas fa-car-side"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Dysponuj Radiowóz</span>
-                    <span class="info-box-number" id="status-police">0 / 0</span>
+                    <span class="info-box-text">Policja</span>
+                    <span class="info-box-number" id="status-police">Ładowanie...</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-12">
+        <div class="col-md-3 col-6 mb-2">
             <div class="info-box bg-success shadow status-tile" onclick="window.openDispatchModal('medic')">
                 <span class="info-box-icon"><i class="fas fa-ambulance"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Dysponuj Karetkę</span>
+                    <span class="info-box-text">Karetki</span>
                     <span class="info-box-number" id="status-medic">Ładowanie...</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-12">
+        <div class="col-md-3 col-6 mb-2">
             <div class="info-box bg-danger shadow status-tile" onclick="window.openDispatchModal('fire')">
                 <span class="info-box-icon"><i class="fas fa-fire-extinguisher"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Dysponuj Wóz PSP</span>
-                    <span class="info-box-number" id="status-fire">0 / 0</span>
+                    <span class="info-box-text">Straż PSP</span>
+                    <span class="info-box-number" id="status-fire">Ładowanie...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 col-6 mb-2">
+            <div class="info-box bg-dark shadow status-tile border border-secondary" onclick="window.openDispatchModal('aviation')">
+                <span class="info-box-icon"><i class="fas fa-helicopter text-white"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text text-white">Lotnictwo</span>
+                    <span class="info-box-number text-white" id="status-aviation">Ładowanie...</span>
                 </div>
             </div>
         </div>

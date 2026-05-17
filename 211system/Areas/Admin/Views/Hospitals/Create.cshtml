@@ -25,6 +25,11 @@
                         <label class="form-check-label font-weight-bold" for="hasSOR">Placówka posiada Szpitalny Oddział Ratunkowy (SOR)</label>
                     </div>
 
+                    <div class="form-group custom-control custom-switch custom-switch-off-danger custom-switch-on-success mt-2">
+                        <input type="checkbox" class="custom-control-input" id="hasHelipad">
+                        <label class="custom-control-label" for="hasHelipad"><i class="fas fa-h-square text-success"></i> Posiada lądowisko przyszpitalne</label>
+                    </div>
+
                     <p id="form-error" class="text-danger d-none"></p>
                 </div>
 
@@ -48,7 +53,11 @@
             buildPayload: () => ({
                 name: document.getElementById('name').value,
                 address: document.getElementById('address').value,
-                hasSOR: document.getElementById('hasSOR').checked
+                hasSOR: document.getElementById('hasSOR').checked,
+                hasHelipad: document.getElementById('hasHelipad').checked,
+                latitude: parseFloat(latVal),
+                longitude: parseFloat(lngVal),
+                operatingRadiusKm: parseFloat(radiusInput.value)
             })
         });
     </script>
