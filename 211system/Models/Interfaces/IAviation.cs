@@ -11,5 +11,6 @@ namespace _211system.Models.Interfaces
         Task<IEnumerable<AirUnitDto>> GetAllAirUnitsAsync();
         Task AssignAirUnitToIncidentAsync(Guid unitId, Guid incidentId);
         Task ReturnToBaseAsync(Guid unitId);
+        Task FreeUnitAsync(Guid unitId);
     }
 }

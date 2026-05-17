@@ -1,8 +1,8 @@
 ﻿@{
-    ViewBag.ThemeColor = "success";
-    ViewBag.Icon = "fas fa-plane";
-    ViewBag.Title = "Lotnictwo szpitalne";
-    ViewBag.ServiceFilter = 0;
+    ViewBag.ThemeColor = "primary";
+    ViewBag.Icon = "fas fa-helicopter";
+    ViewBag.Title = "Lotnictwo Medyczne";
+    ViewBag.ServiceFilter = 1;
 }
 
 <div class="row mb-3">
@@ -95,6 +95,8 @@
         const themeColorClass = "text-@ViewBag.ThemeColor";
         const btnClass = "btn-@ViewBag.ThemeColor";
 
+        const iconClassStr = "@ViewBag.Icon";
+
         window.allVehicles = [];
         window.allAirbases = [];
 
@@ -152,12 +154,20 @@
                 const airbase = window.allAirbases.find(b => (b.id || b.Id) === baseId);
                 const baseName = airbase ? `${airbase.name || airbase.Name} (${airbase.icaoCode || airbase.IcaoCode || 'Brak'})` : '<span class="text-danger">Brak bazy!</span>';
 
-                const statusBadge = (v.isAvailable !== false) ? '<span class="badge badge-success">W Bazie</span>' : '<span class="badge badge-warning text-dark">W misji</span>';
+                const isAvailable = (v.isAvailable !== undefined ? v.isAvailable : v.IsAvailable);
+                const statusBadge = isAvailable ? '<span class="badge badge-success">W Bazie</span>' : '<span class="badge badge-warning text-dark">W misji</span>';
 
                 let actions = `
                     <button onclick="focusMap(${airbase?.latitude || airbase?.Latitude || 0}, ${airbase?.longitude || airbase?.Longitude || 0})" class="btn btn-sm btn-secondary" title="Pokaż bazę na mapie"><i class="fas fa-map-marker-alt"></i></button>
                 `;
+
                 if (isAviationManager) {
+                    if (!isAvailable) {
+                        actions += `
+                            <button onclick="forceFreeUnit('${vId}')" class="btn btn-sm btn-warning text-dark ml-1" title="Zakończ misję i zwróć maszynę"><i class="fas fa-undo"></i></button>
+                        `;
+                    }
+
                     actions += `
                         <button onclick="deleteVehicle('${vId}')" class="btn btn-sm btn-danger ml-1" title="Zezłomuj"><i class="fas fa-trash"></i></button>
                     `;
@@ -203,6 +213,26 @@
             else { const err = await res.text(); alert("Błąd: " + err); }
         });
 
+        window.forceFreeUnit = async function(id) {
+            if (!confirm("Czy na pewno chcesz przerwać obecną misję tej maszyny i zresetować jej status do bazy?")) return;
+
+            try {
+                const res = await fetch(`/api/Aviation/units/${id}/free`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (res.ok) {
+                    alert("Maszyna została poprawnie zresetowana i zwrócona do bazy.");
+                    await fetchData();
+                } else {
+                    alert("Wystąpił błąd podczas resetowania statusu maszyny.");
+                }
+            } catch(e) {
+                alert("Błąd komunikacji z serwerem.");
+            }
+        };
+
         window.deleteVehicle = async function(id) {
             if (!confirm("Wyrejestrować maszynę? Operacja jest nieodwracalna.")) return;
             const res = await fetch(`/api/Aviation/units/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
@@ -247,7 +277,7 @@
                     });
 
                     L.marker([lat, lng], {icon: heliIcon})
-                        .bindPopup(`<b><i class="${'@ViewBag.Icon'} ${themeColorClass}"></i> ${base.name || base.Name}</b><br>ICAO: <b>${base.icaoCode || base.IcaoCode}</b><br>Maszyny (Wolne / Wszystkie): <b>${availableUnits} / ${unitsHere.length}</b>`)
+                        .bindPopup(`<b><i class="${iconClassStr} ${themeColorClass}"></i> ${base.name || base.Name}</b><br>ICAO: <b>${base.icaoCode || base.IcaoCode}</b><br>Maszyny (Wolne / Wszystkie): <b>${availableUnits} / ${unitsHere.length}</b>`)
                         .addTo(fleetMarkers);
                 }
             });

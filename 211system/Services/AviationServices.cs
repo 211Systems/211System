@@ -106,5 +106,30 @@ namespace _211system.Services
             _context.AirUnits.Update(unit);
             await _context.SaveChangesAsync();
         }
+
+        public async Task FreeUnitAsync(Guid unitId)
+        {
+            var unit = await _context.AirUnits.FindAsync(unitId);
+            if (unit != null)
+            {
+                unit.IsAvailable = true;
+                unit.Status = VehicleOperationalStatus.InBase;
+                unit.CurrentIncidentId = null;
+
+                var baseDb = await _context.Airbases.FindAsync(unit.AirbaseId);
+                if (baseDb != null)
+                {
+                    unit.Latitude = baseDb.Latitude;
+                    unit.Longitude = baseDb.Longitude;
+                }
+
+                _context.AirUnits.Update(unit);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                throw new Exception("Nie znaleziono jednostki lotniczej.");
+            }
+        }
     }
 }
