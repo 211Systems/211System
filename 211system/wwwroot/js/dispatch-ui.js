@@ -1,33 +1,398 @@
 ﻿let currentRouteLayer = null;
+window.activeSimulations = {};
+window.vehicleMarkers = {};
+
+const iconPoliceCar = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+const iconAmbulance = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+const iconFireTruck = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+const iconAviation = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+
+function getIconByService(type) {
+    if (type === 'police') return iconPoliceCar;
+    if (type === 'medic') return iconAmbulance;
+    if (type === 'aviation') return iconAviation;
+    return iconFireTruck;
+}
+
+window.getRandomLocationInRadius = function (centerLat, centerLng, radiusKm) {
+    const radiusInDegrees = radiusKm / 111.3;
+    const u = Math.random();
+    const v = Math.random();
+    const w = radiusInDegrees * Math.sqrt(u);
+    const t = 2 * Math.PI * v;
+    const deltaLat = w * Math.sin(t);
+    const deltaLng = w * Math.cos(t) / Math.cos(centerLat * (Math.PI / 180));
+    return { lat: centerLat + deltaLat, lng: centerLng + deltaLng };
+};
+
+async function pingVehicleLocation(id, type, lat, lng, statusId) {
+    let url = '';
+    if (type === 'police') url = `/api/Police/cars/${id}/location`;
+    else if (type === 'fire') url = `/api/Fire/firetrucks/${id}/location`;
+    else if (type === 'medic') url = `/api/Medical/ambulances/${id}/location`;
+    else if (type === 'aviation') url = `/api/Aviation/units/${id}/location`;
+
+    if (url !== '') {
+        try {
+            await fetch(url, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latitude: lat, longitude: lng, status: statusId })
+            });
+        } catch (e) { console.error("PING Error:", e); }
+    }
+}
 
 async function drawRoute(startLat, startLon, endLat, endLon) {
     if (!map) return;
-
-    if (currentRouteLayer) {
-        map.removeLayer(currentRouteLayer);
-    }
-
+    if (currentRouteLayer) map.removeLayer(currentRouteLayer);
     const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.routes && data.routes.length > 0) {
+            const coordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            const distance = (data.routes[0].distance / 1000).toFixed(2);
+            const duration = Math.round(data.routes[0].duration / 60);
+            currentRouteLayer = L.polyline(coordinates, { color: 'blue', weight: 5, opacity: 0.7 }).addTo(map);
+            map.fitBounds(currentRouteLayer.getBounds());
+            console.log(`Dystans: ${distance} km, Czas: ${duration} min`);
+        }
+    } catch (e) { console.error("Błąd routingu:", e); }
+}
+
+window.startAirPatrolSimulation = async function (unitId, currentLat, currentLng, baseLat, baseLng, radiusKm) {
+    if (window.activeSimulations[unitId]) return;
+
+    const target = window.getRandomLocationInRadius(baseLat, baseLng, radiusKm || 20);
+    let step = 0;
+    const totalSteps = 40;
+    const latStep = (target.lat - currentLat) / totalSteps;
+    const lngStep = (target.lng - currentLng) / totalSteps;
+
+    window.activeSimulations[unitId] = setInterval(async () => {
+        if (step >= totalSteps) {
+            clearInterval(window.activeSimulations[unitId]);
+            delete window.activeSimulations[unitId];
+            setTimeout(() => { window.refreshAll(); }, 20000);
+            return;
+        }
+
+        const curLat = currentLat + (latStep * step);
+        const curLng = currentLng + (lngStep * step);
+
+        if (typeof map !== 'undefined') {
+            if (window.vehicleMarkers[unitId]) {
+                window.vehicleMarkers[unitId].setLatLng([curLat, curLng]);
+            }
+        }
+
+        if (step % 5 === 0) {
+            await pingVehicleLocation(unitId, 'aviation', curLat, curLng, 0);
+        }
+        step++;
+    }, 1500);
+};
+
+window.startPatrolSimulation = async function (vehicleId, serviceType, currentLat, currentLng, baseLat, baseLng, radiusKm) {
+    if (window.activeSimulations[vehicleId]) return;
+
+    const target = window.getRandomLocationInRadius(baseLat, baseLng, radiusKm || 10);
+    const url = `https://router.project-osrm.org/route/v1/driving/${currentLng},${currentLat};${target.lng},${target.lat}?overview=full&geometries=geojson`;
 
     try {
         const response = await fetch(url);
         const data = await response.json();
 
         if (data.routes && data.routes.length > 0) {
-            const coordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            const distance = (data.routes[0].distance / 1000).toFixed(2);
-            const duration = Math.round(data.routes[0].duration / 60);
+            const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            let step = 0;
+            const pingFrequency = 10;
 
-            currentRouteLayer = L.polyline(coordinates, { color: 'blue', weight: 5, opacity: 0.7 }).addTo(map);
+            window.activeSimulations[vehicleId] = setInterval(async () => {
+                if (step >= routeCoords.length) {
+                    clearInterval(window.activeSimulations[vehicleId]);
+                    delete window.activeSimulations[vehicleId];
+                    setTimeout(() => { window.refreshAll(); }, 20000);
+                    return;
+                }
 
-            map.fitBounds(currentRouteLayer.getBounds());
+                const curLat = routeCoords[step][0];
+                const curLng = routeCoords[step][1];
 
-            console.log(`Dystans: ${distance} km, Przewidywany czas: ${duration} min`);
+                if (typeof map !== 'undefined') {
+                    if (!window.vehicleMarkers[vehicleId]) {
+                        window.vehicleMarkers[vehicleId] = L.marker([curLat, curLng], { icon: getIconByService(serviceType) })
+                            .addTo(map).bindPopup(`<b>Pojazd na patrolu</b><br>Typ: ${serviceType}`);
+                    } else {
+                        window.vehicleMarkers[vehicleId].setLatLng([curLat, curLng]);
+                    }
+                }
+
+                if (step % pingFrequency === 0) {
+                    await pingVehicleLocation(vehicleId, serviceType, curLat, curLng, 0);
+                }
+                step++;
+            }, 1000);
         }
+    } catch (e) { console.warn("OSRM Patrol Wait:", e); }
+};
+
+window.startAirSimulation = async function (unitId, serviceType, startLat, startLng, endLat, endLng, currentStatus = 1) {
+    if (window.activeSimulations[unitId]) clearInterval(window.activeSimulations[unitId]);
+
+    const routeCoords = [[startLat, startLng], [endLat, endLng]];
+    const routeColor = (currentStatus === 3 || currentStatus === 4) ? '#f39c12' : '#ffffff';
+
+    const flightLine = L.polyline(routeCoords, {
+        color: routeColor, weight: 4, opacity: 0.8, dashArray: '5, 10'
+    }).addTo(map);
+
+    let step = 0;
+    const totalSteps = 15;
+    const latStep = (endLat - startLat) / totalSteps;
+    const lngStep = (endLng - startLng) / totalSteps;
+
+    window.activeSimulations[unitId] = setInterval(async () => {
+        if (step >= totalSteps) {
+            clearInterval(window.activeSimulations[unitId]);
+            delete window.activeSimulations[unitId];
+            if (typeof map !== 'undefined') map.removeLayer(flightLine);
+
+            if (currentStatus === 1) {
+                await pingVehicleLocation(unitId, 'aviation', endLat, endLng, 2);
+            }
+            else if (currentStatus === 3 || currentStatus === 4) {
+                try {
+                    await fetch(`/api/Aviation/units/${unitId}/free`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                } catch (e) { }
+
+                const incidentId = document.getElementById('dispatchTargetIncidentId').value;
+                if (incidentId) {
+                    const fd = new FormData();
+                    fd.append('NewStatus', 'Zakończone');
+                    await fetch(`/api/CPR112/Incidents/${incidentId}/status`, {
+                        method: 'PUT',
+                        headers: { 'Authorization': 'Bearer ' + window.jwtToken },
+                        body: fd
+                    });
+                }
+                await pingVehicleLocation(unitId, 'aviation', endLat, endLng, 0);
+            }
+
+            window.refreshMapData();
+            return;
+        }
+
+        const curLat = startLat + (latStep * step);
+        const curLng = startLng + (lngStep * step);
+
+        if (typeof map !== 'undefined') {
+            if (!window.vehicleMarkers[unitId]) {
+                window.vehicleMarkers[unitId] = L.marker([curLat, curLng], { icon: getIconByService('aviation') })
+                    .addTo(map).bindPopup(`<b>HEMS / Lotnictwo</b><br>Status: W locie`);
+            } else {
+                window.vehicleMarkers[unitId].setLatLng([curLat, curLng]);
+            }
+        }
+
+        if (step % 5 === 0) {
+            await pingVehicleLocation(unitId, 'aviation', curLat, curLng, currentStatus);
+        }
+        step++;
+    }, 1000);
+};
+
+window.startVehicleSimulation = async function (vehicleId, serviceType, startLat, startLng, endLat, endLng, currentStatus = 1) {
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.routes && data.routes.length > 0) {
+            const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            const routeColor = (currentStatus === 3 || currentStatus === 4) ? '#f39c12' : (serviceType === 'police' ? '#007bff' : (serviceType === 'medic' ? '#28a745' : '#dc3545'));
+
+            const actionRouteLine = L.polyline(routeCoords, {
+                color: routeColor, weight: 5, opacity: 0.8, dashArray: '10, 10'
+            }).addTo(map);
+
+            let step = 0;
+            const pingFrequency = 5;
+
+            if (window.activeSimulations[vehicleId]) clearInterval(window.activeSimulations[vehicleId]);
+
+            window.activeSimulations[vehicleId] = setInterval(async () => {
+                if (step >= routeCoords.length) {
+                    clearInterval(window.activeSimulations[vehicleId]);
+                    delete window.activeSimulations[vehicleId];
+                    if (typeof map !== 'undefined') map.removeLayer(actionRouteLine);
+
+                    if (currentStatus === 1) {
+                        await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 2);
+                    }
+                    else if (currentStatus === 3 || currentStatus === 4) {
+                        let freeUrl = '';
+                        if (serviceType === 'medic') freeUrl = `/api/Medical/ambulances/${vehicleId}/free`;
+                        else if (serviceType === 'police') freeUrl = `/api/Police/cars/${vehicleId}/free`;
+                        else if (serviceType === 'fire') freeUrl = `/api/Fire/firetrucks/${vehicleId}/free`;
+
+                        if (freeUrl !== '') {
+                            await fetch(freeUrl, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                        }
+
+                        const incidentId = document.getElementById('dispatchTargetIncidentId').value;
+                        if (incidentId) {
+                            const fd = new FormData();
+                            fd.append('NewStatus', 'Zakończone');
+                            await fetch(`/api/CPR112/Incidents/${incidentId}/status`, {
+                                method: 'PUT',
+                                headers: { 'Authorization': 'Bearer ' + window.jwtToken },
+                                body: fd
+                            });
+                        }
+
+                        await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 0);
+                    }
+
+                    window.refreshMapData();
+                    return;
+                }
+
+                const curLat = routeCoords[step][0];
+                const curLng = routeCoords[step][1];
+
+                if (typeof map !== 'undefined') {
+                    if (!window.vehicleMarkers[vehicleId]) {
+                        window.vehicleMarkers[vehicleId] = L.marker([curLat, curLng], { icon: getIconByService(serviceType) }).addTo(map);
+                    } else {
+                        window.vehicleMarkers[vehicleId].setLatLng([curLat, curLng]);
+                    }
+                }
+
+                if (step % pingFrequency === 0) {
+                    await pingVehicleLocation(vehicleId, serviceType, curLat, curLng, currentStatus);
+                }
+                step++;
+            }, 1000);
+        } else {
+            console.warn(`[OSRM] Nie znaleziono drogi z ${startLat},${startLng} do ${endLat},${endLng}`);
+        }
+    } catch (e) { console.error("Błąd OSRM:", e); }
+};
+
+window.updateCounters = async function () {
+    if (!window.jwtToken) return;
+    const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
+
+    const fetchSafeArray = async (url) => {
+        try {
+            const res = await fetch(url, { headers });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return Array.isArray(data) ? data : [];
+        } catch (e) {
+            return [];
+        }
+    };
+
+    try {
+        const [p, f, m, air, polDepts, fireDepts, hospitals, airbases] = await Promise.all([
+            fetchSafeArray('/api/Police/cars'),
+            fetchSafeArray('/api/Fire/firetrucks'),
+            fetchSafeArray('/api/Medical/ambulances'),
+            fetchSafeArray('/api/Aviation/units'),
+            fetchSafeArray('/api/Police/departments'),
+            fetchSafeArray('/api/Fire/departments'),
+            fetchSafeArray('/api/Medical/hospitals'),
+            fetchSafeArray('/api/Aviation/airbases')
+        ]);
+
+        if (document.getElementById('status-police')) document.getElementById('status-police').textContent = `${p.filter(c => c.isAvailable !== false).length} / ${p.length}`;
+        if (document.getElementById('status-fire')) document.getElementById('status-fire').textContent = `${f.filter(c => c.isAvailable !== false).length} / ${f.length}`;
+        if (document.getElementById('status-medic')) document.getElementById('status-medic').textContent = `${m.filter(c => c.isAvailable !== false).length} / ${m.length}`;
+        if (document.getElementById('status-aviation')) document.getElementById('status-aviation').textContent = `${air.filter(c => c.isAvailable !== false).length} / ${air.length}`;
+
+        if (typeof map !== 'undefined' && window.vehicleMarkers) {
+            const allVehicles = [
+                ...p.map(v => ({ ...v, serviceType: 'police' })),
+                ...f.map(v => ({ ...v, serviceType: 'fire' })),
+                ...m.map(v => ({ ...v, serviceType: 'medic' })),
+                ...air.map(v => ({ ...v, serviceType: 'aviation' }))
+            ];
+
+            allVehicles.forEach(v => {
+                const id = v.id || v.Id;
+                const lat = parseFloat(v.latitude || v.Latitude);
+                const lng = parseFloat(v.longitude || v.Longitude);
+
+                const isAvail = (v.isAvailable !== undefined) ? v.isAvailable : ((v.IsAvailable !== undefined) ? v.IsAvailable : true);
+                const currentStatus = (v.status !== undefined) ? v.status : ((v.Status !== undefined) ? v.Status : 0);
+                const hId = v.hospitalId || v.HospitalId;
+
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                    const statusText = isAvail ? 'W bazie / Patrol' : `Akcja (Status: ${currentStatus})`;
+
+                    if (!window.vehicleMarkers[id]) {
+                        window.vehicleMarkers[id] = L.marker([lat, lng], { icon: getIconByService(v.serviceType) })
+                            .addTo(map).bindPopup(`<b>${v.licensePlate || v.LicensePlate || v.callsign || v.Callsign}</b><br>Status: ${statusText}`);
+                    } else if (!window.activeSimulations[id]) {
+                        window.vehicleMarkers[id].setLatLng([lat, lng]);
+                        window.vehicleMarkers[id].setPopupContent(`<b>${v.licensePlate || v.LicensePlate || v.callsign || v.Callsign}</b><br>Status: ${statusText}`);
+                    }
+
+                    if (!isAvail && (currentStatus === 3 || currentStatus === 4) && !window.activeSimulations[id]) {
+                        let targetLat = 0; let targetLng = 0;
+
+                        if (v.serviceType === 'aviation') {
+                            const airb = airbases.find(a => (a.id || a.Id) === (v.airbaseId || v.AirbaseId));
+                            if (airb) { targetLat = airb.latitude || airb.Latitude; targetLng = airb.longitude || airb.Longitude; }
+                        }
+                        else if (v.serviceType === 'medic') {
+                            const hosp = hospitals.find(h => (h.id || h.Id) === hId);
+                            if (hosp) { targetLat = parseFloat(hosp.latitude || hosp.Latitude); targetLng = parseFloat(hosp.longitude || hosp.Longitude); }
+                        }
+                        else if (v.serviceType === 'police') {
+                            const police = polDepts.find(pd => (pd.id || pd.Id) === (v.pDepartmentId || v.PDepartmentId));
+                            if (police) { targetLat = parseFloat(police.latitude || police.Latitude); targetLng = parseFloat(police.longitude || police.Longitude); }
+                        }
+                        else if (v.serviceType === 'fire') {
+                            const fire = fireDepts.find(fd => (fd.id || fd.Id) === (v.fDepartmentId || v.FDepartmentId));
+                            if (fire) { targetLat = parseFloat(fire.latitude || fire.Latitude); targetLng = parseFloat(fire.longitude || fire.Longitude); }
+                        }
+
+                        if (targetLat !== 0 && targetLng !== 0) {
+                            if (v.serviceType === 'aviation') window.startAirSimulation(id, v.serviceType, lat, lng, targetLat, targetLng, currentStatus);
+                            else window.startVehicleSimulation(id, v.serviceType, lat, lng, targetLat, targetLng, currentStatus);
+                        }
+                    }
+                }
+            });
+        }
+
+        p.filter(c => c.isAvailable !== false).forEach(car => {
+            const dept = polDepts.find(d => (d.id || d.Id) === (car.pDepartmentId || car.PDepartmentId));
+            if (dept && !window.activeSimulations[car.id || car.Id]) {
+                const baseLat = dept.latitude || dept.Latitude;
+                const baseLng = dept.longitude || dept.Longitude;
+                window.startPatrolSimulation(car.id || car.Id, 'police', car.latitude || car.Latitude, car.longitude || car.Longitude, baseLat, baseLng, 10);
+            }
+        });
+
+        air.filter(c => c.isAvailable !== false).forEach(heli => {
+            const base = airbases.find(b => (b.id || b.Id) === (heli.airbaseId || heli.AirbaseId));
+            if (base && !window.activeSimulations[heli.id || heli.Id]) {
+                const baseLat = base.latitude || base.Latitude;
+                const baseLng = base.longitude || base.Longitude;
+                window.startAirPatrolSimulation(heli.id || heli.Id, heli.latitude || heli.Latitude, heli.longitude || heli.Longitude, baseLat, baseLng, 25);
+            }
+        });
+
     } catch (e) {
-        console.error("Błąd routingu:", e);
+        console.error("Krytyczny błąd aktualizacji interfejsu dyspozytora:", e);
     }
-}
+};
 
 window.toggleHelipadOptions = function () {
     const type = document.getElementById('centerType').value;
@@ -256,15 +621,10 @@ window.openDispatchModal = async function (type, targetIncidentId = null, incLat
             const plate = u.licensePlate || u.LicensePlate || u.callsign || u.Callsign;
 
             let uType = "Wóz";
-            if (type === 'medic') {
-                uType = u.type !== undefined ? (unitTypeMap[u.type] || u.type) : "Karetka";
-            } else if (type === 'police') {
-                uType = "Radiowóz";
-            } else if (type === 'fire') {
-                uType = "Wóz Bojowy";
-            } else if (type === 'aviation') {
-                uType = u.type !== undefined ? (unitTypeMap[u.type] || u.type) : "Statek Powietrzny";
-            }
+            if (type === 'medic') uType = u.type !== undefined ? (unitTypeMap[u.type] || u.type) : "Karetka";
+            else if (type === 'police') uType = "Radiowóz";
+            else if (type === 'fire') uType = "Wóz Bojowy";
+            else if (type === 'aviation') uType = u.type !== undefined ? (unitTypeMap[u.type] || u.type) : "Statek Powietrzny";
 
             const unitLat = u.latitude || u.Latitude || 0;
             const unitLng = u.longitude || u.Longitude || 0;
@@ -328,216 +688,6 @@ window.dispatchUnit = async function (type, targetId, startLat, startLng, endLat
     } catch (e) { alert("Błąd sieci!"); }
 };
 
-window.activeSimulations = {};
-window.vehicleMarkers = {};
-
-const iconPoliceCar = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconAmbulance = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconFireTruck = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconAviation = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-
-function getIconByService(type) {
-    if (type === 'police') return iconPoliceCar;
-    if (type === 'medic') return iconAmbulance;
-    if (type === 'aviation') return iconAviation;
-    return iconFireTruck;
-}
-
-window.startVehicleSimulation = async function (vehicleId, serviceType, startLat, startLng, endLat, endLng, currentStatus = 1) {
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
-
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.routes && data.routes.length > 0) {
-            const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-
-            const routeColor = (currentStatus === 3 || currentStatus === 4) ? '#f39c12' : (serviceType === 'police' ? '#007bff' : (serviceType === 'medic' ? '#28a745' : '#dc3545'));
-
-            const actionRouteLine = L.polyline(routeCoords, {
-                color: routeColor, weight: 5, opacity: 0.8, dashArray: '10, 10'
-            }).addTo(map);
-
-            let step = 0;
-            const pingFrequency = 5;
-
-            if (window.activeSimulations[vehicleId]) clearInterval(window.activeSimulations[vehicleId]);
-
-            window.activeSimulations[vehicleId] = setInterval(async () => {
-                if (step >= routeCoords.length) {
-                    clearInterval(window.activeSimulations[vehicleId]);
-                    delete window.activeSimulations[vehicleId];
-                    if (typeof map !== 'undefined') map.removeLayer(actionRouteLine);
-
-                    if (currentStatus === 1) {
-                        await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 2);
-                    }
-                    else if (currentStatus === 3 || currentStatus === 4) {
-                        let freeUrl = '';
-                        if (serviceType === 'medic') freeUrl = `/api/Medical/ambulances/${vehicleId}/free`;
-                        else if (serviceType === 'police') freeUrl = `/api/Police/cars/${vehicleId}/free`;
-                        else if (serviceType === 'fire') freeUrl = `/api/Fire/firetrucks/${vehicleId}/free`;
-
-                        if (freeUrl !== '') {
-                            await fetch(freeUrl, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
-                        }
-
-                        await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 0);
-                    }
-
-                    window.refreshMapData();
-                    return;
-                }
-
-                const curLat = routeCoords[step][0];
-                const curLng = routeCoords[step][1];
-
-                if (typeof map !== 'undefined') {
-                    if (!window.vehicleMarkers[vehicleId]) {
-                        window.vehicleMarkers[vehicleId] = L.marker([curLat, curLng], { icon: getIconByService(serviceType) }).addTo(map);
-                    } else {
-                        window.vehicleMarkers[vehicleId].setLatLng([curLat, curLng]);
-                    }
-                }
-
-                if (step % pingFrequency === 0) {
-                    await pingVehicleLocation(vehicleId, serviceType, curLat, curLng, currentStatus);
-                }
-                step++;
-            }, 1000);
-        } else {
-            console.warn(`[OSRM] Nie znaleziono drogi z ${startLat},${startLng} do ${endLat},${endLng}`);
-        }
-    } catch (e) { console.error("Błąd OSRM:", e); }
-};
-
-window.startAirSimulation = async function (unitId, serviceType, startLat, startLng, endLat, endLng, currentStatus = 1) {
-    if (window.activeSimulations[unitId]) clearInterval(window.activeSimulations[unitId]);
-
-    const routeCoords = [[startLat, startLng], [endLat, endLng]];
-    const routeColor = (currentStatus === 3 || currentStatus === 4) ? '#f39c12' : '#ffffff';
-
-    const flightLine = L.polyline(routeCoords, {
-        color: routeColor, weight: 4, opacity: 0.8, dashArray: '5, 10'
-    }).addTo(map);
-
-    let step = 0;
-    const totalSteps = 15;
-    const latStep = (endLat - startLat) / totalSteps;
-    const lngStep = (endLng - startLng) / totalSteps;
-
-    window.activeSimulations[unitId] = setInterval(async () => {
-        if (step >= totalSteps) {
-            clearInterval(window.activeSimulations[unitId]);
-            delete window.activeSimulations[unitId];
-            if (typeof map !== 'undefined') map.removeLayer(flightLine);
-
-            if (currentStatus === 1) {
-                await pingVehicleLocation(unitId, 'aviation', endLat, endLng, 2);
-            }
-            else if (currentStatus === 3 || currentStatus === 4) {
-                try {
-                    await fetch(`/api/Aviation/units/${unitId}/free`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
-                } catch (e) { }
-
-                const incidentId = document.getElementById('dispatchTargetIncidentId').value;
-                if (incidentId) {
-                    const fd = new FormData();
-                    fd.append('NewStatus', 'Zakończone');
-                    await fetch(`/api/CPR112/Incidents/${incidentId}/status`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Bearer ' + window.jwtToken },
-                        body: fd
-                    });
-                }
-
-                await pingVehicleLocation(unitId, 'aviation', endLat, endLng, 0);
-            }
-
-            window.refreshMapData();
-            return;
-        }
-
-        const curLat = startLat + (latStep * step);
-        const curLng = startLng + (lngStep * step);
-
-        if (typeof map !== 'undefined') {
-            if (!window.vehicleMarkers[unitId]) {
-                window.vehicleMarkers[unitId] = L.marker([curLat, curLng], { icon: getIconByService('aviation') })
-                    .addTo(map).bindPopup(`<b>HEMS / Lotnictwo</b><br>Status: W locie`);
-            } else {
-                window.vehicleMarkers[unitId].setLatLng([curLat, curLng]);
-            }
-        }
-        step++;
-    }, 1000);
-};
-
-window.startAirPatrolSimulation = async function (unitId, currentLat, currentLng, baseLat, baseLng, radiusKm) {
-    if (window.activeSimulations[unitId]) return;
-
-    const target = window.getRandomLocationInRadius(baseLat, baseLng, radiusKm || 20);
-
-    let step = 0;
-    const totalSteps = 20;
-    const latStep = (target.lat - currentLat) / totalSteps;
-    const lngStep = (target.lng - currentLng) / totalSteps;
-
-    window.activeSimulations[unitId] = setInterval(async () => {
-        if (step >= totalSteps) {
-            clearInterval(window.activeSimulations[unitId]);
-            delete window.activeSimulations[unitId];
-
-            setTimeout(() => { window.refreshAll(); }, 20000);
-            return;
-        }
-
-        const curLat = currentLat + (latStep * step);
-        const curLng = currentLng + (lngStep * step);
-
-        if (typeof map !== 'undefined') {
-            if (window.vehicleMarkers[unitId]) {
-                window.vehicleMarkers[unitId].setLatLng([curLat, curLng]);
-            }
-        }
-
-        if (step % 5 === 0) {
-            await pingVehicleLocation(unitId, 'aviation', curLat, curLng, 0);
-        }
-        step++;
-    }, 1000);
-};
-
-window.getRandomLocationInRadius = function (centerLat, centerLng, radiusKm) {
-    const radiusInDegrees = radiusKm / 111.3;
-    const u = Math.random();
-    const v = Math.random();
-    const w = radiusInDegrees * Math.sqrt(u);
-    const t = 2 * Math.PI * v;
-    const deltaLat = w * Math.sin(t);
-    const deltaLng = w * Math.cos(t) / Math.cos(centerLat * (Math.PI / 180));
-    return { lat: centerLat + deltaLat, lng: centerLng + deltaLng };
-};
-
-async function pingVehicleLocation(id, type, lat, lng, statusId) {
-    let url = '';
-    if (type === 'police') url = `/api/Police/cars/${id}/location`;
-    else if (type === 'fire') url = `/api/Fire/firetrucks/${id}/location`;
-    else if (type === 'medic') url = `/api/Medical/ambulances/${id}/location`;
-    // else if (type === 'aviation') url = `/api/Aviation/units/${id}/location`;
-
-    if (url !== '') {
-        try {
-            await fetch(url, {
-                method: 'PUT',
-                headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ latitude: lat, longitude: lng, status: statusId })
-            });
-        } catch (e) { console.error("PING Error:", e); }
-    }
-}
-
 window.deleteCenter = async function (id) {
     if (confirm("Usunąć tę placówkę?")) {
         await fetch(`/api/Enc/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
@@ -586,45 +736,27 @@ document.addEventListener("DOMContentLoaded", function () {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-incident');
         const typeSelect = document.getElementById('incType');
-
         const latVal = document.getElementById('incLat').value;
         const lngVal = document.getElementById('incLng').value;
 
-        if (!latVal || !lngVal) {
-            alert("Kliknij na mapie, aby wyznaczyć dokładną lokalizację zdarzenia!");
-            return;
-        }
-        if (!typeSelect.value) {
-            alert("Wybierz typ zdarzenia!");
-            return;
-        }
+        if (!latVal || !lngVal) { alert("Kliknij na mapie, aby wyznaczyć dokładną lokalizację zdarzenia!"); return; }
+        if (!typeSelect.value) { alert("Wybierz typ zdarzenia!"); return; }
 
         btn.disabled = true;
         const formData = new FormData();
-
         formData.append('Description', document.getElementById('incDescription').value);
         formData.append('SeverityLevelId', parseInt(document.getElementById('incSeverity').value));
         formData.append('IncidentTypeId', parseInt(typeSelect.value));
-
         formData.append('Latitude', latVal);
         formData.append('Longitude', lngVal);
 
-        if (window.currentOperatorId) {
-            formData.append('OperatorId', window.currentOperatorId);
-        }
+        if (window.currentOperatorId) formData.append('OperatorId', window.currentOperatorId);
 
         const fileInput = document.getElementById('incPhoto');
-        if (fileInput && fileInput.files[0]) {
-            formData.append('photo', fileInput.files[0]);
-        }
+        if (fileInput && fileInput.files[0]) formData.append('photo', fileInput.files[0]);
 
         try {
-            const response = await fetch('/api/CPR112/Incidents', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + window.jwtToken },
-                body: formData
-            });
-
+            const response = await fetch('/api/CPR112/Incidents', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken }, body: formData });
             if (response.ok) {
                 alert("Zgłoszenie zarejestrowane pomyślnie!");
                 document.getElementById('incDescription').value = '';
@@ -633,18 +765,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById('incLng').value = '';
                 if (fileInput) fileInput.value = '';
                 document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
-
                 window.refreshAll();
             } else {
                 const errData = await response.json();
                 console.error("Szczegóły błędu 400:", errData);
                 alert("Błąd serwera. Sprawdź konsolę.");
             }
-        } catch (err) {
-            console.error("Błąd sieci:", err);
-        } finally {
-            btn.disabled = false;
-        }
+        } catch (err) { console.error("Błąd sieci:", err); }
+        finally { btn.disabled = false; }
     });
 
     document.getElementById('changeStatusForm')?.addEventListener('submit', async function (e) {
@@ -658,11 +786,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);
 
         try {
-            const res = await fetch(`/api/CPR112/Incidents/${id}/status`, {
-                method: 'PUT',
-                headers: { 'Authorization': 'Bearer ' + window.jwtToken },
-                body: fd
-            });
+            const res = await fetch(`/api/CPR112/Incidents/${id}/status`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + window.jwtToken }, body: fd });
             if (res.ok) {
                 $('#statusModal').modal('hide');
                 window.refreshAll();
@@ -673,15 +797,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
 window.loadIncidentTypes = async function () {
     try {
-        const res = await fetch('/api/CPR112/Incidents/IncidentTypes', {
-            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-        });
+        const res = await fetch('/api/CPR112/Incidents/IncidentTypes', { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         if (res.ok) {
             const types = await res.json();
             const select = document.getElementById('incType');
             if (select) {
-                select.innerHTML = '<option value="">Wybierz typ...</option>' +
-                    types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                select.innerHTML = '<option value="">Wybierz typ...</option>' + types.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
             }
         }
     } catch (e) { console.error(e); }
@@ -689,18 +810,12 @@ window.loadIncidentTypes = async function () {
 
 window.loadIncidentStats = async function () {
     try {
-        const res = await fetch('/api/CPR112/Incidents/stats/summary', {
-            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-        });
+        const res = await fetch('/api/CPR112/Incidents/stats/summary', { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         if (res.ok) {
             const data = await res.json();
             const container = document.getElementById('stats-summary');
             if (container) {
-                container.innerHTML = data.map(s => `
-                    <span class="badge badge-secondary p-2 shadow-sm" style="font-size: 14px;">
-                        ${s.name}: <span class="text-warning">${s.count}</span>
-                    </span>
-                `).join(' ');
+                container.innerHTML = data.map(s => `<span class="badge badge-secondary p-2 shadow-sm" style="font-size: 14px;">${s.name}: <span class="text-warning">${s.count}</span></span>`).join(' ');
             }
         }
     } catch (e) { console.error(e); }
@@ -708,60 +823,39 @@ window.loadIncidentStats = async function () {
 
 window.showHistory = async function (id) {
     try {
-        const res = await fetch(`/api/CPR112/Incidents/${id}/history`, {
-            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-        });
+        const res = await fetch(`/api/CPR112/Incidents/${id}/history`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         if (res.ok) {
             const data = await res.json();
             const container = document.getElementById('history-timeline');
 
             if (data.length === 0) {
-                container.innerHTML = `
-                    <div>
-                        <i class="fas fa-info bg-secondary"></i>
-                        <div class="timeline-item bg-dark border-secondary">
-                            <div class="timeline-body text-white text-center p-3">Brak zarejestrowanych zmian dla tego zgłoszenia.</div>
-                        </div>
-                    </div>`;
+                container.innerHTML = `<div><i class="fas fa-info bg-secondary"></i><div class="timeline-item bg-dark border-secondary"><div class="timeline-body text-white text-center p-3">Brak zarejestrowanych zmian dla tego zgłoszenia.</div></div></div>`;
             } else {
                 container.innerHTML = data.map(h => {
                     const dateObj = new Date(h.changedAt);
                     const timeStr = dateObj.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     const dateStr = dateObj.toLocaleDateString('pl-PL');
 
-                    let iconColor = 'bg-info';
-                    let textColor = 'text-info';
-                    let iconClass = 'fa-exchange-alt';
-
+                    let iconColor = 'bg-info'; let textColor = 'text-info'; let iconClass = 'fa-exchange-alt';
                     if (h.newStatus === 'W toku') { iconColor = 'bg-primary'; textColor = 'text-primary'; iconClass = 'fa-play'; }
                     if (h.newStatus === 'Zakończone') { iconColor = 'bg-success'; textColor = 'text-success'; iconClass = 'fa-check'; }
                     if (h.newStatus === 'Fałszywy alarm') { iconColor = 'bg-warning'; textColor = 'text-warning'; iconClass = 'fa-exclamation-triangle'; }
-
-                    if (h.newStatus.includes('powrócił') || h.newStatus.includes('zakończył działania')) {
-                        iconColor = 'bg-secondary';
-                        textColor = 'text-light';
-                        iconClass = 'fa-undo';
-                    }
+                    if (h.newStatus.includes('powrócił') || h.newStatus.includes('zakończył działania')) { iconColor = 'bg-secondary'; textColor = 'text-light'; iconClass = 'fa-undo'; }
 
                     return `
-                    <!-- element osi czasu -->
                     <div>
                         <i class="fas ${iconClass} ${iconColor} text-white"></i>
                         <div class="timeline-item bg-dark border-secondary shadow-sm" style="border: 1px solid #6c757d;">
                             <span class="time text-light mt-2 mr-2"><i class="fas fa-clock"></i> ${timeStr} <small>(${dateStr})</small></span>
                             <h3 class="timeline-header border-secondary text-white border-bottom-0"><b class="${textColor}">Aktualizacja Statusu</b></h3>
-                            
-                            <!-- POPRAWKA: text-white dodane do kontenera z tekstem -->
                             <div class="timeline-body pt-0 text-white">
                                 Stan zmieniony z <span class="text-secondary" style="text-decoration: line-through;">${h.oldStatus}</span> 
-                                <i class="fas fa-arrow-right mx-2 text-secondary"></i> 
-                                <b class="${textColor}">${h.newStatus}</b>
+                                <i class="fas fa-arrow-right mx-2 text-secondary"></i> <b class="${textColor}">${h.newStatus}</b>
                             </div>
                         </div>
                     </div>`;
                 }).join('') + `<div><i class="fas fa-stop bg-secondary text-white"></i></div>`;
             }
-
             $('#historyModal').modal('show');
         }
     } catch (e) { console.error("Błąd historii:", e); }
@@ -771,12 +865,9 @@ window.loadIncidents = async function () {
     const tableBody = document.getElementById('incidents-table-body');
     if (!tableBody) return;
     try {
-        const response = await fetch('/api/CPR112/Incidents', {
-            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-        });
+        const response = await fetch('/api/CPR112/Incidents', { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         if (response.ok) {
             const incidents = await response.json();
-
             const payload = JSON.parse(atob(window.jwtToken.split('.')[1]));
             const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role;
             const rolesArray = Array.isArray(role) ? role : [role];
@@ -865,147 +956,6 @@ window.loadOperators = async function () {
                 </tr>`).join('');
         }
     } catch (e) { console.error(e); }
-};
-
-window.updateCounters = async function () {
-    if (!window.jwtToken) return;
-    const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
-
-    const fetchSafeArray = async (url) => {
-        try {
-            const res = await fetch(url, { headers });
-            if (!res.ok) return [];
-            const data = await res.json();
-            return Array.isArray(data) ? data : [];
-        } catch (e) {
-            return [];
-        }
-    };
-
-    try {
-        const [p, f, m, air, polDepts, fireDepts, hospitals, airbases] = await Promise.all([
-            fetchSafeArray('/api/Police/cars'),
-            fetchSafeArray('/api/Fire/firetrucks'),
-            fetchSafeArray('/api/Medical/ambulances'),
-            fetchSafeArray('/api/Aviation/units'),
-            fetchSafeArray('/api/Police/departments'),
-            fetchSafeArray('/api/Fire/departments'),
-            fetchSafeArray('/api/Medical/hospitals'),
-            fetchSafeArray('/api/Aviation/airbases')
-        ]);
-
-        if (document.getElementById('status-police')) document.getElementById('status-police').textContent = `${p.filter(c => c.isAvailable !== false).length} / ${p.length}`;
-        if (document.getElementById('status-fire')) document.getElementById('status-fire').textContent = `${f.filter(c => c.isAvailable !== false).length} / ${f.length}`;
-        if (document.getElementById('status-medic')) document.getElementById('status-medic').textContent = `${m.filter(c => c.isAvailable !== false).length} / ${m.length}`;
-        if (document.getElementById('status-aviation')) document.getElementById('status-aviation').textContent = `${air.filter(c => c.isAvailable !== false).length} / ${air.length}`;
-
-        if (typeof map !== 'undefined' && window.vehicleMarkers) {
-            const allVehicles = [
-                ...p.map(v => ({ ...v, serviceType: 'police' })),
-                ...f.map(v => ({ ...v, serviceType: 'fire' })),
-                ...m.map(v => ({ ...v, serviceType: 'medic' })),
-                ...air.map(v => ({ ...v, serviceType: 'aviation' }))
-            ];
-
-            allVehicles.forEach(v => {
-                const id = v.id || v.Id;
-                const lat = parseFloat(v.latitude || v.Latitude);
-                const lng = parseFloat(v.longitude || v.Longitude);
-
-                const isAvail = (v.isAvailable !== undefined) ? v.isAvailable : ((v.IsAvailable !== undefined) ? v.IsAvailable : true);
-                const currentStatus = (v.status !== undefined) ? v.status : ((v.Status !== undefined) ? v.Status : 0);
-                const hId = v.hospitalId || v.HospitalId;
-
-                if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-                    const statusText = isAvail ? 'W bazie / Patrol' : `Akcja (Status: ${currentStatus})`;
-
-                    if (!window.vehicleMarkers[id]) {
-                        window.vehicleMarkers[id] = L.marker([lat, lng], { icon: getIconByService(v.serviceType) })
-                            .addTo(map).bindPopup(`<b>${v.licensePlate || v.LicensePlate || v.callsign || v.Callsign}</b><br>Status: ${statusText}`);
-                    } else if (!window.activeSimulations[id]) {
-                        window.vehicleMarkers[id].setLatLng([lat, lng]);
-                        window.vehicleMarkers[id].setPopupContent(`<b>${v.licensePlate || v.LicensePlate || v.callsign || v.Callsign}</b><br>Status: ${statusText}`);
-                    }
-
-                    if (!isAvail && (currentStatus === 3 || currentStatus === 4) && !window.activeSimulations[id]) {
-                        let targetLat = 0; let targetLng = 0;
-
-                        if (v.serviceType === 'aviation') {
-                            const airb = airbases.find(a => (a.id || a.Id) === (v.airbaseId || v.AirbaseId));
-                            if (airb) { targetLat = airb.latitude || airb.Latitude; targetLng = airb.longitude || airb.Longitude; }
-                        }
-                        else if (v.serviceType === 'medic') {
-                            const hosp = hospitals.find(h => (h.id || h.Id) === hId);
-                            if (hosp) { targetLat = parseFloat(hosp.latitude || hosp.Latitude); targetLng = parseFloat(hosp.longitude || hosp.Longitude); }
-                        }
-                        else if (v.serviceType === 'police') {
-                            const police = polDepts.find(pd => (pd.id || pd.Id) === (v.pDepartmentId || v.PDepartmentId));
-                            if (police) { targetLat = parseFloat(police.latitude || police.Latitude); targetLng = parseFloat(police.longitude || police.Longitude); }
-                        }
-
-                        if (targetLat !== 0 && targetLng !== 0) {
-                            if (v.serviceType === 'aviation') window.startAirSimulation(id, v.serviceType, lat, lng, targetLat, targetLng, currentStatus);
-                            else window.startVehicleSimulation(id, v.serviceType, lat, lng, targetLat, targetLng, currentStatus);
-                        }
-                    }
-                }
-            });
-        }
-
-        p.filter(c => c.isAvailable !== false).forEach(car => {
-            const dept = polDepts.find(d => (d.id || d.Id) === (car.pDepartmentId || car.PDepartmentId));
-            if (dept && !window.activeSimulations[car.id || car.Id]) {
-                const baseLat = dept.latitude || dept.Latitude;
-                const baseLng = dept.longitude || dept.Longitude;
-                window.startPatrolSimulation(car.id || car.Id, 'police', car.latitude || car.Latitude, car.longitude || car.Longitude, baseLat, baseLng, 10);
-            }
-        });
-
-        air.filter(c => c.isAvailable !== false).forEach(heli => {
-            const base = airbases.find(b => (b.id || b.Id) === (heli.airbaseId || heli.AirbaseId));
-            if (base && !window.activeSimulations[heli.id || heli.Id]) {
-                const baseLat = base.latitude || base.Latitude;
-                const baseLng = base.longitude || base.Longitude;
-                window.startAirPatrolSimulation(heli.id || heli.Id, heli.latitude || heli.Latitude, heli.longitude || heli.Longitude, baseLat, baseLng, 25);
-            }
-        });
-
-    } catch (e) {
-        console.error("Krytyczny błąd aktualizacji interfejsu dyspozytora:", e);
-    }
-};
-
-window.startAirPatrolSimulation = async function (unitId, currentLat, currentLng, baseLat, baseLng, radiusKm) {
-    if (window.activeSimulations[unitId]) return;
-
-    const target = window.getRandomLocationInRadius(baseLat, baseLng, radiusKm || 20);
-
-    let step = 0;
-    const totalSteps = 40;
-    const latStep = (target.lat - currentLat) / totalSteps;
-    const lngStep = (target.lng - currentLng) / totalSteps;
-
-    window.activeSimulations[unitId] = setInterval(async () => {
-        if (step >= totalSteps) {
-            clearInterval(window.activeSimulations[unitId]);
-            delete window.activeSimulations[unitId];
-            return;
-        }
-
-        const curLat = currentLat + (latStep * step);
-        const curLng = currentLng + (lngStep * step);
-
-        if (typeof map !== 'undefined') {
-            if (window.vehicleMarkers[unitId]) {
-                window.vehicleMarkers[unitId].setLatLng([curLat, curLng]);
-            }
-        }
-
-        if (step % 5 === 0) {
-            await pingVehicleLocation(unitId, 'aviation', curLat, curLng, 0);
-        }
-        step++;
-    }, 1500);
 };
 
 window.refreshAll = async function () {

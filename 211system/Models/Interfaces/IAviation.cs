@@ -9,8 +9,15 @@ namespace _211system.Models.Interfaces
         Task<IEnumerable<Airbase>> GetAllAirbasesAsync();
         Task<AirUnit> CreateAirUnitAsync(CreateAirUnitDto dto);
         Task<IEnumerable<AirUnitDto>> GetAllAirUnitsAsync();
+
         Task AssignAirUnitToIncidentAsync(Guid unitId, Guid incidentId);
-        Task ReturnToBaseAsync(Guid unitId);
         Task FreeUnitAsync(Guid unitId);
+        Task DeleteAirUnitAsync(Guid unitId);
+        Task UpdateUnitLocationAsync(Guid unitId, double lat, double lng, int? statusId);
+
+        Task<IEnumerable<dynamic>> GetActiveOperationsAsync();
+        Task TransportPatientAsync(Guid operationId, Guid hospitalId);
+        Task ReturnToBaseAsync(Guid operationId);
+        Task EndOperationAsync(Guid operationId);
     }
 }
