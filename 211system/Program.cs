@@ -69,7 +69,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPdfReportService, PdfReportService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IWeatherService, WeatherService>();
-
+builder.Services.AddHttpClient<IAiService, GeminiAiService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddOpenApiDocument(config =>
