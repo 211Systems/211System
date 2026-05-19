@@ -1,0 +1,69 @@
+@{
+    ViewData["Title"] = "Panel Raportowy 112";
+}
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap4.min.css">
+
+<div class="row">
+    <div class="col-12">
+        <div class="card card-outline card-warning shadow-lg dark-mode">
+            <div class="card-header border-0">
+                <h3 class="card-title text-bold"><i class="fas fa-chart-bar mr-2 text-warning"></i> Generator Raportów i Statystyk</h3>
+            </div>
+            
+            <div class="card-body">
+                <div class="row mb-4 bg-dark p-3 rounded align-items-end border border-secondary shadow-sm">
+                    <div class="col-md-3">
+                        <label class="text-muted"><i class="far fa-calendar-alt"></i> Data Od:</label>
+                        <input type="date" id="dateFrom" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted"><i class="far fa-calendar-check"></i> Data Do:</label>
+                        <input type="date" id="dateTo" class="form-control" />
+                    </div>
+                    <div class="col-md-6 text-right">
+                        <button id="btnLoadData" class="btn btn-warning font-weight-bold mr-2 shadow-sm">
+                            <i class="fas fa-search"></i> Pokaż w Tabeli
+                        </button>
+                        <button id="btnDownloadPdf" class="btn btn-danger font-weight-bold shadow-sm">
+                            <i class="fas fa-file-pdf"></i> Pobierz Oficjalny PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table id="reportsTable" class="table table-striped table-hover w-100 table-valign-middle">
+                        <thead class="bg-secondary">
+                            <tr>
+                                <th>Numer Zgłoszenia</th>
+                                <th>Data i Czas</th>
+                                <th>Typ</th>
+                                <th>Priorytet</th>
+                                <th>Status</th>
+                                <th>Lokalizacja</th>
+                                <th>Policja</th>
+                                <th>Straż</th>
+                                <th>ZRM</th>
+                                <th>Opis Zdarzenia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+
+    <script src="~/js/reports-handler.js" asp-append-version="true"></script>
+}
