@@ -11,4 +11,5 @@ public interface IAuthService
     Task LockAccountAsync(string email);
     Task<string> UnlockAccountAsync(string email);
     Task<string> RefreshTokenAsync(string email);
+    string GenerateJwtToken(ApplicationUser user, IList<string> roles);
 }

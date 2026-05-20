@@ -6,7 +6,17 @@
 
 window.ensureValidToken = async function () {
     try {
-        const res = await fetch('/api/Auth/refresh-token');
+        const existingToken = localStorage.getItem('jwt');
+
+        if (!existingToken) {
+            return null;
+        }
+
+        const res = await fetch('/api/Auth/refresh-token', {
+            headers: {
+                'Authorization': 'Bearer ' + existingToken
+            }
+        });
 
         if (res.ok) {
             const data = await res.json();

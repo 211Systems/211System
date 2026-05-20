@@ -83,7 +83,7 @@ namespace _211system.Services
             return GenerateJwtToken(user, roles);
         }
 
-        private string GenerateJwtToken(ApplicationUser user, IList<string> roles)
+        public string GenerateJwtToken(ApplicationUser user, IList<string> roles)
         {
             var claims = new List<Claim>
             {
