@@ -55,7 +55,7 @@ namespace _211system.Services
             if (!await _userManager.CheckPasswordAsync(user, dto.Password))
             {
                 await _userManager.AccessFailedAsync(user);
-                
+
                 if (user.AccessFailedCount >= 3)
                 {
                     await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
@@ -68,6 +68,23 @@ namespace _211system.Services
             await _userManager.ResetAccessFailedCountAsync(user);
 
             var roles = await _userManager.GetRolesAsync(user);
+            return GenerateJwtToken(user, roles);
+        }
+
+        public async Task<string> RefreshTokenAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null) throw new Exception("Nie znaleziono użytkownika.");
+
+            if (await _userManager.IsLockedOutAsync(user))
+                throw new UnauthorizedAccessException("Konto zablokowane.");
+
+            var roles = await _userManager.GetRolesAsync(user);
+            return GenerateJwtToken(user, roles);
+        }
+
+        private string GenerateJwtToken(ApplicationUser user, IList<string> roles)
+        {
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
@@ -84,7 +101,7 @@ namespace _211system.Services
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
+                expires: DateTime.UtcNow.AddHours(2),
                 signingCredentials: creds
             );
 
@@ -103,7 +120,6 @@ namespace _211system.Services
                 throw new Exception($"Błąd zmiany hasła: {errors}");
             }
         }
-
 
         public async Task<bool> IsAccountLockedAsync(string email)
         {
