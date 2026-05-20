@@ -155,9 +155,23 @@ function initAvatarUpload() {
 
             if (response.ok) {
                 const result = await response.json();
+
+                if (result.token) {
+                    localStorage.setItem('jwt', result.token);
+                    window.jwtToken = result.token;
+                }
+
                 setAvatarImage(result.avatarUrl);
-                const decoded = window.parseJwt(token);
-                if (profEmail) profEmail.textContent = decoded.email || decoded.unique_name || "Zaktualizowano!";
+
+                const decoded = window.parseJwt(result.token || localStorage.getItem('jwt'));
+                const profEmail = document.getElementById('profile-email');
+                if (profEmail && decoded) {
+                    profEmail.textContent = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"]
+                        || decoded.email
+                        || decoded.unique_name
+                        || "";
+                }
+            
             } else {
                 const err = await response.json();
                 alert(err.message || "Błąd podczas wgrywania pliku.");

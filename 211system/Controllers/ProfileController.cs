@@ -1,69 +1,77 @@
 ﻿using System.Security.Claims;
 using _211system.Data;
+using _211system.Models;
 using _211system.Models.Interfaces;
-using _211system.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 
-namespace _211system.Controllers
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class ProfileController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Authorize]
-    public class ProfileController : ControllerBase
+    private readonly IBlobStorageService _blobStorageService;
+    private readonly _211DbContext _context;
+    private readonly IAuthService _authService;
+    private readonly UserManager<ApplicationUser> _userManager;
+
+    public ProfileController(
+        IBlobStorageService blobStorageService,
+        _211DbContext context,
+        IAuthService authService,
+        UserManager<ApplicationUser> userManager)
     {
-        private readonly IBlobStorageService _blobStorageService;
-        private readonly _211DbContext _context;
+        _blobStorageService = blobStorageService;
+        _context = context;
+        _authService = authService;
+        _userManager = userManager;
+    }
 
-        public ProfileController(IBlobStorageService blobStorageService, _211DbContext context)
+    [HttpPost("upload-avatar")]
+    public async Task<IActionResult> UploadAvatar(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Nie wybrano pliku." });
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+        var extension = Path.GetExtension(file.FileName).ToLower();
+        if (!allowedExtensions.Contains(extension))
+            return BadRequest(new { message = "Dozwolone są tylko pliki graficzne (jpg, png, gif)." });
+
+        try
         {
-            _blobStorageService = blobStorageService;
-            _context = context;
-        }
+            var userEmail = User.FindFirstValue(ClaimTypes.Email);
+            if (string.IsNullOrEmpty(userEmail))
+                return Unauthorized(new { message = "Brak autoryzacji." });
 
-        [HttpPost("upload-avatar")]
-        public async Task<IActionResult> UploadAvatar(IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest(new { message = "Nie wybrano pliku." });
+            string avatarUrl = await _blobStorageService.UploadAsync(file, "avatars");
 
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
-            var extension = Path.GetExtension(file.FileName).ToLower();
-            if (!allowedExtensions.Contains(extension))
-                return BadRequest(new { message = "Dozwolone są tylko pliki graficzne (jpg, png, gif)." });
-
-            try
+            var user = await _userManager.FindByEmailAsync(userEmail);
+            if (user != null)
             {
-                var userEmail = User.FindFirstValue(ClaimTypes.Email);
-                if (string.IsNullOrEmpty(userEmail))
-                    return Unauthorized(new { message = "Brak autoryzacji." });
+                if (!string.IsNullOrEmpty(user.AvatarUrl))
+                    await _blobStorageService.DeleteAsync(user.AvatarUrl, "avatars");
 
-                string avatarUrl = await _blobStorageService.UploadAsync(file, "avatars");
+                user.AvatarUrl = avatarUrl;
+                await _userManager.UpdateAsync(user);
 
-                var user = _context.Users.FirstOrDefault(u => u.Email == userEmail);
-                if (user != null)
-                    
-                {
-                    if (!string.IsNullOrEmpty(user.AvatarUrl))
-                    {
-                        await _blobStorageService.DeleteAsync(user.AvatarUrl, "avatars");
-                    }
-
-                    user.AvatarUrl = avatarUrl;
-                    await _context.SaveChangesAsync();
-                }
+                var roles = await _userManager.GetRolesAsync(user);
+                var newToken = _authService.GenerateJwtToken(user, roles);
 
                 return Ok(new
                 {
                     message = "Avatar został pomyślnie zaktualizowany.",
-                    avatarUrl = avatarUrl
+                    avatarUrl = avatarUrl,
+                    token = newToken
                 });
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Wystąpił błąd podczas wgrywania pliku.", details = ex.Message });
-            }
+
+            return NotFound(new { message = "Nie znaleziono użytkownika." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Wystąpił błąd podczas wgrywania pliku.", details = ex.Message });
         }
     }
 }
