@@ -6,7 +6,8 @@
         EnRouteToIncident = 1,
         OnScene = 2,
         Transporting = 3,
-        ReturningToBase = 4
+        ReturningToBase = 4,
+        TransportingToHospital = 5
     }
 
     public class UpdateLocationDto

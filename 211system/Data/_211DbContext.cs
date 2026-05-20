@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Police;
 
-namespace _211system.Data 
+namespace _211system.Data
 {
     public class _211DbContext : IdentityDbContext<ApplicationUser>
     {
@@ -23,7 +23,7 @@ namespace _211system.Data
         // CPR 112
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<DispatcherComment> DispatcherComments { get; set; }
-        public DbSet<Enc> Encs { get; set; } 
+        public DbSet<Enc> Encs { get; set; }
         public DbSet<FinalReport> FinalReports { get; set; }
         public DbSet<Incident> Incidents { get; set; }
         public DbSet<Operator112> Operators112 { get; set; }
@@ -39,7 +39,7 @@ namespace _211system.Data
         public DbSet<FireEquipment> FireEquipments { get; set; }
         public DbSet<Fireman> Firemen { get; set; }
         public DbSet<FireTruck> FireTrucks { get; set; }
-        
+
         // Szpital
         public DbSet<Ambulance> Ambulances { get; set; }
         public DbSet<AmbulanceEquipment> AmbulanceEquipments { get; set; }
@@ -57,8 +57,10 @@ namespace _211system.Data
         public DbSet<Policeman> Policemen { get; set; }
         public DbSet<PoliceOperation> PoliceOperations { get; set; }
 
+        // Lotnictwo
         public DbSet<Airbase> Airbases { get; set; }
         public DbSet<AirUnit> AirUnits { get; set; }
+        public DbSet<AviationOperation> AviationOperations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -131,10 +133,18 @@ namespace _211system.Data
                 .HasForeignKey(mo => mo.ParamedicId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Lotnictwo - Relacje
             builder.Entity<AirUnit>()
                 .HasOne(a => a.Airbase)
                 .WithMany(b => b.AirUnits)
                 .HasForeignKey(a => a.AirbaseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relacja dla Dziennika Lotów
+            builder.Entity<AviationOperation>()
+                .HasOne(ao => ao.AirUnit)
+                .WithMany()
+                .HasForeignKey(ao => ao.AirUnitId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<SeverityLevel>().HasData(

@@ -94,16 +94,15 @@ namespace _211system.Services
             }
 
             _context.AirUnits.Update(unit);
-            await _context.SaveChangesAsync();
-        }
+ 
+            var operation = new AviationOperation
+            {
+                AirUnitId = unit.Id,
+                IncidentId = incidentId,
+                StartTime = DateTime.UtcNow
+            };
+            await _context.AviationOperations.AddAsync(operation);
 
-        public async Task ReturnToBaseAsync(Guid unitId)
-        {
-            var unit = await _context.AirUnits.FindAsync(unitId);
-            if (unit == null) throw new ArgumentException("Jednostka nie istnieje.");
-
-            unit.Status = VehicleOperationalStatus.ReturningToBase;
-            _context.AirUnits.Update(unit);
             await _context.SaveChangesAsync();
         }
 
@@ -124,11 +123,111 @@ namespace _211system.Services
                 }
 
                 _context.AirUnits.Update(unit);
+
+                var activeOperation = await _context.AviationOperations
+                    .Where(o => o.AirUnitId == unitId && o.EndTime == null)
+                    .FirstOrDefaultAsync();
+
+                if (activeOperation != null)
+                {
+                    activeOperation.EndTime = DateTime.UtcNow;
+                    _context.AviationOperations.Update(activeOperation);
+                }
+
                 await _context.SaveChangesAsync();
             }
             else
             {
                 throw new Exception("Nie znaleziono jednostki lotniczej.");
+            }
+        }
+
+        public async Task DeleteAirUnitAsync(Guid unitId)
+        {
+            var unit = await _context.AirUnits.FindAsync(unitId);
+            if (unit != null)
+            {
+                _context.AirUnits.Remove(unit);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task UpdateUnitLocationAsync(Guid unitId, double lat, double lng, int? statusId)
+        {
+            var unit = await _context.AirUnits.FindAsync(unitId);
+            if (unit != null)
+            {
+                unit.Latitude = lat;
+                unit.Longitude = lng;
+
+                if (statusId.HasValue)
+                {
+                    unit.Status = (VehicleOperationalStatus)statusId.Value;
+                }
+
+                _context.AirUnits.Update(unit);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<IEnumerable<dynamic>> GetActiveOperationsAsync()
+        {
+            return await _context.AviationOperations
+                .Include(o => o.AirUnit)
+                .Select(o => new
+                {
+                    Id = o.Id,
+                    AirUnitId = o.AirUnitId,
+                    IncidentId = o.IncidentId,
+                    StartTime = o.StartTime,
+                    EndTime = o.EndTime
+                })
+                .ToListAsync();
+        }
+
+        public async Task TransportPatientAsync(Guid operationId, Guid hospitalId)
+        {
+            var operation = await _context.AviationOperations
+                .Include(o => o.AirUnit)
+                .FirstOrDefaultAsync(o => o.Id == operationId);
+
+            if (operation != null && operation.AirUnit != null)
+            {
+                operation.AirUnit.Status = VehicleOperationalStatus.Transporting;
+                _context.AirUnits.Update(operation.AirUnit);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task ReturnToBaseAsync(Guid operationId)
+        {
+            var operation = await _context.AviationOperations
+                .Include(o => o.AirUnit)
+                .FirstOrDefaultAsync(o => o.Id == operationId);
+
+            if (operation != null && operation.AirUnit != null)
+            {
+                operation.AirUnit.Status = VehicleOperationalStatus.ReturningToBase;
+                _context.AirUnits.Update(operation.AirUnit);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task EndOperationAsync(Guid operationId)
+        {
+            var operation = await _context.AviationOperations.Include(o => o.AirUnit).FirstOrDefaultAsync(o => o.Id == operationId);
+            if (operation != null)
+            {
+                if (operation.AirUnit != null)
+                {
+                    await FreeUnitAsync(operation.AirUnit.Id);
+                }
+                else
+                {
+                    operation.EndTime = DateTime.UtcNow;
+                    _context.AviationOperations.Update(operation);
+                    await _context.SaveChangesAsync();
+                }
             }
         }
     }

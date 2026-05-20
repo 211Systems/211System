@@ -304,7 +304,10 @@ document.getElementById('addPersonnelForm')?.addEventListener('submit', async fu
             if (btnSubmit) btnSubmit.classList.add('d-none');
             await loadPersonnel();
         } else {
-            alert("Błąd rejestracji.");
+            const errorData = await res.json().catch(() => ({}));
+            const errorMessage = errorData.message || "Błąd rejestracji – sprawdź poprawność danych (email, imię, nazwisko).";
+            alert("Błąd: " + errorMessage);
+            
             if (btnSubmit) btnSubmit.disabled = false;
         }
     } catch (e) {

@@ -34,6 +34,16 @@ public class PdfReportService : IPdfReportService
             .OrderBy(i => i.ReportDate)
             .ToListAsync();
 
+        var incidentIds = incidents.Select(i => i.Id).ToList();
+
+        var policeOps = await _context.PoliceOperations.Include(po => po.Policeman).Where(po => incidentIds.Contains(po.IncidentId)).ToListAsync();
+        var fireOps = await _context.FireOperations.Include(fo => fo.Fireman).Where(fo => incidentIds.Contains(fo.IncidentId)).ToListAsync();
+        var medicalOps = await _context.MedicalOperations.Include(mo => mo.Paramedic).Where(mo => incidentIds.Contains(mo.ReportId)).ToListAsync();
+
+        var policeCars = await _context.PoliceCars.ToListAsync();
+        var fireTrucks = await _context.FireTrucks.ToListAsync();
+        var ambulances = await _context.Ambulances.ToListAsync();
+
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -44,7 +54,7 @@ public class PdfReportService : IPdfReportService
                 page.DefaultTextStyle(x => x.FontSize(10));
 
                 page.Header().Element(ComposeHeader);
-                page.Content().Element(x => ComposeContent(x, incidents));
+                page.Content().Element(x => ComposeContent(x));
                 page.Footer().AlignCenter().Text(x =>
                 {
                     x.Span("Strona ");
@@ -83,23 +93,22 @@ public class PdfReportService : IPdfReportService
                 row.RelativeItem().Column(column =>
                 {
                     column.Item().Text("Centrum Powiadamiania Ratunkowego 112").FontSize(20).SemiBold().FontColor(Colors.Blue.Darken2);
-                    column.Item().Text($"Szczegółowy Raport Zdarzeń (Wszystkie Statusy)").FontSize(14);
+                    column.Item().Text("Szczegółowy Raport Zdarzeń (Wszystkie Statusy)").FontSize(14);
                     column.Item().Text($"Za okres: {from:dd.MM.yyyy} - {to:dd.MM.yyyy}").FontSize(12).FontColor(Colors.Grey.Darken1);
                 });
             });
         }
 
-        void ComposeContent(IContainer container, System.Collections.Generic.List<Incident> incidents)
+        void ComposeContent(IContainer container)
         {
             container.PaddingVertical(1, Unit.Centimetre).Table(table =>
             {
                 table.ColumnsDefinition(columns =>
                 {
                     columns.ConstantColumn(80);
-                    columns.ConstantColumn(90);
+                    columns.ConstantColumn(70);
                     columns.RelativeColumn(2);
-                    columns.RelativeColumn(1);
-                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(3);
                     columns.RelativeColumn(3);
                     columns.RelativeColumn(3);
                 });
@@ -108,32 +117,50 @@ public class PdfReportService : IPdfReportService
                 {
                     header.Cell().Element(CellStyle).Text("Numer");
                     header.Cell().Element(CellStyle).Text("Data");
-                    header.Cell().Element(CellStyle).Text("Typ");
-                    header.Cell().Element(CellStyle).Text("Priorytet");
-                    header.Cell().Element(CellStyle).Text("Służby");
-                    header.Cell().Element(CellStyle).Text("Położenie");
-                    header.Cell().Element(CellStyle).Text("Opis");
+                    header.Cell().Element(CellStyle).Text("Typ Zdarzenia");
+                    header.Cell().Element(CellStyle).Text("Służby na Miejscu (Załoga + Pojazd)");
+                    header.Cell().Element(CellStyle).Text("Lokalizacja i Pogoda");
+                    header.Cell().Element(CellStyle).Text("Opis Zgłoszenia");
 
                     static IContainer CellStyle(IContainer container) => container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
                 });
 
                 foreach (var incident in incidents)
                 {
+                    var pOp = policeOps.FirstOrDefault(po => po.IncidentId == incident.Id);
+                    var fOp = fireOps.FirstOrDefault(fo => fo.IncidentId == incident.Id);
+                    var mOp = medicalOps.FirstOrDefault(mo => mo.ReportId == incident.Id);
+
+                    string polStr = "Brak";
+                    if (pOp?.Policeman != null) {
+                        var car = policeCars.FirstOrDefault(c => c.PolicemanId == pOp.Policeman.Id);
+                        polStr = $"{pOp.Policeman.Name} {pOp.Policeman.Lastname} ({car?.LicensePlate ?? "Brak pojazdu"})";
+                    }
+
+                    string fireStr = "Brak";
+                    if (fOp?.Fireman != null) {
+                        var truck = fireTrucks.FirstOrDefault(t => t.FiremanId == fOp.Fireman.Id);
+                        fireStr = $"{fOp.Fireman.Name} {fOp.Fireman.Lastname} ({truck?.LicensePlate ?? "Brak pojazdu"})";
+                    }
+
+                    string medStr = "Brak";
+                    if (mOp?.Paramedic != null) {
+                        var amb = ambulances.FirstOrDefault(a => a.ParamedicId == mOp.Paramedic.Id);
+                        medStr = $"{mOp.Paramedic.Name} {mOp.Paramedic.LastName} ({amb?.LicensePlate ?? "Brak pojazdu"})";
+                    }
+                    
+                    string servicesText = $"POL: {polStr}\nPSP: {fireStr}\nZRM: {medStr}";
+
+                    string weatherText = incident.WeatherTemperature.HasValue ? $"{incident.WeatherTemperature}°C, {incident.WeatherCondition}" : "Brak danych z radaru";
+                    string locText = $"GPS: {incident.Latitude}, {incident.Longitude}\nPogoda: {weatherText}";
+
                     table.Cell().Element(CellStyle).Text(incident.IncidentNumber ?? "Brak");
-                    table.Cell().Element(CellStyle).Text(incident.ReportDate.ToString("dd.MM.yyyy HH:mm"));
-                    table.Cell().Element(CellStyle).Text(incident.IncidentType?.Name ?? "Brak");
-                    table.Cell().Element(CellStyle).Text(incident.SeverityLevel?.Name ?? "Brak");
+                    table.Cell().Element(CellStyle).Text(incident.ReportDate.ToString("dd.MM.yyyy\nHH:mm"));
+                    table.Cell().Element(CellStyle).Text($"{incident.IncidentType?.Name ?? "Brak"}\n(P: {incident.SeverityLevel?.Name ?? "-"})");
+                    table.Cell().Element(CellStyle).Text(servicesText);
+                    table.Cell().Element(CellStyle).Text(locText);
                     
-                    string services = "";
-                    if (incident.IsPoliceActive) services += "POL ";
-                    if (incident.IsFireActive) services += "PSP ";
-                    if (incident.IsMedicalActive) services += "ZRM ";
-                    table.Cell().Element(CellStyle).Text(string.IsNullOrEmpty(services) ? "-" : services);
-                    
-                    var locationInfo = incident.Latitude != 0 && incident.Longitude != 0 ? $"GPS: {incident.Latitude}, {incident.Longitude}" : "Brak lokalizacji";
-                    table.Cell().Element(CellStyle).Text(locationInfo); 
-                    
-                    var desc = incident.Description?.Length > 50 ? incident.Description.Substring(0, 50) + "..." : incident.Description;
+                    var desc = incident.Description?.Length > 60 ? incident.Description.Substring(0, 60) + "..." : incident.Description;
                     table.Cell().Element(CellStyle).Text(desc ?? "");
 
                     static IContainer CellStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);

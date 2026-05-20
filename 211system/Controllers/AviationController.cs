@@ -1,4 +1,6 @@
-﻿using _211system.Models.Dtos.Aviation;
+﻿using _211system.DTOs;
+using _211system.Models;
+using _211system.Models.Dtos.Aviation;
 using _211system.Models.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +19,7 @@ namespace _211system.Controllers
         }
 
         [HttpPost("airbases")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
         public async Task<IActionResult> CreateAirbase([FromBody] CreateAirbaseDto dto)
         {
             var result = await _aviationService.CreateAirbaseAsync(dto);
@@ -25,7 +27,7 @@ namespace _211system.Controllers
         }
 
         [HttpGet("airbases")]
-        [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
         public async Task<IActionResult> GetAirbases()
         {
             var result = await _aviationService.GetAllAirbasesAsync();
@@ -33,7 +35,7 @@ namespace _211system.Controllers
         }
 
         [HttpPost("units")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
         public async Task<IActionResult> CreateAirUnit([FromBody] CreateAirUnitDto dto)
         {
             try { return Ok(await _aviationService.CreateAirUnitAsync(dto)); }
@@ -41,7 +43,7 @@ namespace _211system.Controllers
         }
 
         [HttpGet("units")]
-        [Authorize(Roles = "Admin, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
         public async Task<IActionResult> GetAirUnits()
         {
             var result = await _aviationService.GetAllAirUnitsAsync();
@@ -71,5 +73,41 @@ namespace _211system.Controllers
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
+
+        [HttpDelete("units/{unitId}")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
+        public async Task<IActionResult> DeleteAirUnit(Guid unitId)
+        {
+            try
+            {
+                await _aviationService.DeleteAirUnitAsync(unitId);
+                return Ok();
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPut("units/{unitId}/location")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
+        public async Task<IActionResult> UpdateLocation(Guid unitId, [FromBody] UpdateLocationDto dto)
+        {
+            try
+            {
+                await _aviationService.UpdateUnitLocationAsync(unitId, dto.Latitude, dto.Longitude, dto.Status);
+                return Ok();
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpGet("operations")]
+        public async Task<IActionResult> GetActiveOperations() => Ok(await _aviationService.GetActiveOperationsAsync());
+
+        [HttpPost("operations/{operationId}/transport")]
+        public async Task<IActionResult> TransportPatient(Guid operationId, [FromBody] Guid hospitalId) => Ok();
+
+        [HttpPost("operations/{operationId}/return")]
+        public async Task<IActionResult> ReturnToBase(Guid operationId) => Ok();
+
+        [HttpPut("operations/{operationId}/end")]
+        public async Task<IActionResult> EndOperation(Guid operationId) => Ok();
     }
 }

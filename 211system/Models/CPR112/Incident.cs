@@ -44,6 +44,9 @@ public class Incident
     public bool IsFireActive { get; set; } = false;
     public bool IsMedicalActive { get; set; } = false;
 
+    public double? WeatherTemperature { get; set; }
+    public string? WeatherCondition { get; set; }
+
     public virtual ICollection<DispatcherComment> Comments { get; set; } = new List<DispatcherComment>();
 
     public ICollection<IncidentStatusHistory> StatusHistories { get; set; } = new List<IncidentStatusHistory>();

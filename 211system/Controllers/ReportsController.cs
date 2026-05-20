@@ -56,8 +56,70 @@ public class ReportsController : Controller
                 .Include(i => i.SeverityLevel)
                 .Where(i => i.ReportDate >= from && i.ReportDate <= to)
                 .OrderByDescending(i => i.ReportDate)
-                .Select(i => new
+                .ToListAsync();
+
+            var incidentIds = incidents.Select(i => i.Id).ToList();
+
+            var policeOps = await _context.PoliceOperations
+                .Include(po => po.Policeman)
+                .Where(po => incidentIds.Contains(po.IncidentId))
+                .ToListAsync();
+
+            var fireOps = await _context.FireOperations
+                .Include(fo => fo.Fireman)
+                .Where(fo => incidentIds.Contains(fo.IncidentId))
+                .ToListAsync();
+
+            var medicalOps = await _context.MedicalOperations
+                .Include(mo => mo.Paramedic)
+                .Where(mo => incidentIds.Contains(mo.ReportId)) 
+                .ToListAsync();
+
+            var policeCars = await _context.PoliceCars.ToListAsync();
+            var fireTrucks = await _context.FireTrucks.ToListAsync();
+            var ambulances = await _context.Ambulances.ToListAsync();
+
+            var result = incidents.Select(i => {
+                var pOp = policeOps.FirstOrDefault(po => po.IncidentId == i.Id);
+                var fOp = fireOps.FirstOrDefault(fo => fo.IncidentId == i.Id);
+                var mOp = medicalOps.FirstOrDefault(mo => mo.ReportId == i.Id);
+
+                string policeStr = "Brak";
+                if (pOp?.Policeman != null) 
                 {
+                    var car = policeCars.FirstOrDefault(c => c.PolicemanId == pOp.Policeman.Id);
+                    string carInfo = car != null ? (car.LicensePlate ?? "Brak nr") : "Brak pojazdu"; 
+                    policeStr = $"{pOp.Policeman.Name} {pOp.Policeman.Lastname} ({pOp.Policeman.Rank}) | Pojazd: {carInfo}";
+                }
+                else if (i.IsPoliceActive) 
+                {
+                    policeStr = "Zadysponowano";
+                }
+                string fireStr = "Brak";
+                if (fOp?.Fireman != null) 
+                {
+                    var truck = fireTrucks.FirstOrDefault(t => t.FiremanId == fOp.Fireman.Id);
+                    string truckInfo = truck != null ? (truck.LicensePlate ?? "Brak nr") : "Brak pojazdu";
+                    fireStr = $"{fOp.Fireman.Name} {fOp.Fireman.Lastname} ({fOp.Fireman.Rank}) | Wóz: {truckInfo}";
+                }
+                else if (i.IsFireActive) 
+                {
+                    fireStr = "Zadysponowano";
+                }
+
+                string medicalStr = "Brak";
+                if (mOp?.Paramedic != null) 
+                {
+                    var amb = ambulances.FirstOrDefault(a => a.ParamedicId == mOp.Paramedic.Id);
+                    string ambInfo = amb != null ? (amb.LicensePlate ?? "Brak nr") : "Brak pojazdu";
+                    medicalStr = $"{mOp.Paramedic.Name} {mOp.Paramedic.LastName} | Karetka: {ambInfo}"; 
+                }
+                else if (i.IsMedicalActive) 
+                {
+                    medicalStr = "Zadysponowano";
+                }
+
+                return new {
                     incidentNumber = i.IncidentNumber,
                     date = i.ReportDate.ToString("yyyy-MM-dd HH:mm"),
                     type = i.IncidentType != null ? i.IncidentType.Name : "Brak",
@@ -65,13 +127,18 @@ public class ReportsController : Controller
                     status = i.Status,
                     description = i.Description,
                     address = (i.Latitude != 0 && i.Longitude != 0) ? $"GPS: {i.Latitude}, {i.Longitude}" : "Brak",
-                    police = i.IsPoliceActive ? "Tak" : "Nie",
-                    fire = i.IsFireActive ? "Tak" : "Nie",
-                    medical = i.IsMedicalActive ? "Tak" : "Nie"
-                })
-                .ToListAsync();
+                    
+                    weather = i.WeatherTemperature.HasValue 
+                        ? $"{i.WeatherTemperature}°C, {i.WeatherCondition}" 
+                        : "Brak danych z radaru",
+                        
+                    police = policeStr,
+                    fire = fireStr,
+                    medical = medicalStr
+                };
+            }).ToList();
 
-            return Ok(incidents);
+            return Ok(result);
         }
         catch (Exception ex)
         {
