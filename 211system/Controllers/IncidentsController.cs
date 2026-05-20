@@ -18,12 +18,14 @@ namespace _211system.Controllers
         private readonly IIncidentService _incidentService;
         private readonly _211DbContext _context;
         private readonly IBlobStorageService _blobStorageService;
+        private readonly IWeatherService _weatherService;
 
-        public IncidentsController(IIncidentService incidentService, _211DbContext context, IBlobStorageService blobStorageService)
+        public IncidentsController(IIncidentService incidentService, _211DbContext context, IBlobStorageService blobStorageService, IWeatherService weatherService)
         {
             _incidentService = incidentService;
             _context = context;
             _blobStorageService = blobStorageService;
+            _weatherService = weatherService; 
         }
 
         [HttpPost]
@@ -42,6 +44,29 @@ namespace _211system.Controllers
                 }
 
                 var result = await _incidentService.CreateIncidentAsync(dto);
+
+                try
+                {
+                    var incidentEntity = await _context.Incidents.FindAsync(result.Id);
+                    
+                    if (incidentEntity != null)
+                    {
+                        double.TryParse(dto.Latitude?.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLat);
+                        double.TryParse(dto.Longitude?.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLng);
+
+                        var weather = await _weatherService.GetGroundConditionsAsync(parsedLat, parsedLng);
+                        
+                        incidentEntity.WeatherTemperature = weather.Temperature;
+                        incidentEntity.WeatherCondition = weather.Description;
+                        
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch (Exception wEx)
+                {
+                    Console.WriteLine($"[OSTRZEŻENIE] Nie udało się zapisać pogody dla zgłoszenia: {wEx.Message}");
+                }
+
                 return Ok(result);
             }
             catch (Exception ex)

@@ -21,9 +21,9 @@ const dataTable = $('#reportsTable').DataTable({
                 extend: 'excelHtml5',
                 text: '<i class="fas fa-file-excel mr-1"></i> Pobierz plik Excel (.xlsx)',
                 className: 'btn btn-success font-weight-bold',
-                title: 'Pełny_Raport_Analityczny_211_' + new Date().toISOString().slice(0,10),
+                title: 'Szczególowy_Raport_System211_' + new Date().toISOString().slice(0,10),
                 exportOptions: {
-                    columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] // 10 KOLUMN W EXCELU!
+                    columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] 
                 }
             }
         ],
@@ -46,18 +46,21 @@ const dataTable = $('#reportsTable').DataTable({
                 }
             },
             { data: 'address' },
-            // NOWE DANE:
-            { 
+            {
+                data: 'weather',
+                render: function(data) { return `<i class="fas fa-cloud-sun text-info mr-1"></i> ${data}`; }
+            },
+           { 
                 data: 'police',
-                render: function(data) { return data === 'Tak' ? '<span class="text-primary font-weight-bold"><i class="fas fa-car-side"></i> Tak</span>' : '<span class="text-muted">Nie</span>'; }
+                render: function(data) { return data !== 'Brak' ? `<span class="text-primary font-weight-bold"><i class="fas fa-car-side"></i> ${data}</span>` : '<span class="text-muted">Brak</span>'; }
             },
             { 
                 data: 'fire',
-                render: function(data) { return data === 'Tak' ? '<span class="text-danger font-weight-bold"><i class="fas fa-fire"></i> Tak</span>' : '<span class="text-muted">Nie</span>'; }
+                render: function(data) { return data !== 'Brak' ? `<span class="text-danger font-weight-bold"><i class="fas fa-fire"></i> ${data}</span>` : '<span class="text-muted">Brak</span>'; }
             },
             { 
                 data: 'medical',
-                render: function(data) { return data === 'Tak' ? '<span class="text-success font-weight-bold"><i class="fas fa-ambulance"></i> Tak</span>' : '<span class="text-muted">Nie</span>'; }
+                render: function(data) { return data !== 'Brak' ? `<span class="text-success font-weight-bold"><i class="fas fa-ambulance"></i> ${data}</span>` : '<span class="text-muted">Brak</span>'; }
             },
             { 
                 data: 'description', 

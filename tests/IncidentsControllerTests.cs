@@ -12,6 +12,7 @@ using _211system.DTOs.CPR112;
 using _211system.Services;
 using _211system.Models.Interfaces;
 using CPR112.Models;
+using _211system.Models;
 
 namespace _211system.Tests
 {
@@ -45,7 +46,8 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var weatherMock = new Mock<IWeatherService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
 
             var dto = new CreateIncidentDto
             {
@@ -68,7 +70,8 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var weatherMock = new Mock<IWeatherService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
             var id = Guid.NewGuid();
             
             serviceMock.Setup(s => s.GetIncidentByIdAsync(id)).ReturnsAsync(new IncidentDto { Id = id });
@@ -84,7 +87,8 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var weatherMock = new Mock<IWeatherService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
             var id = Guid.NewGuid();
 
             serviceMock.Setup(s => s.GetIncidentByIdAsync(id)).ThrowsAsync(new ArgumentException("Not found"));
@@ -100,7 +104,8 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var weatherMock = new Mock<IWeatherService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
 
             controller.ControllerContext = new ControllerContext
             {
@@ -118,7 +123,8 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var weatherMock = new Mock<IWeatherService>();
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
             
             SetupControllerUser(controller, "admin-identity-id", "Admin112");
 
@@ -133,13 +139,14 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
+            var weatherMock = new Mock<IWeatherService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
             
             context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
             SetupControllerUser(controller, identityId);
 
             var incidentId = Guid.NewGuid();
@@ -157,13 +164,14 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
+            var weatherMock = new Mock<IWeatherService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
             
             context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
             SetupControllerUser(controller, identityId);
 
             var incidentId = Guid.NewGuid();
@@ -181,13 +189,14 @@ namespace _211system.Tests
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
             var blobMock = new Mock<IBlobStorageService>();
+            var weatherMock = new Mock<IWeatherService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
             
             context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object);
+            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
             SetupControllerUser(controller, identityId);
 
             var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" }, null);

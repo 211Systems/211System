@@ -25,6 +25,12 @@ namespace _211system.Services
 
         public async Task<(string AccountId, string TemporaryPassword)> CreateTemporaryAccountAsync(string email, string role)
         {
+            var existingUser = await _userManager.FindByEmailAsync(email);
+            if (existingUser != null)
+            {
+                throw new Exception("Ten adres e-mail jest już zajęty! Proszę użyć innego adresu.");
+            }
+
             var user = new ApplicationUser { UserName = email, Email = email, LockoutEnabled = true };
 
             int secureRandomNum = RandomNumberGenerator.GetInt32(1000, 10000);

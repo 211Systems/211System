@@ -5,6 +5,7 @@ using _211system.Models.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 using Police;
 
 
@@ -43,6 +44,15 @@ namespace _211system.Controllers
         [HttpPost("policemen")]
         public async Task<IActionResult> AddPoliceman([FromBody] CreatePolicemanDto dto)
         {
+            var nameRegex = new Regex(@"^[a-zA-ZĄĆĘŁŃÓŚŹŻąćęłńóśźż\s\-]{2,50}$");
+            if (string.IsNullOrWhiteSpace(dto.Name) || !nameRegex.IsMatch(dto.Name))
+                return BadRequest(new { message = "Nieprawidłowe imię (tylko litery, 2-50 znaków)." });
+            if (string.IsNullOrWhiteSpace(dto.Lastname) || !nameRegex.IsMatch(dto.Lastname))
+                return BadRequest(new { message = "Nieprawidłowe nazwisko (tylko litery, 2-50 znaków)." });
+
+            if (await _context.Users.AnyAsync(u => u.Email.ToLower() == dto.Email.ToLower()))
+                return BadRequest(new { message = "Ten adres e-mail jest już zajęty!" });
+
             try
             {
                 var result = await _policeService.CreatePolicemanAsync(dto);

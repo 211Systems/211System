@@ -6,6 +6,7 @@ using CPR112.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace _211system.Controllers
 {
@@ -72,6 +73,21 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
         public async Task<IActionResult> CreateParamedic([FromBody] CreateParamedicDto dto)
         {
+
+            var nameRegex = new Regex(@"^[a-zA-ZĄĆĘŁŃÓŚŹŻąćęłńóśźż\s\-]{2,50}$");
+
+            if (string.IsNullOrWhiteSpace(dto.Name) || !nameRegex.IsMatch(dto.Name))
+                return BadRequest(new { message = "Imię jest nieprawidłowe." });
+
+            if (string.IsNullOrWhiteSpace(dto.LastName) || !nameRegex.IsMatch(dto.LastName))
+                return BadRequest(new { message = "Nazwisko jest nieprawidłowe." });
+
+            var existingUser = await _context.Users.AnyAsync(u => u.Email.ToLower() == dto.Email.ToLower());
+            if (existingUser)
+            {
+                return BadRequest(new { message = "Ten adres e-mail jest już zajęty!" });
+            }
+
             try
             {
                 var result = await _medicalService.CreateParamedicAsync(dto);

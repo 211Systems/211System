@@ -76,6 +76,11 @@ builder.Services.AddControllersWithViews()
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+builder.Services.AddHttpClient<IAiService, GeminiAiService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddControllersWithViews();
 
 builder.Services.AddOpenApiDocument(config =>
 {
