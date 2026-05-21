@@ -9,6 +9,10 @@ namespace _211system.DTOs.Ai
         public List<AiUnitDto> AvailableAmbulances { get; set; } = new();
         public List<AiUnitDto> AvailableFireTrucks { get; set; } = new();
         public List<AiUnitDto> AvailablePoliceCars { get; set; } = new();
+        public List<AiUnitDto> AvailableMedicalAirUnits { get; set; } = new();
+        public List<AiUnitDto> AvailablePoliceAirUnits { get; set; } = new();
+        public List<AiUnitDto> AvailableFireAirUnits { get; set; } = new();
+        public AiWeatherDto CurrentWeather { get; set; }
     }
 
     public class AiIncidentDto
@@ -25,7 +29,6 @@ namespace _211system.DTOs.Ai
     {
         public Guid Id { get; set; }
         public string Name { get; set; }
-
         public double Latitude { get; set; }
         public double Longitude { get; set; }
     }
@@ -43,5 +46,17 @@ namespace _211system.DTOs.Ai
         public string Reasoning { get; set; }
         public string IncidentDescription { get; set; }
         public string UnitName { get; set; }
+    }
+
+    public class AiWeatherDto
+    {
+        public double Temperature { get; set; }
+        public string Description { get; set; }
+        public bool IsStormy { get; set; }
+        public bool IsFoggy { get; set; }
+        public bool IsSlippery { get; set; }
+        public int VisibilityMeters { get; set; }
+        public string FlightRules { get; set; }
+        public bool IsFlightRecommended { get; set; }
     }
 }
