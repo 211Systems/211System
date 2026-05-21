@@ -2,17 +2,28 @@
 window.activeSimulations = {};
 window.vehicleMarkers = {};
 
-const iconPoliceCar = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconAmbulance = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconFireTruck = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconAviation = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+window.getIconByService = function (type) {
+    let iconClass = 'fa-car';
+    let bgColor = '#6c757d';
 
-function getIconByService(type) {
-    if (type === 'police') return iconPoliceCar;
-    if (type === 'medic') return iconAmbulance;
-    if (type === 'aviation') return iconAviation;
-    return iconFireTruck;
-}
+    if (type === 'police') { iconClass = 'fa-car-side'; bgColor = '#007bff'; }
+    else if (type === 'medic') { iconClass = 'fa-ambulance'; bgColor = '#28a745'; }
+    else if (type === 'fire') { iconClass = 'fa-fire-extinguisher'; bgColor = '#dc3545'; }
+    else if (type === 'aviation') { iconClass = 'fa-helicopter'; bgColor = '#343a40'; }
+
+    const htmlContent = `
+        <div style="background-color: ${bgColor}; color: white; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+            <i class="fas ${iconClass}"></i>
+        </div>`;
+
+    return L.divIcon({
+        html: htmlContent,
+        className: 'custom-vehicle-marker',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16]
+    });
+};
 
 window.getRandomLocationInRadius = function (centerLat, centerLng, radiusKm) {
     const radiusInDegrees = radiusKm / 111.3;
@@ -289,10 +300,14 @@ window.updateCounters = async function () {
     const fetchSafeArray = async (url) => {
         try {
             const res = await fetch(url, { headers });
-            if (!res.ok) return [];
+            if (!res.ok) {
+                console.error(`[Błąd API] ${url} zwrócił status: ${res.status}`);
+                return [];
+            }
             const data = await res.json();
             return Array.isArray(data) ? data : [];
         } catch (e) {
+            console.error(`[Błąd Sieci] Nie udało się pobrać z ${url}:`, e);
             return [];
         }
     };

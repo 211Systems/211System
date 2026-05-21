@@ -564,24 +564,45 @@
 
             const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
 
-            const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-            const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-            const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-            const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const createMarkerIcon = (iconClass, bgColor, isBuilding = false, hasHelipad = false) => {
+                const borderRadius = isBuilding ? '8px' : '50%';
+                const helipadBadge = hasHelipad ? `<div style="position: absolute; bottom: -6px; right: -6px; background-color: #ffc107; color: #000; font-size: 10px; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #343a40;" title="Posiada Lądowisko">H</div>` : '';
+
+                const htmlContent = `
+                    <div style="background-color: ${bgColor}; color: white; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: ${borderRadius}; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.5); position: relative;">
+                        <i class="fas ${iconClass}"></i>
+                        ${helipadBadge}
+                    </div>`;
+
+                return L.divIcon({
+                    html: htmlContent,
+                    className: 'custom-building-marker',
+                    iconSize: [34, 34],
+                    iconAnchor: [17, 17],
+                    popupAnchor: [0, -17]
+                });
+            };
+
+            const iconIncident = createMarkerIcon('fa-exclamation-triangle', '#dc3545', false);
+            const iconHospital = (hasHeli) => createMarkerIcon('fa-hospital', '#28a745', true, hasHeli);
+            const iconPolice = (hasHeli) => createMarkerIcon('fa-shield-alt', '#007bff', true, hasHeli);
+            const iconFire = (hasHeli) => createMarkerIcon('fa-fire-extinguisher', '#fd7e14', true, hasHeli);
+            const iconAirbase = createMarkerIcon('fa-plane-departure', '#343a40', true, true);
 
             try {
-                const [incRes, hospRes, polRes, fireRes] = await Promise.all([
+                const [incRes, hospRes, polRes, fireRes, airRes] = await Promise.all([
                     fetch('/api/CPR112/Incidents', { headers }),
                     fetch('/api/Medical/hospitals', { headers }),
                     fetch('/api/Police/departments', { headers }),
-                    fetch('/api/Fire/departments', { headers })
+                    fetch('/api/Fire/departments', { headers }),
+                    fetch('/api/Aviation/airbases', { headers })
                 ]);
 
                 if (incRes.ok) {
                     const incidents = await incRes.json();
                     incidents.forEach(inc => {
                         if (inc.latitude && inc.longitude && inc.status !== "Zakończone") {
-                            L.marker([inc.latitude, inc.longitude], {icon: redIcon})
+                            L.marker([inc.latitude, inc.longitude], { icon: iconIncident })
                              .bindPopup(`<b><i class="fas fa-exclamation-triangle text-danger"></i> ${inc.incidentNumber || 'Zgłoszenie'}</b><br>${inc.description}<br>Status: <b>${inc.status}</b>`)
                              .addTo(markersLayer);
                         }
@@ -592,7 +613,8 @@
                     const hospitals = await hospRes.json();
                     hospitals.forEach(h => {
                         if (h.latitude && h.longitude) {
-                            L.marker([h.latitude, h.longitude], {icon: greenIcon})
+                            const hasHeli = h.hasHelipad || h.HasHelipad || false;
+                            L.marker([h.latitude, h.longitude], { icon: iconHospital(hasHeli) })
                              .bindPopup(`<b><i class="fas fa-hospital text-success"></i> ${h.name}</b><br>SOR: ${h.hasSOR ? 'Tak' : 'Nie'}<br>Zasięg: ${h.operatingRadiusKm || 15} km`)
                              .addTo(markersLayer);
                         }
@@ -603,7 +625,8 @@
                     const polDepts = await polRes.json();
                     polDepts.forEach(p => {
                         if (p.latitude && p.longitude) {
-                            L.marker([p.latitude, p.longitude], {icon: blueIcon})
+                            const hasHeli = p.hasHelipad || p.HasHelipad || false;
+                            L.marker([p.latitude, p.longitude], { icon: iconPolice(hasHeli) })
                              .bindPopup(`<b><i class="fas fa-shield-alt text-primary"></i> ${p.name}</b><br>Zasięg: ${p.operatingRadiusKm || 15} km`)
                              .addTo(markersLayer);
                         }
@@ -614,8 +637,20 @@
                     const fireDepts = await fireRes.json();
                     fireDepts.forEach(f => {
                         if (f.latitude && f.longitude) {
-                            L.marker([f.latitude, f.longitude], {icon: orangeIcon})
+                            const hasHeli = f.hasHelipad || f.HasHelipad || false;
+                            L.marker([f.latitude, f.longitude], { icon: iconFire(hasHeli) })
                              .bindPopup(`<b><i class="fas fa-fire-extinguisher text-danger"></i> ${f.name}</b><br>Zasięg: ${f.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+
+                if (airRes.ok) {
+                    const airbases = await airRes.json();
+                    airbases.forEach(a => {
+                        if (a.latitude && a.longitude) {
+                            L.marker([a.latitude, a.longitude], { icon: iconAirbase })
+                             .bindPopup(`<b><i class="fas fa-helicopter text-dark"></i> ${a.name}</b><br>Kod: ${a.icaoCode || 'Brak'}`)
                              .addTo(markersLayer);
                         }
                     });
