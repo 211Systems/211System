@@ -211,11 +211,12 @@
         document.addEventListener("DOMContentLoaded", async function () {
             const validToken = await window.ensureValidToken();
             if (!validToken) {
+                sessionStorage.setItem('returnUrl', window.location.pathname);
                 window.location.href = "/AuthView/Login";
                 return;
             }
 
-            setupDepartmentDetails({
+            await window.setupDepartmentDetails({
                 departmentId: currHospitalId,
                 endpoints: {
                     department: '/api/Medical/hospitals',
@@ -229,17 +230,14 @@
                 onInit: async (decodedToken) => {
                     if (!decodedToken) return;
 
-                    let roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
-                    const roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+                    const roles = window.getUserRoles(decodedToken);
                     const email = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
 
                     const isAdmin = roles.includes("Admin");
                     const isKierownik = roles.includes("Kierownik Szpitala");
                     const isLekarz = roles.includes("Lekarz");
 
-                    if (isAdmin) {
-                        document.getElementById('admin-hospital-actions').classList.remove('d-none');
-                    }
+                    if (isAdmin) document.getElementById('admin-hospital-actions')?.classList.remove('d-none');
 
                     const btnOpenModal = document.getElementById('btn-open-modal');
                     if (isAdmin) {
@@ -256,255 +254,85 @@
                             }
                         } catch (e) { console.error(e); }
                     }
-
-                    const roleSelect = document.getElementById('staffRole');
-                    const editRoleSelect = document.getElementById('editEmpRole');
-
-                    if (isAdmin || isKierownik) {
-                        const opts = `
-                            <option value="Kierownik Szpitala">Kierownik Szpitala</option>
-                            <option value="Lekarz">Lekarz</option>
-                            <option value="Medyk">Medyk</option>
-                        `;
-                        if (roleSelect) roleSelect.innerHTML = opts;
-                        if (editRoleSelect) editRoleSelect.innerHTML = opts;
-                    } else if (isLekarz) {
-                        const opts = `<option value="Medyk">Medyk</option>`;
-                        if (roleSelect) roleSelect.innerHTML = opts;
-                        if (editRoleSelect) editRoleSelect.innerHTML = opts;
-                    }
                 },
 
                 renderDepartment: (dept) => {
                     document.getElementById('hosp-name').textContent = dept.name || dept.Name;
                     document.getElementById('hosp-address').textContent = dept.address || dept.Address;
-
                     const hasSor = dept.hasSOR !== undefined ? dept.hasSOR : dept.HasSOR;
                     document.getElementById('hosp-sor').innerHTML = hasSor
-                        ? '<span class="badge bg-danger">Posiada oddział SOR</span>'
-                        : '<span class="badge bg-secondary">Brak oddziału SOR</span>';
+                        ? '<span class="badge bg-success">Posiada SOR</span>' : '<span class="badge bg-danger">Brak SOR</span>';
 
-                    const editHospName = document.getElementById('editHospName');
-                    if(editHospName) {
-                        editHospName.value = dept.name || dept.Name;
-                        document.getElementById('editHospAddress').value = dept.address || dept.Address;
-                        document.getElementById('editHospSor').value = hasSor ? "true" : "false";
-                    }
+                    document.getElementById('editHospName').value = dept.name || dept.Name;
+                    document.getElementById('editHospAddress').value = dept.address || dept.Address;
+                    document.getElementById('editHospSor').value = hasSor ? "true" : "false";
                 },
 
                 renderStaffRow: (p, decodedToken, allStaff) => {
-                    let roles = [];
-                    let email = "";
-                    if (decodedToken) {
-                        let roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
-                        roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
-                        email = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
-                    }
+                       const firstName = p.name || p.Name || "Brak";
+                        const lastName = p.lastName || p.LastName || "";
+                        const name = `${firstName} ${lastName}`;
+                        const pId = p.id || p.Id;
+                        const pEmail = p.email || p.Email || "Brak";
+                        const pLicense = p.licenseNumber || p.LicenseNumber || "Brak";
+                        const rank = p.rank || p.Rank || "Medyk";
+                        const spec = p.specialization || p.Specialization || "Medycyna";
+                        const avatarSrc = p.avatarUrl || p.AvatarUrl || `https://ui-avatars.com/api/?name=${firstName}+${lastName}`;
 
-                    const isAdmin = roles.includes("Admin");
-                    const isKierownik = roles.includes("Kierownik Szpitala");
-                    const isLekarz = roles.includes("Lekarz");
-
-                    let isMyHospital = false;
-                    const myRecord = allStaff.find(staff => staff.email === email || staff.Email === email);
-                    if (myRecord && (myRecord.hospitalId === currHospitalId || myRecord.HospitalId === currHospitalId)) {
-                        isMyHospital = true;
-                    }
-
-                    const firstName = p.name || p.Name;
-                    const lastName = p.lastName || p.LastName;
-                    const employeeRank = p.rank || p.Rank || "Medyk";
-                    const pLicense = p.licenseNumber || p.LicenseNumber;
-                    const pId = p.id || p.Id;
-                    const pEmail = p.email || p.Email;
-                    const fallbackAvatar = `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&color=fff`;
-                    const avatarSrc = p.avatarUrl || p.AvatarUrl || fallbackAvatar;
-
-                    let actionBtns = '';
-                    if (isAdmin || isKierownik || (isLekarz && isMyHospital && employeeRank === "Medyk")) {
-                        actionBtns = `
-                            <button onclick="window.manageAccountLock('${pEmail}')" class="btn btn-sm btn-dark mr-1" title="Zarządzaj dostępem (Zablokuj/Odblokuj)"><i class="fas fa-user-lock"></i></button>
-                            <button onclick="window.openEditEmpModal('${pId}', '${firstName}', '${lastName}', '${pLicense}', '${employeeRank}')" class="btn btn-sm btn-warning mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
-                            <button onclick="window.deleteParamedic('${pId}')" class="btn btn-sm btn-danger" title="Zwolnij"><i class="fas fa-user-times"></i></button>
-                        `;
-                    }
-
-                    if(pEmail && pEmail !== "Brak Emaila" && pEmail !== "Brak") {
-                        setTimeout(async () => {
-                            try {
-                                const statusRes = await fetch(`/api/Auth/status/${pEmail}`, { headers: { 'Authorization': 'Bearer ' + validToken } });
-                                if (statusRes.ok) {
-                                    const isLocked = await statusRes.json();
-                                    const badgeEl = document.getElementById(`lock-status-${pId}`);
-                                    if(badgeEl) {
-                                        badgeEl.innerHTML = isLocked
-                                            ? '<span class="badge bg-danger"><i class="fas fa-lock"></i> Zablokowane</span>'
-                                            : '<span class="badge bg-success"><i class="fas fa-lock-open"></i> Aktywne</span>';
-                                    }
-                                }
-                            } catch (e) {}
-                        }, 50);
-                    } else {
-                         setTimeout(() => {
-                             const badgeEl = document.getElementById(`lock-status-${pId}`);
-                             if(badgeEl) badgeEl.innerHTML = '<span class="badge bg-dark">Brak konta</span>';
-                         }, 50);
-                    }
-
-                    return `
-                        <tr>
-                            <td class="text-center align-middle">
-                                <img src="${avatarSrc}" alt="Awatar" class="img-circle elevation-1" style="width: 45px; height: 45px; object-fit: cover;">
-                            </td>
-                            <td class="align-middle">
-                                <b>${firstName} ${lastName}</b><br/>
-                                <small class="text-warning font-weight-bold">${employeeRank}</small>
-                            </td>
-                            <td class="align-middle">${pLicense}</td>
-                            <td class="align-middle"><span class="badge bg-success">${p.specialization || p.Specialization || "Medycyna"}</span></td>
-                            <td class="align-middle">
-                                ${pEmail}<br/>
-                                <span id="lock-status-${pId}"><span class="badge bg-secondary"><i class="fas fa-spinner fa-spin"></i> Sprawdzanie...</span></span>
-                            </td>
-                            <td class="align-middle text-right" style="white-space: nowrap;">${actionBtns}</td>
-                        </tr>
-                    `;
+                    return `<tr>
+                        <td class="text-center"><img src="${p.avatarUrl || 'https://ui-avatars.com/api/?name=' + name}" class="img-circle" style="width:40px;"></td>
+                        <td><b>${name}</b></td>
+                        <td>${p.licenseNumber || p.LicenseNumber}</td>
+                        <td><span class="badge bg-success">${p.specialization || "Medycyna"}</span></td>
+                        <td>${pEmail}<br/><span id="lock-status-${pId}"><i class="fas fa-spinner fa-spin"></i></span></td>
+                        <td class="text-right">
+                            <button onclick="window.manageAccountLock('${pEmail}')" class="btn btn-sm btn-dark"><i class="fas fa-user-lock"></i></button>
+                            <button onclick="window.openEditEmpModal('${pId}', '${p.name || p.Name}', '${p.lastName || p.LastName}', '${p.licenseNumber || p.LicenseNumber}', '${p.rank || 'Medyk'}')" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteParamedic('${pId}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`;
                 },
 
-                buildStaffPayload: () => {
-                    const roleEl = document.getElementById('staffRole');
-                    return {
-                        name: document.getElementById('staffName').value,
-                        lastName: document.getElementById('staffLastName').value,
-                        email: document.getElementById('staffEmail').value,
-                        licenseNumber: document.getElementById('staffLicense').value,
-                        specialization: "Medycyna",
-                        hospitalId: currHospitalId,
-                        rank: roleEl ? roleEl.value : "Medyk",
-                        paraAccountId: "Zostanie-Wygenerowane-W-Backendzie"
-                    };
-                }
+                buildStaffPayload: () => ({
+                    name: document.getElementById('staffName').value,
+                    lastName: document.getElementById('staffSurname').value,
+                    email: document.getElementById('staffEmail').value,
+                    licenseNumber: document.getElementById('staffLicense').value,
+                    specialization: document.getElementById('staffSpecialization').value,
+                    hospitalId: currHospitalId,
+                    rank: document.getElementById('staffRole').value
+                })
             });
+        });
 
-            window.deleteHospital = async function() {
-                if (!confirm("UWAGA! Czy na pewno chcesz usunąć całą placówkę? Zostaną usunięci wszyscy pracownicy i karetki!")) return;
-                try {
-                    const response = await fetch(`/api/Medical/hospitals/${currHospitalId}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': 'Bearer ' + validToken }
-                    });
-                    if (response.ok) window.location.href = '/Medic/Hospitals';
-                    else alert("Błąd usuwania placówki.");
-                } catch (error) { alert("Błąd sieci."); }
-            };
+        window.deleteParamedic = async function(id) {
+            if (!confirm("Zwolnić pracownika?")) return;
+            const res = await fetch(`/api/Medical/paramedics/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+            if (res.ok) window.location.reload();
+        };
 
-            window.deleteParamedic = async function(id) {
-                if (!confirm("Czy na pewno chcesz zwolnić tego pracownika? Operacja jest nieodwracalna!")) return;
-                try {
-                    const response = await fetch(`/api/Medical/paramedics/${id}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': 'Bearer ' + validToken }
-                    });
-                    if (response.ok) window.location.reload();
-                    else alert("Błąd! Pracownik może być w trakcie akcji.");
-                } catch (error) { alert("Błąd sieci."); }
-            };
+        window.openEditEmpModal = function(id, n, ln, l, r) {
+            document.getElementById('editEmpId').value = id;
+            document.getElementById('editEmpName').value = n;
+            document.getElementById('editEmpLastName').value = ln;
+            document.getElementById('editEmpLicense').value = l;
+            document.getElementById('editEmpRole').value = r;
+            $('#editParamedicModal').modal('show');
+        };
 
-            window.openEditEmpModal = function(id, name, lastName, license, rank) {
-                document.getElementById('editEmpId').value = id;
-                document.getElementById('editEmpName').value = name;
-                document.getElementById('editEmpLastName').value = lastName;
-                document.getElementById('editEmpLicense').value = license;
-                document.getElementById('editEmpRole').value = rank;
-                $('#editParamedicModal').modal('show');
-            };
+        document.getElementById('editParamedicForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editEmpId').value;
+            const data = { name: document.getElementById('editEmpName').value, lastName: document.getElementById('editEmpLastName').value, licenseNumber: document.getElementById('editEmpLicense').value, rank: document.getElementById('editEmpRole').value };
+            const res = await fetch(`/api/Medical/paramedics/${id}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            if (res.ok) window.location.reload();
+        });
 
-            document.getElementById('editParamedicForm')?.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const id = document.getElementById('editEmpId').value;
-                const data = {
-                    name: document.getElementById('editEmpName').value,
-                    lastName: document.getElementById('editEmpLastName').value,
-                    licenseNumber: document.getElementById('editEmpLicense').value,
-                    rank: document.getElementById('editEmpRole').value
-                };
-
-                try {
-                    const response = await fetch(`/api/Medical/paramedics/${id}`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Bearer ' + validToken, 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
-                    if (response.ok) {
-                        $('#editParamedicModal').modal('hide');
-                        window.location.reload();
-                    } else alert("Błąd edycji pracownika.");
-                } catch (error) { alert("Błąd sieci."); }
-            });
-
-            document.getElementById('editHospitalForm')?.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const data = {
-                    name: document.getElementById('editHospName').value,
-                    address: document.getElementById('editHospAddress').value,
-                    hasSOR: document.getElementById('editHospSor').value === "true"
-                };
-
-                try {
-                    const response = await fetch(`/api/Medical/hospitals/${currHospitalId}`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Bearer ' + validToken, 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
-                    if (response.ok) {
-                        $('#editHospitalModal').modal('hide');
-                        window.location.reload();
-                    } else alert("Błąd edycji placówki.");
-                } catch (error) { alert("Błąd sieci."); }
-            });
-
-            window.manageAccountLock = async function(email) {
-                if (!email || email === "Brak Emaila" || email === "Brak") {
-                    alert("Brak przypisanego adresu email. Skontaktuj się z administratorem.");
-                    return;
-                }
-
-                try {
-                    const statusRes = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + validToken } });
-                    const isLocked = await statusRes.json();
-
-                    if (isLocked) {
-                        if(confirm(`UWAGA: Konto pracownika ${email} jest obecnie ZABLOKOWANE.\n\nCzy chcesz je ODBLOKOWAĆ i wygenerować nowe hasło dostępowe?`)) {
-                            const unlockRes = await fetch(`/api/Auth/unlock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + validToken } });
-
-                            if(unlockRes.ok) {
-                                const data = await unlockRes.json();
-                                document.getElementById('new-password-display').innerText = data.newPassword;
-                                $('#unlockedAccountModal').modal('show');
-
-                                $('#unlockedAccountModal').on('hidden.bs.modal', function () {
-                                    window.location.reload();
-                                });
-                            } else {
-                                alert("Wystąpił błąd podczas odblokowywania konta.");
-                            }
-                        }
-                    } else {
-                        if(confirm(`Konto pracownika ${email} jest obecnie AKTYWNE.\n\nCzy na pewno chcesz zablokować temu pracownikowi dostęp do systemu?`)) {
-                            const lockRes = await fetch(`/api/Auth/lock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + validToken } });
-
-                            if(lockRes.ok) {
-                                alert("Konto zostało pomyślnie zablokowane!");
-                                window.location.reload();
-                            } else {
-                                alert("Wystąpił błąd podczas blokowania konta.");
-                            }
-                        }
-                    }
-                } catch (e) {
-                    alert("Błąd połączenia z serwerem autoryzacji.");
-                }
-            };
+        document.getElementById('editHospitalForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const data = { name: document.getElementById('editHospName').value, address: document.getElementById('editHospAddress').value, hasSOR: document.getElementById('editHospSor').value === "true" };
+            const res = await fetch(`/api/Medical/hospitals/${currHospitalId}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            if (res.ok) window.location.reload();
         });
     </script>
 }

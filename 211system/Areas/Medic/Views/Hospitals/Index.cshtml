@@ -23,9 +23,10 @@
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async function () {
-            // 1. Czekamy na weryfikację tokenu
-            const jwt = await window.ensureValidToken();
+        const jwt = await window.ensureValidToken();
             if (!jwt) {
+                sessionStorage.setItem('returnUrl', window.location.pathname);
+
                 window.location.href = "/AuthView/Login";
                 return;
             }

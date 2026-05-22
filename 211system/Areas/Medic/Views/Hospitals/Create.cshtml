@@ -65,10 +65,17 @@
 @section Scripts {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="~/js/api-form-handler.js"></script>
+    <script src="~/js/auth-handler.js" asp-append-version="true"></script>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", async function () {
+            const token = await window.ensureValidToken();
+            if (!token) {
+                sessionStorage.setItem('returnUrl', window.location.pathname);
+                window.location.href = "/AuthView/Login";
+                return;
+            }
+
             let pickerMap = L.map('picker-map').setView([52.2297, 21.0122], 11);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
@@ -107,7 +114,6 @@
             });
 
             async function loadExistingInfrastructure() {
-                const token = localStorage.getItem('jwt');
                 const headers = { 'Authorization': 'Bearer ' + token };
                 const mapLayer = L.featureGroup().addTo(pickerMap);
 
@@ -146,61 +152,62 @@
             });
 
             setTimeout(() => { pickerMap.invalidateSize(); }, 500);
-                    document.getElementById('createHospitalForm').addEventListener('submit', async function(e) {
-                        e.preventDefault();
-                        const errorMsg = document.getElementById('form-error');
-                        errorMsg.classList.add('d-none');
 
-                        const latVal = latInput.value;
-                        const lngVal = lngInput.value;
+            document.getElementById('createHospitalForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const errorMsg = document.getElementById('form-error');
+                errorMsg.classList.add('d-none');
 
-                        if (!latVal || !lngVal) {
-                            alert("Proszę wskazać lokalizację placówki na mapie!");
-                            return;
-                        }
+                const latVal = latInput.value;
+                const lngVal = lngInput.value;
 
-                        const payload = {
-                            name: document.getElementById('name').value,
-                            address: document.getElementById('address').value,
-                            hasSOR: document.getElementById('hasSOR').checked,
-                            hasHelipad: document.getElementById('hasHelipad').checked,
-                            latitude: parseFloat(latVal),
-                            longitude: parseFloat(lngVal),
-                            operatingRadiusKm: parseFloat(radiusInput.value)
-                        };
+                if (!latVal || !lngVal) {
+                    alert("Proszę wskazać lokalizację placówki na mapie!");
+                    return;
+                }
 
-                        try {
-                            const res = await fetch('/api/Medical/hospitals', {
+                const payload = {
+                    name: document.getElementById('name').value,
+                    address: document.getElementById('address').value,
+                    hasSOR: document.getElementById('hasSOR').checked,
+                    hasHelipad: document.getElementById('hasHelipad').checked,
+                    latitude: parseFloat(latVal),
+                    longitude: parseFloat(lngVal),
+                    operatingRadiusKm: parseFloat(radiusInput.value)
+                };
+
+                try {
+                    const res = await fetch('/api/Medical/hospitals', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        if (payload.hasHelipad) {
+                            await fetch('/api/Aviation/airbases', {
                                 method: 'POST',
                                 headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                            });
-
-                            if (res.ok) {
-                                if (payload.hasHelipad) {
-                                    await fetch('/api/Aviation/airbases', {
-                                        method: 'POST',
-                                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            name: `Lądowisko: ${payload.name}`,
-                                            icaoCode: "MEDIC",
-                                            serviceType: 0,
-                                            latitude: payload.latitude,
-                                            longitude: payload.longitude
-                                        })
-                                    }).catch(err => console.error("Błąd lądowiska:", err));
-                                }
-
-                                window.location.href = '/Medic/Hospitals';
-                            } else {
-                                errorMsg.textContent = "Błąd podczas dodawania szpitala.";
-                                errorMsg.classList.remove('d-none');
-                            }
-                        } catch(e) {
-                            errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
-                            errorMsg.classList.remove('d-none');
+                                body: JSON.stringify({
+                                    name: `Lądowisko: ${payload.name}`,
+                                    icaoCode: "MEDIC",
+                                    serviceType: 0,
+                                    latitude: payload.latitude,
+                                    longitude: payload.longitude
+                                })
+                            }).catch(err => console.error("Błąd lądowiska:", err));
                         }
-                    });
+
+                        window.location.href = '/Medic/Hospitals';
+                    } else {
+                        errorMsg.textContent = "Błąd podczas dodawania szpitala.";
+                        errorMsg.classList.remove('d-none');
+                    }
+                } catch(e) {
+                    errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
+                    errorMsg.classList.remove('d-none');
+                }
+            });
         });
     </script>
 }
