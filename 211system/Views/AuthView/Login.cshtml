@@ -112,7 +112,7 @@
                                 window.location.href = '/';
                             }
                         }
-                } else {
+                 else {
                     try {
                         const errorData = await response.json();
                         errorMsg.textContent = errorData.message || errorData.Message || "Nieprawidłowy email lub hasło.";

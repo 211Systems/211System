@@ -59,146 +59,165 @@
 @section Scripts {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="~/js/auth-handler.js" asp-append-version="true"></script>
 
     <script>
-        const token = localStorage.getItem('jwt');
-
-        let pickerMap = L.map('picker-map').setView([52.2297, 21.0122], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(pickerMap);
-
-        let pickerMarker = null;
-        let pickerCircle = null;
-        const radiusInput = document.getElementById('deptRadius');
-        const latInput = document.getElementById('deptLat');
-        const lngInput = document.getElementById('deptLng');
-
-        function updateCircle(lat, lng, radiusKm) {
-            if (pickerCircle) pickerMap.removeLayer(pickerCircle);
-            pickerCircle = L.circle([lat, lng], {
-                color: '#dc3545',
-                fillColor: '#dc3545',
-                fillOpacity: 0.2,
-                radius: radiusKm * 1000
-            }).addTo(pickerMap);
-        }
-
-        pickerMap.on('click', function (e) {
-            const lat = e.latlng.lat.toFixed(5);
-            const lng = e.latlng.lng.toFixed(5);
-
-            latInput.value = lat;
-            lngInput.value = lng;
-
-            if (pickerMarker) pickerMarker.setLatLng(e.latlng);
-            else pickerMarker = L.marker(e.latlng).addTo(pickerMap);
-
-            updateCircle(lat, lng, radiusInput.value || 15);
-        });
-
-        radiusInput.addEventListener('change', function() {
-            if (pickerMarker) {
-                const pos = pickerMarker.getLatLng();
-                updateCircle(pos.lat, pos.lng, this.value);
+        document.addEventListener("DOMContentLoaded", async function () {
+            const token = await window.ensureValidToken();
+            if (!token) {
+                sessionStorage.setItem('returnUrl', window.location.pathname);
+                window.location.href = "/AuthView/Login";
+                return;
             }
-        });
 
-        setTimeout(() => { pickerMap.invalidateSize(); }, 500);
+            let pickerMap = L.map('picker-map').setView([52.2297, 21.0122], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(pickerMap);
 
-          async function loadExistingInfrastructure() {
-            const headers = { 'Authorization': 'Bearer ' + token };
-            const mapLayer = L.featureGroup().addTo(pickerMap);
+            let pickerMarker = null;
+            let pickerCircle = null;
+            const radiusInput = document.getElementById('deptRadius');
+            const latInput = document.getElementById('deptLat');
+            const lngInput = document.getElementById('deptLng');
 
-            const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
-            const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
-            const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
+            function updateCircle(lat, lng, radiusKm) {
+                if (pickerCircle) pickerMap.removeLayer(pickerCircle);
+                pickerCircle = L.circle([lat, lng], {
+                    color: '#dc3545',
+                    fillColor: '#dc3545',
+                    fillOpacity: 0.2,
+                    radius: radiusKm * 1000
+                }).addTo(pickerMap);
+            }
 
-            try {
-                const [hospRes, polRes, fireRes] = await Promise.all([
-                    fetch('/api/Medical/hospitals', { headers }),
-                    fetch('/api/Police/departments', { headers }),
-                    fetch('/api/Fire/departments', { headers })
-                ]);
+            pickerMap.on('click', function (e) {
+                const lat = e.latlng.lat.toFixed(5);
+                const lng = e.latlng.lng.toFixed(5);
+                latInput.value = lat;
+                lngInput.value = lng;
 
-                if (hospRes.ok) {
-                    const data = await hospRes.json();
-                    data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: greenIcon, opacity: 0.7}).bindPopup(`Szpital: ${d.name}`).addTo(mapLayer); });
+                if (pickerMarker) pickerMarker.setLatLng(e.latlng);
+                else pickerMarker = L.marker(e.latlng).addTo(pickerMap);
+
+                updateCircle(lat, lng, radiusInput.value || 15);
+            });
+
+            radiusInput.addEventListener('change', function() {
+                if (pickerMarker) {
+                    const pos = pickerMarker.getLatLng();
+                    updateCircle(pos.lat, pos.lng, this.value);
                 }
-                if (polRes.ok) {
-                    const data = await polRes.json();
-                    data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: blueIcon, opacity: 0.7}).bindPopup(`Policja: ${d.name}`).addTo(mapLayer); });
-                }
-                if (fireRes.ok) {
-                    const data = await fireRes.json();
-                    data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: orangeIcon, opacity: 0.7}).bindPopup(`Straż Pożarna: ${d.name}`).addTo(mapLayer); });
-                }
-            } catch(e) { console.error("Błąd ładowania placówek tła:", e); }
-        }
+            });
 
-        loadExistingInfrastructure();
+            setTimeout(() => { pickerMap.invalidateSize(); }, 500);
 
+            async function loadExistingInfrastructure() {
+                const headers = { 'Authorization': 'Bearer ' + token };
+                const mapLayer = L.featureGroup().addTo(pickerMap);
 
-        document.getElementById('createDeptForm').addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const errorMsg = document.getElementById('form-error');
-                    errorMsg.classList.add('d-none');
+                const createMarkerIcon = (iconClass, bgColor, hasHelipad = false) => {
+                    const helipadBadge = hasHelipad ? `<div style="position: absolute; bottom: -6px; right: -6px; background-color: #ffc107; color: #000; font-size: 10px; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #343a40;" title="Posiada Lądowisko">H</div>` : '';
+                    const htmlContent = `
+                        <div style="background-color: ${bgColor}; color: white; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.5); position: relative; opacity: 0.85;">
+                            <i class="fas ${iconClass}"></i>${helipadBadge}
+                        </div>`;
+                    return L.divIcon({ html: htmlContent, className: 'custom-building-marker', iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -17] });
+                };
 
-                    const latVal = latInput.value;
-                    const lngVal = lngInput.value;
+                const iconHospital = (hasHeli) => createMarkerIcon('fa-hospital', '#28a745', hasHeli);
+                const iconPolice = (hasHeli) => createMarkerIcon('fa-shield-alt', '#007bff', hasHeli);
+                const iconFire = (hasHeli) => createMarkerIcon('fa-fire-extinguisher', '#fd7e14', hasHeli);
+                const iconAirbase = createMarkerIcon('fa-plane-departure', '#343a40', true);
 
-                    if (!latVal || !lngVal) {
-                        alert("Proszę wskazać lokalizację remizy na mapie!");
-                        return;
+                try {
+                    const [hospRes, polRes, fireRes, airRes] = await Promise.all([
+                        fetch('/api/Medical/hospitals', { headers }),
+                        fetch('/api/Police/departments', { headers }),
+                        fetch('/api/Fire/departments', { headers }),
+                        fetch('/api/Aviation/airbases', { headers })
+                    ]);
+
+                    if (hospRes.ok) {
+                        const data = await hospRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconHospital(d.hasHelipad || d.HasHelipad)}).bindPopup(`<b>Szpital:</b> ${d.name || d.Name}`).addTo(mapLayer); });
                     }
+                    if (polRes.ok) {
+                        const data = await polRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconPolice(d.hasHelipad || d.HasHelipad)}).bindPopup(`<b>Policja:</b> ${d.name || d.Name}`).addTo(mapLayer); });
+                    }
+                    if (fireRes.ok) {
+                        const data = await fireRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconFire(d.hasHelipad || d.HasHelipad)}).bindPopup(`<b>Straż Pożarna:</b> ${d.name || d.Name}`).addTo(mapLayer); });
+                    }
+                    if (airRes.ok) {
+                        const data = await airRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconAirbase}).bindPopup(`<b>Baza Lotnicza:</b> ${d.name || d.Name}`).addTo(mapLayer); });
+                    }
+                } catch(e) { console.error("Błąd ładowania placówek tła:", e); }
+            }
+            loadExistingInfrastructure();
 
-                    const payload = {
-                        name: document.getElementById('deptName').value,
-                        address: document.getElementById('deptAddress').value,
-                        district: document.getElementById('deptDistrict').value,
-                        hasHelipad: document.getElementById('hasHelipad').checked,
-                        latitude: parseFloat(latVal),
-                        longitude: parseFloat(lngVal),
-                        operatingRadiusKm: parseFloat(radiusInput.value)
-                    };
+            document.getElementById('createDeptForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const errorMsg = document.getElementById('form-error');
+                errorMsg.classList.add('d-none');
 
-                    try {
-                        const res = await fetch('/api/Fire/departments', {
-                            method: 'POST',
-                            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
+                const latVal = latInput.value;
+                const lngVal = lngInput.value;
 
-                        if (res.ok) {
-                            if (payload.hasHelipad) {
-                                await fetch('/api/Aviation/airbases', {
-                                    method: 'POST',
-                                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        name: `Lądowisko: ${payload.name}`,
-                                        icaoCode: "FIRE",
-                                        serviceType: 2,
-                                        latitude: payload.latitude,
-                                        longitude: payload.longitude
-                                    })
-                                }).catch(err => console.error("Błąd lądowiska:", err));
-                            }
+                if (!latVal || !lngVal) {
+                    alert("Proszę wskazać lokalizację remizy na mapie!");
+                    return;
+                }
 
-                            window.location.href = '/Fire/Home';
-                        } else {
-                            if (res.status === 401 || res.status === 403) {
-                                errorMsg.textContent = "Brak uprawnień lub token wygasł! Wyloguj się i zaloguj ponownie.";
-                            } else if (res.status === 400) {
-                                errorMsg.textContent = "Błąd 400: Uzupełnij wszystkie pola prawidłowo.";
-                            } else {
-                                errorMsg.textContent = "Błąd serwera (Kod: " + res.status + ").";
-                            }
-                            errorMsg.classList.remove('d-none');
+                const payload = {
+                    name: document.getElementById('deptName').value,
+                    address: document.getElementById('deptAddress').value,
+                    district: document.getElementById('deptDistrict').value,
+                    hasHelipad: document.getElementById('hasHelipad').checked,
+                    latitude: parseFloat(latVal),
+                    longitude: parseFloat(lngVal),
+                    operatingRadiusKm: parseFloat(radiusInput.value)
+                };
+
+                try {
+                    const res = await fetch('/api/Fire/departments', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        if (payload.hasHelipad) {
+                            await fetch('/api/Aviation/airbases', {
+                                method: 'POST',
+                                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    name: `Lądowisko: ${payload.name}`,
+                                    icaoCode: "FIRE",
+                                    serviceType: 2,
+                                    latitude: payload.latitude,
+                                    longitude: payload.longitude
+                                })
+                            }).catch(err => console.error("Błąd lądowiska:", err));
                         }
-                    } catch(e) {
-                        errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
+                        window.location.href = '/Fire/Home';
+                    } else {
+                        if (res.status === 401 || res.status === 403) {
+                            errorMsg.textContent = "Brak uprawnień lub token wygasł! Wyloguj się i zaloguj ponownie.";
+                        } else if (res.status === 400) {
+                            errorMsg.textContent = "Błąd 400: Uzupełnij wszystkie pola prawidłowo.";
+                        } else {
+                            errorMsg.textContent = "Błąd serwera (Kod: " + res.status + ").";
+                        }
                         errorMsg.classList.remove('d-none');
                     }
-                });
+                } catch(e) {
+                    errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
+                    errorMsg.classList.remove('d-none');
+                }
+            });
+        });
     </script>
 }
