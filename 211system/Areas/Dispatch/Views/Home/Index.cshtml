@@ -375,6 +375,24 @@
     </div>
 </div>
 
+<div class="modal fade" id="historyModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-secondary bg-dark text-white shadow-lg">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title font-weight-bold"><i class="fas fa-history text-info mr-2"></i> Oś Czasu Zgłoszenia</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-4" style="max-height: 60vh; overflow-y: auto;">
+                <div class="timeline timeline-inverse" id="history-timeline">
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -399,6 +417,15 @@
                     window.location.href = "/AuthView/Login";
                     return;
                 }
+            }
+
+            try {
+                const decoded = window.parseJwt(window.jwtToken);
+                if (decoded) {
+                    window.currentOperatorId = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || decoded.sub;
+                }
+            } catch (e) {
+                console.error("Nie udało się zdekodować tokena dla OperatorId:", e);
             }
 
             map = L.map('map').setView([52.2297, 21.0122], 12);
