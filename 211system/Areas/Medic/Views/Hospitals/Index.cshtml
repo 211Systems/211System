@@ -23,8 +23,10 @@
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async function () {
-            const jwt = await window.ensureValidToken();
+        const jwt = await window.ensureValidToken();
             if (!jwt) {
+                sessionStorage.setItem('returnUrl', window.location.pathname);
+
                 window.location.href = "/AuthView/Login";
                 return;
             }
@@ -42,18 +44,17 @@
                     document.getElementById('btn-add-dept').classList.remove('d-none');
                 }
             }
-
             setupCustomList({
                 tableBodyId: 'hospitals-table-body',
                 colspan: 5,
                 emptyMessage: 'Brak przypisanych placówek w systemie.',
-                loadData: async (jwtToken) => {
-                    const response = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+                loadData: async () => {
+                    const response = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + jwt } });
                     if (!response.ok) throw new Error("Błąd pobierania placówek");
                     let hospitals = await response.json();
 
                     if (!roles.includes("Admin") && !roles.includes("Kierownik Szpitala")) {
-                        const paramResponse = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+                        const paramResponse = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + jwt } });
                         if (paramResponse.ok) {
                             const paramedics = await paramResponse.json();
                             const myRecord = paramedics.find(p => p.email === email || p.Email === email);

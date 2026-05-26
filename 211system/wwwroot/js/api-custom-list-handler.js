@@ -6,33 +6,32 @@
     } catch (e) { return null; }
 };
 
-async function setupCustomList(config) {
-    document.addEventListener("DOMContentLoaded", async function () {
-        const tableBody = document.getElementById(config.tableBodyId);
-        if (!tableBody) return;
+window.setupCustomList = async function (config) {
+    const tableBody = document.getElementById(config.tableBodyId);
+    if (!tableBody) return;
 
-        const token = localStorage.getItem('jwt');
-        if (!token) return;
+    const token = localStorage.getItem('jwt');
+    if (!token) return;
 
-        try {
-            const data = await config.loadData(token);
+    try {
 
-            if (data === null) return;
+        const data = await config.loadData(token);
 
-            tableBody.innerHTML = '';
+        if (data === null) return;
 
-            if (data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-center">${config.emptyMessage || 'Brak danych.'}</td></tr>`;
-                return;
-            }
+        tableBody.innerHTML = '';
 
-            data.forEach((item, index) => {
-                tableBody.insertAdjacentHTML('beforeend', config.renderRow(item, index));
-            });
-
-        } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-danger text-center">Błąd pobierania danych.</td></tr>`;
-            console.error(error);
+        if (data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-center font-weight-bold">${config.emptyMessage || 'Brak danych.'}</td></tr>`;
+            return;
         }
-    });
-}
+
+        data.forEach((item, index) => {
+            tableBody.insertAdjacentHTML('beforeend', config.renderRow(item, index));
+        });
+
+    } catch (error) {
+        tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-danger text-center font-weight-bold">Błąd pobierania danych.</td></tr>`;
+        console.error("Błąd w setupCustomList:", error);
+    }
+};

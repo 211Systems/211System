@@ -1,8 +1,8 @@
 ﻿@{
-    ViewBag.ThemeColor = "primary";
+    ViewBag.ThemeColor = "success";
     ViewBag.Icon = "fas fa-helicopter";
     ViewBag.Title = "Lotnictwo Medyczne";
-    ViewBag.ServiceFilter = 1;
+    ViewBag.ServiceFilter = 0;
 }
 
 <div class="row mb-3">
@@ -88,47 +88,44 @@
 @section Scripts {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="~/js/auth-handler.js" asp-append-version="true"></script>
 
     <script>
-        const token = localStorage.getItem('jwt');
         const currentServiceFilter = @ViewBag.ServiceFilter;
         const themeColorClass = "text-@ViewBag.ThemeColor";
-        const btnClass = "btn-@ViewBag.ThemeColor";
-
-        const iconClassStr = "@ViewBag.Icon";
-
+        let isAviationManager = false;
         window.allVehicles = [];
         window.allAirbases = [];
 
-        let isAviationManager = false;
-        if (token) {
-            const dec = JSON.parse(window.atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            let roles = dec["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || dec.role;
-            let rArr = Array.isArray(roles) ? roles : [roles];
-            if (rArr.includes("Admin") || rArr.includes("Inspektor") || rArr.includes("Komendant") || rArr.includes("Naczelnik") || rArr.includes("Kierownik Szpitala")) {
-                isAviationManager = true;
-            }
-        }
-
         document.addEventListener("DOMContentLoaded", async function () {
-            if (isAviationManager) document.getElementById('btn-add-vehicle').classList.remove('d-none');
+            const token = await window.ensureValidToken();
+            if (!token) { window.location.href = "/AuthView/Login"; return; }
+
+            const dec = window.parseJwt(token);
+            if (dec) {
+                let roles = dec["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || dec.role;
+                let rArr = Array.isArray(roles) ? roles : [roles];
+                if (rArr.includes("Admin") || rArr.includes("Naczelnik") || rArr.includes("Komendant") || rArr.includes("Inspektor") || rArr.includes("Kierownik Szpitala")) {
+                    isAviationManager = true;
+                    document.getElementById('btn-add-vehicle').classList.remove('d-none');
+                }
+            }
             await fetchData();
         });
 
         async function fetchData() {
             try {
+                const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
                 const [vehRes, baseRes] = await Promise.all([
-                    fetch('/api/Aviation/units', { headers: { 'Authorization': 'Bearer ' + token } }),
-                    fetch('/api/Aviation/airbases', { headers: { 'Authorization': 'Bearer ' + token } })
+                    fetch('/api/Aviation/units', { headers }),
+                    fetch('/api/Aviation/airbases', { headers })
                 ]);
 
                 if (vehRes.ok && baseRes.ok) {
                     const vehData = await vehRes.json();
                     const baseData = await baseRes.json();
-
                     window.allVehicles = vehData.filter(v => (v.serviceType !== undefined ? v.serviceType : v.ServiceType) === currentServiceFilter);
                     window.allAirbases = baseData.filter(b => (b.serviceType !== undefined ? b.serviceType : b.ServiceType) === currentServiceFilter);
-
                     renderTable();
                     drawFleetMap();
                 }
@@ -147,42 +144,21 @@
                 const vId = v.id || v.Id;
                 const callsign = v.callsign || v.Callsign;
                 const baseId = v.airbaseId || v.AirbaseId;
-
                 const typeMap = { 0: "Śmigłowiec", 1: "Samolot" };
                 const uType = typeMap[v.type !== undefined ? v.type : v.Type] || "Inne";
-
                 const airbase = window.allAirbases.find(b => (b.id || b.Id) === baseId);
                 const baseName = airbase ? `${airbase.name || airbase.Name} (${airbase.icaoCode || airbase.IcaoCode || 'Brak'})` : '<span class="text-danger">Brak bazy!</span>';
-
                 const isAvailable = (v.isAvailable !== undefined ? v.isAvailable : v.IsAvailable);
                 const statusBadge = isAvailable ? '<span class="badge badge-success">W Bazie</span>' : '<span class="badge badge-warning text-dark">W misji</span>';
 
-                let actions = `
-                    <button onclick="focusMap(${airbase?.latitude || airbase?.Latitude || 0}, ${airbase?.longitude || airbase?.Longitude || 0})" class="btn btn-sm btn-secondary" title="Pokaż bazę na mapie"><i class="fas fa-map-marker-alt"></i></button>
-                `;
+                let actions = `<button onclick="focusMap(${airbase?.latitude || airbase?.Latitude || 0}, ${airbase?.longitude || airbase?.Longitude || 0})" class="btn btn-sm btn-secondary" title="Pokaż bazę na mapie"><i class="fas fa-map-marker-alt"></i></button>`;
 
                 if (isAviationManager) {
-                    if (!isAvailable) {
-                        actions += `
-                            <button onclick="forceFreeUnit('${vId}')" class="btn btn-sm btn-warning text-dark ml-1" title="Zakończ misję i zwróć maszynę"><i class="fas fa-undo"></i></button>
-                        `;
-                    }
-
-                    actions += `
-                        <button onclick="deleteVehicle('${vId}')" class="btn btn-sm btn-danger ml-1" title="Zezłomuj"><i class="fas fa-trash"></i></button>
-                    `;
+                    if (!isAvailable) actions += `<button onclick="forceFreeUnit('${vId}')" class="btn btn-sm btn-warning text-dark ml-1" title="Zakończ misję i zwróć maszynę"><i class="fas fa-undo"></i></button>`;
+                    actions += `<button onclick="deleteVehicle('${vId}')" class="btn btn-sm btn-danger ml-1" title="Zezłomuj"><i class="fas fa-trash"></i></button>`;
                 }
 
-                tbody.insertAdjacentHTML('beforeend', `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td class="${themeColorClass}"><b>${callsign}</b></td>
-                        <td>${uType}</td>
-                        <td>${baseName}</td>
-                        <td>${statusBadge}</td>
-                        <td class="text-right" style="white-space:nowrap;">${actions}</td>
-                    </tr>
-                `);
+                tbody.insertAdjacentHTML('beforeend', `<tr><td>${index + 1}</td><td class="${themeColorClass}"><b>${callsign}</b></td><td>${uType}</td><td>${baseName}</td><td>${statusBadge}</td><td class="text-right" style="white-space:nowrap;">${actions}</td></tr>`);
             });
         }
 
@@ -190,7 +166,6 @@
             const selectBase = document.getElementById('add-veh-airbase');
             selectBase.innerHTML = '<option value="">-- Wybierz bazę lotniczą --</option>';
             window.allAirbases.forEach(b => selectBase.innerHTML += `<option value="${b.id || b.Id}">${b.name || b.Name} (${b.icaoCode || b.IcaoCode})</option>`);
-
             document.getElementById('addVehicleForm').reset();
             $('#addVehicleModal').modal('show');
         }
@@ -203,41 +178,21 @@
                 airbaseId: document.getElementById('add-veh-airbase').value,
                 serviceType: currentServiceFilter
             };
-
-            const res = await fetch('/api/Aviation/units', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const res = await fetch('/api/Aviation/units', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (res.ok) { $('#addVehicleModal').modal('hide'); await fetchData(); }
             else { const err = await res.text(); alert("Błąd: " + err); }
         });
 
         window.forceFreeUnit = async function(id) {
-            if (!confirm("Czy na pewno chcesz przerwać obecną misję tej maszyny i zresetować jej status do bazy?")) return;
-
-            try {
-                const res = await fetch(`/api/Aviation/units/${id}/free`, {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-
-                if (res.ok) {
-                    alert("Maszyna została poprawnie zresetowana i zwrócona do bazy.");
-                    await fetchData();
-                } else {
-                    alert("Wystąpił błąd podczas resetowania statusu maszyny.");
-                }
-            } catch(e) {
-                alert("Błąd komunikacji z serwerem.");
-            }
+            if (!confirm("Czy na pewno chcesz przerwać misję maszyny i zresetować jej status?")) return;
+            const res = await fetch(`/api/Aviation/units/${id}/free`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+            if (res.ok) await fetchData(); else alert("Wystąpił błąd.");
         };
 
         window.deleteVehicle = async function(id) {
-            if (!confirm("Wyrejestrować maszynę? Operacja jest nieodwracalna.")) return;
-            const res = await fetch(`/api/Aviation/units/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+            if (!confirm("Wyrejestrować maszynę?")) return;
+            const res = await fetch(`/api/Aviation/units/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
             if (res.ok) await fetchData();
-            else alert("Błąd usuwania.");
         };
 
         let fleetMap = null;
@@ -246,9 +201,7 @@
         function initMap() {
             if (!fleetMap) {
                 fleetMap = L.map('fleet-map').setView([52.2297, 21.0122], 6);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
-                }).addTo(fleetMap);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(fleetMap);
                 fleetMarkers = L.featureGroup().addTo(fleetMap);
             }
         }
@@ -265,23 +218,20 @@
                     const unitsHere = window.allVehicles.filter(v => (v.airbaseId || v.AirbaseId) === (base.id || base.Id));
                     const availableUnits = unitsHere.filter(v => v.isAvailable !== false).length;
 
-                    let iconColor = 'black';
-                    if (currentServiceFilter === 0) iconColor = 'green';
-                    else if (currentServiceFilter === 1) iconColor = 'blue';
-                    else if (currentServiceFilter === 2) iconColor = 'orange';
+                    const bgColor = currentServiceFilter === 0 ? '#28a745' : (currentServiceFilter === 1 ? '#007bff' : '#dc3545');
+                    const htmlContent = `
+                        <div style="background-color: ${bgColor}; color: white; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.5); position: relative;">
+                            <i class="fas fa-plane-departure"></i>
+                            <div style="position: absolute; bottom: -6px; right: -6px; background-color: #ffc107; color: #000; font-size: 10px; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #343a40;">H</div>
+                        </div>`;
 
-                    let heliIcon = new L.Icon({
-                        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${iconColor}.png`,
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
-                    });
+                    const heliIcon = L.divIcon({ html: htmlContent, className: 'custom-building-marker', iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -17] });
 
                     L.marker([lat, lng], {icon: heliIcon})
-                        .bindPopup(`<b><i class="${iconClassStr} ${themeColorClass}"></i> ${base.name || base.Name}</b><br>ICAO: <b>${base.icaoCode || base.IcaoCode}</b><br>Maszyny (Wolne / Wszystkie): <b>${availableUnits} / ${unitsHere.length}</b>`)
+                        .bindPopup(`<b><i class="fas fa-helicopter ${themeColorClass}"></i> ${base.name || base.Name}</b><br>ICAO: <b>${base.icaoCode || base.IcaoCode}</b><br>Maszyny (Wolne / Wszystkie): <b>${availableUnits} / ${unitsHere.length}</b>`)
                         .addTo(fleetMarkers);
                 }
             });
-
             setTimeout(() => { fleetMap.invalidateSize(); }, 500);
         }
 
@@ -290,9 +240,7 @@
             if (lat !== 0 && lng !== 0) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 fleetMap.flyTo([lat, lng], 13, { animate: true, duration: 1.5 });
-            } else {
-                alert("Ta baza nie ma jeszcze przypisanych współrzędnych GPS!");
-            }
+            } else { alert("Ta baza nie ma przypisanych współrzędnych!"); }
         }
     </script>
 }

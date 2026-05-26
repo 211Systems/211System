@@ -2,19 +2,40 @@
     ViewData["Title"] = "Centrum Powiadamiania Ratunkowego 112";
 }
 
-<div class="card card-dark shadow mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h3 class="card-title m-0"><i class="fas fa-map-marked-alt"></i> Mapa Operacyjna</h3>
-        <div>
-            <button class="btn btn-sm btn-outline-light" onclick="window.refreshMapData()"><i class="fas fa-sync-alt"></i> Odśwież Mapę</button>
+<style>
+    .fade-panel {
+        display: none;
+    }
+
+        .fade-panel.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+</style>
+
+<div id="incidents-panel" class="fade-panel active">
+    <div class="card card-dark shadow mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title m-0"><i class="fas fa-map-marked-alt"></i> Mapa Operacyjna</h3>
+            <div>
+                <button class="btn btn-sm btn-outline-light" onclick="window.refreshMapData()"><i class="fas fa-sync-alt"></i> Odśwież Mapę</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div id="map" style="height: 450px; width: 100%; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;"></div>
         </div>
     </div>
-    <div class="card-body p-0">
-        <div id="map" style="height: 450px; width: 100%; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;"></div>
-    </div>
-</div>
 
-<div id="incidents-panel" class="fade-panel">
     <div class="row mb-3" id="status-board">
         <div class="col-md-3 col-6 mb-2">
             <div class="info-box bg-primary shadow status-tile" onclick="window.openDispatchModal('police')">
@@ -93,15 +114,15 @@
                     <div class="card-footer">
                         <div class="row">
                             <div class="col-6">
-                                <label><small class="text-muted">Latitude (Z mapy)</small></label>
+                                <label><small class="text-muted">Lat (Z mapy)</small></label>
                                 <input type="text" id="incLat" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
                             </div>
                             <div class="col-6">
-                                <label><small class="text-muted">Longitude (Z mapy)</small></label>
+                                <label><small class="text-muted">Lng (Z mapy)</small></label>
                                 <input type="text" id="incLng" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-danger btn-block font-weight-bold" id="btn-submit-incident">
+                        <button type="submit" class="btn btn-danger btn-block font-weight-bold mt-3" id="btn-submit-incident">
                             <i class="fas fa-plus"></i> Rejestruj Incydent
                         </button>
                     </div>
@@ -115,11 +136,12 @@
                     <h3 class="card-title m-0"><i class="fas fa-list-ul"></i> Aktywne Interwencje</h3>
                     <div>
                         <button class="btn btn-sm btn-warning text-dark mr-2" onclick="window.autoDispatchAI()"><i class="fas fa-magic"></i> Auto-Dyspozycja AI</button>
+                        <button class="btn btn-sm btn-outline-light" onclick="window.refreshAll()"><i class="fas fa-sync-alt"></i> Odśwież</button>
                     </div>
                 </div>
                 <div class="bg-dark p-2 border-bottom border-secondary d-flex flex-wrap gap-2 mb-2" id="stats-summary" style="gap: 10px;">
                 </div>
-                <div class="card-body p-0 table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <div class="card-body p-0 table-responsive" style="max-height: 600px; overflow-y: auto;">
                     <table class="table table-striped table-hover m-0 table-valign-middle">
                         <thead class="bg-secondary">
                             <tr>
@@ -141,63 +163,166 @@
     </div>
 </div>
 
-<div id="operators-panel" class="d-none fade-panel">
+<div id="operators-panel" class="fade-panel">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="text-warning font-weight-bold m-0"><i class="fas fa-users-cog mr-2"></i> Panel Zarządzania Kadrami 112</h2>
-        <button class="btn btn-outline-light" onclick="window.location.hash='';"><i class="fas fa-arrow-left"></i> Powrót do Operacji</button>
     </div>
     <div class="row">
-        <div class="col-12">
-            <div class="card card-outline card-warning mb-4 shadow">
+        <div class="col-md-4">
+            <div class="card card-outline card-warning shadow">
                 <div class="card-header">
-                    <h3 class="card-title text-bold">Rejestracja nowego Operatora/Admina</h3>
+                    <h3 class="card-title text-bold">Rejestracja Operatora</h3>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3"><label>Imię</label><input type="text" id="regFirstName" class="form-control" placeholder="Imię"></div>
-                        <div class="col-md-3"><label>Nazwisko</label><input type="text" id="regLastName" class="form-control" placeholder="Nazwisko"></div>
-                        <div class="col-md-2"><label>Stacja</label><input type="text" id="regStation" class="form-control" placeholder="np. S-1"></div>
-                        <div class="col-md-4"><label>Adres E-mail</label><input type="email" id="regEmail" class="form-control" placeholder="login@system.pl"></div>
-                    </div>
-                    <div class="row mt-3">
-                        <div class="col-md-6">
-                            <label>Ranga Systemowa</label>
-                            <select id="regRank" class="form-control">
+                <form id="registerOperatorForm">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6 form-group"><label>Imię</label><input type="text" id="regFirstName" class="form-control" required></div>
+                            <div class="col-6 form-group"><label>Nazwisko</label><input type="text" id="regLastName" class="form-control" required></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Adres E-mail (Login)</label>
+                            <input type="email" id="regEmail" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ranga / Rola</label>
+                            <select id="regRank" class="form-control" required>
                                 <option value="Dyspozytor112">Dyspozytor 112</option>
                                 <option value="Admin112">Administrator 112</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label>Placówka Nadrzędna</label>
-                            <select id="regEncId" class="form-control">
-                                <option value="">Ładowanie...</option>
-                            </select>
+                        <div class="row">
+                            <div class="col-6 form-group">
+                                <label>Numer Stanowiska</label>
+                                <input type="text" id="regStation" class="form-control" required>
+                            </div>
+                            <div class="col-6 form-group">
+                                <label>Placówka CPR</label>
+                                <select id="regEncId" class="form-control" required><option value="">Wybierz...</option></select>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="card-footer text-right">
-                    <button onclick="window.registerNewOperator()" class="btn btn-warning text-bold shadow-sm">
-                        <i class="fas fa-user-plus"></i> Utwórz konto i wyślij hasło
-                    </button>
-                </div>
+                    <div class="card-footer">
+                        <button type="button" class="btn btn-warning btn-block text-bold" onclick="window.registerNewOperator()"><i class="fas fa-user-plus"></i> Utwórz konto</button>
+                    </div>
+                </form>
             </div>
-
+        </div>
+        <div class="col-md-8">
             <div class="card card-dark shadow">
-                <div class="card-header border-0">
-                    <h3 class="card-title m-0"><i class="fas fa-id-badge"></i> Aktywny personel CPR</h3>
-                </div>
+                <div class="card-header border-0"><h3 class="card-title m-0"><i class="fas fa-id-badge"></i> Aktywny personel CPR</h3></div>
                 <div class="card-body p-0">
                     <table class="table table-striped table-valign-middle m-0">
                         <thead>
                             <tr>
                                 <th>Operator</th>
-                                <th>Uprawnienia</th>
-                                <th>Numer Stanowiska</th>
-                                <th>Email i Status</th>
-                                <th class="text-right">Zarządzanie</th>
+                                <th>Ranga</th>
+                                <th>Stanowisko</th>
+                                <th class="text-right">Akcje</th>
                             </tr>
                         </thead>
                         <tbody id="operators-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="centers-panel" class="fade-panel">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary font-weight-bold m-0"><i class="fas fa-hospital mr-2"></i> Zarządzanie Placówkami CPR</h2>
+    </div>
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card card-outline card-primary shadow">
+                <div class="card-header"><h3 class="card-title text-bold">Rejestracja nowej Placówki</h3></div>
+                <form id="createCenterForm">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Nazwa placówki</label>
+                            <input type="text" id="centerName" class="form-control" placeholder="np. CPR Warszawa" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Typ Placówki w systemie</label>
+                            <select id="centerType" class="form-control" onchange="window.toggleHelipadOptions()">
+                                <option value="Center">Centrum 112 (CPR)</option>
+                                <option value="Hospital">Szpital (Medyczna)</option>
+                                <option value="Police">Komenda Policji</option>
+                                <option value="Fire">Remiza Straży Pożarnej</option>
+                                <option value="Airbase">Baza Lotnicza (HEMS)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="regionGroup">
+                            <label>Region / Lokalizacja / Adres</label>
+                            <input type="text" id="centerRegion" class="form-control" placeholder="np. Mazowieckie" required>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label><i class="fas fa-map-marker-alt text-danger"></i> Wybierz lokalizację na mapie</label>
+                            <div id="picker-map" style="height: 250px; width: 100%; border-radius: 5px; border: 1px solid #ccc;"></div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <label><small class="text-muted">Latitude</small></label>
+                                <input type="text" id="centerLat" class="form-control form-control-sm" readonly required>
+                            </div>
+                            <div class="col-6">
+                                <label><small class="text-muted">Longitude</small></label>
+                                <input type="text" id="centerLng" class="form-control form-control-sm" readonly required>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label>Promień operacyjny (Zasięg Działania - KM)</label>
+                            <input type="number" id="centerRadius" class="form-control" value="15" min="1" required>
+                        </div>
+
+                        <div class="form-group mt-2" id="helipadOptionGroup">
+                            <div class="custom-control custom-switch custom-switch-off-danger custom-switch-on-success">
+                                <input type="checkbox" class="custom-control-input" id="hasHelipad">
+                                <label class="custom-control-label font-weight-bold" for="hasHelipad"><i class="fas fa-h-square text-success"></i> Posiada przyszpitalne Lądowisko</label>
+                            </div>
+                        </div>
+
+                        <div id="airbaseOptionGroup" class="d-none border p-3 rounded bg-dark mt-2">
+                            <h6 class="text-info"><i class="fas fa-plane-departure"></i> Konfiguracja Bazy Lotniczej</h6>
+                            <div class="form-group mt-2">
+                                <label>Kod lotniska (ICAO - np. EPWA)</label>
+                                <input type="text" id="centerIcao" class="form-control text-uppercase" placeholder="ABCD">
+                            </div>
+                            <div class="form-group">
+                                <label>Przypisana Służba</label>
+                                <select id="centerAirService" class="form-control">
+                                    <option value="0">Medyczna (LPR / HEMS)</option>
+                                    <option value="1">Policja</option>
+                                    <option value="2">Straż Pożarna</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-right">
+                        <button type="button" class="btn btn-primary btn-block font-weight-bold shadow-sm" onclick="window.registerNewCenter()">
+                            <i class="fas fa-plus"></i> Zarejestruj Strukturę
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="card card-dark shadow">
+                <div class="card-header border-0"><h3 class="card-title m-0">Placówki i Infrastruktura (Wgląd 112)</h3></div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-sm table-valign-middle m-0">
+                        <thead>
+                            <tr>
+                                <th>Nazwa CPR</th>
+                                <th>Region</th>
+                                <th>ID Systemowe (GUID)</th>
+                                <th class="text-right">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody id="centers-table-body"></tbody>
                     </table>
                 </div>
             </div>
@@ -209,112 +334,15 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode border-info">
             <div class="modal-header bg-info">
-                <h5 class="modal-title"><i class="fas fa-lock-open"></i> Konto odblokowane!</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title"><i class="fas fa-lock-open"></i> Konto utworzone/odblokowane!</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body text-center">
-                <p>Konto zostało pomyślnie zresetowane i odblokowane.</p>
                 <p>Przekaż pracownikowi to nowe, tymczasowe hasło:</p>
                 <h2 class="text-warning font-weight-bold my-4" id="new-password-display"></h2>
-                <p class="text-muted small">Ze względów bezpieczeństwa hasło wyświetla się tylko raz. <br />Zapisz je przed zamknięciem okna.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="centers-panel" class="d-none fade-panel">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-warning font-weight-bold m-0"><i class="fas fa-hospital mr-2"></i> Zarządzanie Placówkami CPR</h2>
-        <button class="btn btn-outline-light" onclick="window.location.hash='';"><i class="fas fa-arrow-left"></i> Wróć do operacji</button>
-    </div>
-    <div class="row">
-        <div class="col-md-5">
-            <div class="card card-outline card-warning shadow">
-                <div class="card-header"><h3 class="card-title text-bold">Nowa Placówka</h3></div>
-                <form id="createCenterForm">
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label>Nazwa placówki</label>
-                            <input type="text" id="centerName" class="form-control" placeholder="np. CPR Warszawa" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Region / Lokalizacja</label>
-                            <input type="text" id="centerRegion" class="form-control" placeholder="np. Mazowieckie" required>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-6">
-                            <label><small class="text-muted">Latitude (Z mapy)</small></label>
-                            <input type="text" id="centerLat" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
-                        </div>
-                        <div class="col-6">
-                            <label><small class="text-muted">Longitude (Z mapy)</small></label>
-                            <input type="text" id="centerLng" class="form-control form-control-sm" readonly placeholder="Kliknij na mapie">
-                        </div>
-                    </div>
-                    <div class="form-group mt-2">
-                        <label>Promień działania (KM)</label>
-                        <input type="number" id="centerRadius" class="form-control" value="15" required>
-                    </div>
-                    <div class="form-group mt-2">
-                        <label>Typ Placówki</label>
-                        <select id="centerType" class="form-control" onchange="toggleHelipadOptions()">
-                            <option value="Hospital">Szpital (Medyczna)</option>
-                            <option value="Police">Komenda Policji</option>
-                            <option value="Fire">Remiza Straży Pożarnej</option>
-                            <option value="Airbase">Baza Lotnicza (HEMS/Policja/Straż)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group mt-2" id="helipadOptionGroup">
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="hasHelipad">
-                            <label class="custom-control-label" for="hasHelipad">Posiada lądowisko dla śmigłowców</label>
-                        </div>
-                    </div>
-
-                    <div id="airbaseOptionGroup" class="d-none border p-2 rounded bg-dark">
-                        <div class="form-group">
-                            <label>Kod lotniska (ICAO - np. EPWA, EPBC)</label>
-                            <input type="text" id="centerIcao" class="form-control text-uppercase" placeholder="ABCD">
-                        </div>
-                        <div class="form-group">
-                            <label>Przypisana Służba</label>
-                            <select id="centerAirService" class="form-control">
-                                <option value="0">Medyczna (LPR / HEMS)</option>
-                                <option value="1">Policja</option>
-                                <option value="2">Straż Pożarna</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="card-footer text-right">
-                        <button type="button" onclick="window.registerNewCenter()" class="btn btn-warning text-bold">Dodaj Placówkę</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <div class="col-md-7">
-            <div class="card card-dark shadow">
-                <div class="card-header"><h3 class="card-title m-0">Lista Placówek w Systemie</h3></div>
-                <div class="card-body p-0">
-                    <table class="table table-striped table-valign-middle m-0">
-                        <thead>
-                            <tr>
-                                <th>Nazwa</th>
-                                <th>Region</th>
-                                <th>ID (GUID)</th>
-                                <th class="text-right">Zarządzanie</th>
-                            </tr>
-                        </thead>
-                        <tbody id="centers-table-body"></tbody>
-                    </table>
-                </div>
             </div>
         </div>
     </div>
@@ -329,29 +357,6 @@
             </div>
             <div class="modal-body p-0">
                 <input type="hidden" id="dispatchTargetIncidentId">
-                <div id="weather-widget-container" class="alert alert-dark p-2 m-3 d-none shadow-sm border-secondary">
-                    <div class="row align-items-center">
-                        <div class="col-md-6 border-right border-secondary">
-                            <h6 class="mb-1 text-light"><i class="fas fa-road text-info"></i> Warunki drogowe z OWM</h6>
-                            <div class="d-flex align-items-center">
-                                <img id="w-icon" src="" alt="Pogoda" width="50" height="50">
-                                <div class="ml-2 text-white">
-                                    <span id="w-temp" class="font-weight-bold" style="font-size: 1.2rem;"></span>°C - <span id="w-desc" class="text-capitalize"></span><br>
-                                    <span id="w-ground-alerts"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="mb-1 text-light"><i class="fas fa-helicopter text-warning"></i> Lotnictwo AVWX</h6>
-                            <div class="text-white">
-                                Reguły: <span id="w-flight-rules" class="badge" style="font-size: 1rem;"></span>
-                                <small class="text-muted ml-1" id="w-station"></small><br>
-                                <span id="w-flight-alerts" class="mt-1 d-inline-block"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <table class="table table-hover m-0">
                     <thead class="bg-light text-dark">
                         <tr>
@@ -366,89 +371,12 @@
                     </tbody>
                 </table>
             </div>
-            <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="statusModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog shadow-lg">
-        <div class="modal-content border-info">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title font-weight-bold">Aktualizacja Parametrów Zdarzenia</h5>
-                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
-            </div>
-            <form id="changeStatusForm">
-                <div class="modal-body">
-                    <input type="hidden" id="editIncidentId">
-                    <div class="form-group">
-                        <label>Status operacyjny</label>
-                        <select id="editIncidentStatus" class="form-control">
-                            <option value="Nowe">Nowe</option>
-                            <option value="W toku">W toku</option>
-                            <option value="Zakończone">Zakończone</option>
-                            <option value="Fałszywy alarm">Fałszywy alarm</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Poziom Zagrożenia (Severity)</label>
-                        <select id="editIncidentPriority" class="form-control">
-                            <option value="4">Krytyczny</option>
-                            <option value="3">Wysoki</option>
-                            <option value="2">Średni</option>
-                            <option value="1">Niski</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-sync"></i> Zmień/Dodaj zdjęcie</label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" id="editIncPhoto" accept="image/*">
-                            <label class="custom-file-label" for="editIncPhoto" id="editIncPhotoLabel">Wybierz nowe zdjęcie...</label>
-                        </div>
-                    </div>
-                    <p id="edit-error" class="text-danger d-none font-weight-bold"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-link text-muted" data-dismiss="modal">Zamknij</button>
-                    <button type="submit" class="btn btn-info font-weight-bold shadow-sm" id="btn-save-status">Zaktualizuj bazę</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="rankModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog shadow-lg">
-        <div class="modal-content shadow-lg">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title text-bold"><i class="fas fa-user-shield"></i> Modyfikacja Uprawnień</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
-            <form id="changeRankForm">
-                <div class="modal-body">
-                    <input type="hidden" id="editOperatorId">
-                    <div class="form-group">
-                        <label>Nowa ranga w strukturze CPR</label>
-                        <select id="editOperatorRank" class="form-control" required>
-                            <option value="Dyspozytor112">Dyspozytor 112</option>
-                            <option value="Admin112">Administrator 112</option>
-                        </select>
-                    </div>
-                    <p id="edit-rank-error" class="text-danger d-none font-weight-bold"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-dismiss="modal">Anuluj</button>
-                    <button type="submit" class="btn btn-warning font-weight-bold shadow-sm">Zatwierdź zmianę!</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
 
 <div class="modal fade" id="historyModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content border-secondary bg-dark text-white shadow-lg">
             <div class="modal-header border-secondary">
                 <h5 class="modal-title font-weight-bold"><i class="fas fa-history text-info mr-2"></i> Oś Czasu Zgłoszenia</h5>
@@ -463,85 +391,80 @@
             </div>
         </div>
     </div>
-    <div class="modal fade" id="aiDispatchModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
-        <div class="modal-dialog modal-xl" role="document">
-            <div class="modal-content dark-mode border-warning shadow-lg">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title font-weight-bold"><i class="fas fa-robot"></i> Propozycja Dyspozycji AI (Gemini)</h5>
-                    <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Zamknij">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body p-0">
-                    <div class="alert alert-dark m-3 border-warning text-warning">
-                        <i class="fas fa-info-circle"></i> AI przeanalizowało zdarzenia i dobrało najlepsze wolne jednostki. <strong>Zweryfikuj plan przed wysłaniem!</strong>
-                    </div>
-                    <table class="table table-striped table-hover m-0">
-                        <thead class="bg-secondary">
-                            <tr>
-                                <th>Incydent (ID / Opis)</th>
-                                <th>Typ Służby</th>
-                                <th>Zaproponowana Jednostka</th>
-                                <th>Uzasadnienie AI</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ai-suggestions-body">
-                        </tbody>
-                    </table>
-                </div>
-                <div class="modal-footer bg-dark">
-                    <button type="button" class="btn btn-outline-light" data-dismiss="modal">Odrzuć</button>
-                    <button type="button" class="btn btn-warning text-bold shadow" onclick="window.confirmAiDispatch()">
-                        <i class="fas fa-check-double"></i> Zatwierdź i Zadysponuj Wskazane Siły
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 @section Scripts {
-    <script src="~/js/auth-handler.js" asp-append-version="true"></script>
     <script src="~/js/dispatch-ui.js" asp-append-version="true"></script>
     <script src="~/js/dispatch-admin.js" asp-append-version="true"></script>
+
     <script>
         let map;
+        let pickerMap;
         let markersLayer;
         let routeLayer;
         let tempMarker = null;
+        let pickerMarker = null;
 
         document.addEventListener("DOMContentLoaded", async function () {
-                const token = await window.ensureValidToken();
-                    if (!token) {
-                        window.location.href = "/AuthView/Login";
-                        return;
-                    }
+            window.togglePanels();
+
+            if (!window.jwtToken) {
+                window.jwtToken = localStorage.getItem('jwt');
+                if(!window.jwtToken) {
+                    window.location.href = "/AuthView/Login";
+                    return;
+                }
+            }
+
+            try {
+                const decoded = window.parseJwt(window.jwtToken);
+                if (decoded) {
+                    window.currentOperatorId = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || decoded.sub;
+                }
+            } catch (e) {
+                console.error("Nie udało się zdekodować tokena dla OperatorId:", e);
+            }
 
             map = L.map('map').setView([52.2297, 21.0122], 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
             markersLayer = L.featureGroup().addTo(map);
             routeLayer = L.featureGroup().addTo(map);
 
             map.on('click', function(e) {
                 const lat = e.latlng.lat.toFixed(5);
                 const lng = e.latlng.lng.toFixed(5);
+                document.getElementById('incLat').value = lat;
+                document.getElementById('incLng').value = lng;
+                if (tempMarker) tempMarker.setLatLng(e.latlng);
+                else tempMarker = L.marker(e.latlng).addTo(map).bindPopup("Wybrany punkt docelowy (Incydent)").openPopup();
+            });
 
-                const incLatInput = document.getElementById('incLat');
-                const incLngInput = document.getElementById('incLng');
-                if(incLatInput && incLngInput) { incLatInput.value = lat; incLngInput.value = lng; }
+            pickerMap = L.map('picker-map').setView([52.2297, 21.0122], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(pickerMap);
+            let pickerCircle = null;
 
-                const centerLatInput = document.getElementById('centerLat');
-                const centerLngInput = document.getElementById('centerLng');
-                if(centerLatInput && centerLngInput) { centerLatInput.value = lat; centerLngInput.value = lng; }
+            pickerMap.on('click', function (e) {
+                const lat = e.latlng.lat.toFixed(5);
+                const lng = e.latlng.lng.toFixed(5);
+                document.getElementById('centerLat').value = lat;
+                document.getElementById('centerLng').value = lng;
 
-                if (tempMarker) { tempMarker.setLatLng(e.latlng); }
-                else { tempMarker = L.marker(e.latlng).addTo(map).bindPopup("Wybrany punkt docelowy").openPopup(); }
+                if (pickerMarker) pickerMarker.setLatLng(e.latlng);
+                else pickerMarker = L.marker(e.latlng).addTo(pickerMap);
+
+                const radiusKm = document.getElementById('centerRadius').value || 15;
+                if (pickerCircle) pickerMap.removeLayer(pickerCircle);
+                pickerCircle = L.circle(e.latlng, { color: '#007bff', fillColor: '#007bff', fillOpacity: 0.2, radius: radiusKm * 1000 }).addTo(pickerMap);
+            });
+
+            document.getElementById('centerRadius').addEventListener('change', function() {
+                if (pickerMarker) {
+                    if (pickerCircle) pickerMap.removeLayer(pickerCircle);
+                    pickerCircle = L.circle(pickerMarker.getLatLng(), { color: '#007bff', fillColor: '#007bff', fillOpacity: 0.2, radius: this.value * 1000 }).addTo(pickerMap);
+                }
             });
 
             try {
@@ -549,12 +472,9 @@
                 if(typeof window.loadCentersToSelect === 'function') await window.loadCentersToSelect();
                 if(typeof window.checkAdminVisibility === 'function') window.checkAdminVisibility();
                 if(typeof window.refreshAll === 'function') await window.refreshAll();
+            } catch (err) {}
 
-                window.addEventListener('hashchange', window.togglePanels);
-                if(typeof window.togglePanels === 'function') window.togglePanels();
-            } catch (err) {
-                console.error("Błąd podczas ładowania strony:", err);
-            }
+            window.addEventListener('hashchange', window.togglePanels);
         });
 
         window.refreshMapData = async function() {
@@ -564,24 +484,45 @@
 
             const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
 
-            const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-            const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-            const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
-            const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34] });
+            const createMarkerIcon = (iconClass, bgColor, isBuilding = false, hasHelipad = false) => {
+                const borderRadius = isBuilding ? '8px' : '50%';
+                const helipadBadge = hasHelipad ? `<div style="position: absolute; bottom: -6px; right: -6px; background-color: #ffc107; color: #000; font-size: 10px; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #343a40;" title="Posiada Lądowisko">H</div>` : '';
+
+                const htmlContent = `
+                    <div style="background-color: ${bgColor}; color: white; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: ${borderRadius}; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.5); position: relative;">
+                        <i class="fas ${iconClass}"></i>
+                        ${helipadBadge}
+                    </div>`;
+
+                return L.divIcon({
+                    html: htmlContent,
+                    className: 'custom-building-marker',
+                    iconSize: [34, 34],
+                    iconAnchor: [17, 17],
+                    popupAnchor: [0, -17]
+                });
+            };
+
+            const iconIncident = createMarkerIcon('fa-exclamation-triangle', '#dc3545', false);
+            const iconHospital = (hasHeli) => createMarkerIcon('fa-hospital', '#28a745', true, hasHeli);
+            const iconPolice = (hasHeli) => createMarkerIcon('fa-shield-alt', '#007bff', true, hasHeli);
+            const iconFire = (hasHeli) => createMarkerIcon('fa-fire-extinguisher', '#fd7e14', true, hasHeli);
+            const iconAirbase = createMarkerIcon('fa-plane-departure', '#343a40', true, true);
 
             try {
-                const [incRes, hospRes, polRes, fireRes] = await Promise.all([
+                const [incRes, hospRes, polRes, fireRes, airRes] = await Promise.all([
                     fetch('/api/CPR112/Incidents', { headers }),
                     fetch('/api/Medical/hospitals', { headers }),
                     fetch('/api/Police/departments', { headers }),
-                    fetch('/api/Fire/departments', { headers })
+                    fetch('/api/Fire/departments', { headers }),
+                    fetch('/api/Aviation/airbases', { headers })
                 ]);
 
                 if (incRes.ok) {
                     const incidents = await incRes.json();
                     incidents.forEach(inc => {
                         if (inc.latitude && inc.longitude && inc.status !== "Zakończone") {
-                            L.marker([inc.latitude, inc.longitude], {icon: redIcon})
+                            L.marker([inc.latitude, inc.longitude], { icon: iconIncident })
                              .bindPopup(`<b><i class="fas fa-exclamation-triangle text-danger"></i> ${inc.incidentNumber || 'Zgłoszenie'}</b><br>${inc.description}<br>Status: <b>${inc.status}</b>`)
                              .addTo(markersLayer);
                         }
@@ -592,7 +533,8 @@
                     const hospitals = await hospRes.json();
                     hospitals.forEach(h => {
                         if (h.latitude && h.longitude) {
-                            L.marker([h.latitude, h.longitude], {icon: greenIcon})
+                            const hasHeli = h.hasHelipad || h.HasHelipad || false;
+                            L.marker([h.latitude, h.longitude], { icon: iconHospital(hasHeli) })
                              .bindPopup(`<b><i class="fas fa-hospital text-success"></i> ${h.name}</b><br>SOR: ${h.hasSOR ? 'Tak' : 'Nie'}<br>Zasięg: ${h.operatingRadiusKm || 15} km`)
                              .addTo(markersLayer);
                         }
@@ -603,7 +545,8 @@
                     const polDepts = await polRes.json();
                     polDepts.forEach(p => {
                         if (p.latitude && p.longitude) {
-                            L.marker([p.latitude, p.longitude], {icon: blueIcon})
+                            const hasHeli = p.hasHelipad || p.HasHelipad || false;
+                            L.marker([p.latitude, p.longitude], { icon: iconPolice(hasHeli) })
                              .bindPopup(`<b><i class="fas fa-shield-alt text-primary"></i> ${p.name}</b><br>Zasięg: ${p.operatingRadiusKm || 15} km`)
                              .addTo(markersLayer);
                         }
@@ -614,8 +557,20 @@
                     const fireDepts = await fireRes.json();
                     fireDepts.forEach(f => {
                         if (f.latitude && f.longitude) {
-                            L.marker([f.latitude, f.longitude], {icon: orangeIcon})
+                            const hasHeli = f.hasHelipad || f.HasHelipad || false;
+                            L.marker([f.latitude, f.longitude], { icon: iconFire(hasHeli) })
                              .bindPopup(`<b><i class="fas fa-fire-extinguisher text-danger"></i> ${f.name}</b><br>Zasięg: ${f.operatingRadiusKm || 15} km`)
+                             .addTo(markersLayer);
+                        }
+                    });
+                }
+
+                if (airRes.ok) {
+                    const airbases = await airRes.json();
+                    airbases.forEach(a => {
+                        if (a.latitude && a.longitude) {
+                            L.marker([a.latitude, a.longitude], { icon: iconAirbase })
+                             .bindPopup(`<b><i class="fas fa-helicopter text-dark"></i> ${a.name}</b><br>Kod: ${a.icaoCode || 'Brak'}`)
                              .addTo(markersLayer);
                         }
                     });
@@ -625,67 +580,76 @@
             }
         };
 
-        window.flyToMap = function(lat, lng) {
-            if(map) {
-                map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+        window.togglePanels = function () {
+            const h = window.location.hash;
+            document.querySelectorAll('.fade-panel').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            if (h === '#admin-operator-section') {
+                document.getElementById('operators-panel').classList.add('active');
+                if (typeof window.loadOperators === 'function') window.loadOperators();
+            } else if (h === '#admin-centers-section') {
+                document.getElementById('centers-panel').classList.add('active');
+                if (typeof window.loadCenters === 'function') window.loadCenters();
+                setTimeout(() => { pickerMap.invalidateSize(); }, 300);
+            } else {
+                document.getElementById('incidents-panel').classList.add('active');
+                setTimeout(() => { map.invalidateSize(); }, 300);
             }
         };
 
-        window.drawRoute = async function(startLat, startLng, endLat, endLng) {
-            if (!map) return;
+        window.registerNewOperator = async function () {
+            const dto = {
+                firstName: document.getElementById('regFirstName').value,
+                lastName: document.getElementById('regLastName').value,
+                stationNumber: document.getElementById('regStation').value,
+                encId: document.getElementById('regEncId').value,
+                email: document.getElementById('regEmail').value,
+                rank: document.getElementById('regRank').value
+            };
 
-            routeLayer.clearLayers();
-
-            const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+            if (!dto.email || !dto.lastName || !dto.encId) {
+                alert("Uzupełnij wszystkie dane operatora (w tym wybór placówki)!"); return;
+            }
 
             try {
-                const response = await fetch(url);
-                const data = await response.json();
-
-                if (data.routes && data.routes.length > 0) {
-                    const coordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-
-                    const distanceKm = (data.routes[0].distance / 1000).toFixed(2);
-                    const durationMin = Math.round(data.routes[0].duration / 60);
-
-                    const polyline = L.polyline(coordinates, {
-                        color: '#00d4ff',
-                        weight: 6,
-                        opacity: 0.8,
-                        dashArray: '10, 10'
-                    });
-
-                    routeLayer.addLayer(polyline);
-
-                    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-
-                    console.log(`Wyznaczono trasę: ${distanceKm} km, czas dojazdu: ok. ${durationMin} min.`);
-
+                const response = await fetch('/api/Operators', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(dto) });
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('new-password-display').innerText = result.temporaryPassword;
+                    $('#unlockedAccountModal').modal('show');
+                    document.getElementById('registerOperatorForm').reset();
+                    if (typeof window.loadOperators === 'function') window.loadOperators();
+                } else {
+                    const err = await response.json();
+                    alert("Błąd: " + (err.message || "Nie udało się zarejestrować operatora."));
                 }
-            } catch (e) {
-                console.error("Błąd wyznaczania trasy:", e);
-                alert("Nie udało się wyznaczyć trasy z serwerów OSRM.");
-            }
+            } catch (e) { alert("Błąd krytyczny połączenia z serwerem."); }
         };
 
-                function toggleHelipadOptions() {
+        window.registerNewCenter = async function () {
+            const nameVal = document.getElementById('centerName').value;
+            const latVal = document.getElementById('centerLat').value;
+            const lngVal = document.getElementById('centerLng').value;
+            const radiusVal = document.getElementById('centerRadius').value;
             const type = document.getElementById('centerType').value;
+
+            if (!nameVal || !latVal || !lngVal) { alert("Wypełnij nazwę i wskaż lokalizację na mapie!"); return; }
+
+            let url = ''; let dto = {};
+            const hasHelipad = document.getElementById('hasHelipad').checked;
+
             if (type === 'Airbase') {
-                document.getElementById('helipadOptionGroup').classList.add('d-none');
-                document.getElementById('airbaseOptionGroup').classList.remove('d-none');
+                url = '/api/Aviation/airbases';
+                dto = { name: nameVal, icaoCode: document.getElementById('centerIcao').value || "Brak", serviceType: parseInt(document.getElementById('centerAirService').value), latitude: parseFloat(latVal), longitude: parseFloat(lngVal) };
             } else {
-                document.getElementById('helipadOptionGroup').classList.remove('d-none');
-                document.getElementById('airbaseOptionGroup').classList.add('d-none');
-            }
-        }
-        window.aiSuggestionsData = [];
-
-        window.autoDispatchAI = async function() {
-            const btn = document.querySelector('button[onclick="window.autoDispatchAI()"]');
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI Analizuje...';
-            btn.disabled = true;
-
+                const regionVal = document.getElementById('centerRegion').value || "Brak Danych";
+                dto = { name: nameVal, region: regionVal, address: regionVal, district: regionVal, latitude: parseFloat(latVal), longitude: parseFloat(lngVal), operatingRadiusKm: parseFloat(radiusVal), hasHelipad: hasHelipad };
+                if (type === 'Hospital') url = '/api/Medical/hospitals';
+                else if (type === 'Police') url = '/api/Police/departments';
+                else if (type === 'Fire') url = '/api/Fire/departments';
+                else url = '/api/Enc';
             try {
                 const response = await fetch('/api/Ai/auto-dispatch', {
                     method: 'POST',
@@ -747,12 +711,15 @@
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
             }
-        };
-
-        window.confirmAiDispatch = async function() {
-            if (!confirm("Potwierdzasz zadysponowanie tych jednostek?")) return;
 
             try {
+                const response = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(dto) });
+                if (response.ok) {
+                    alert("Placówka dodana do systemu.");
+                    document.getElementById('createCenterForm').reset();
+                    if (typeof window.loadCenters === 'function') window.loadCenters();
+                } else { alert(`Błąd serwera. Sprawdź konsole.`); }
+            } catch (e) { alert("Błąd krytyczny komunikacji z serwerem."); }
                 const response = await fetch('/api/Ai/confirm-dispatch', {
                     method: 'POST',
                     headers: {

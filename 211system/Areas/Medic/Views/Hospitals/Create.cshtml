@@ -65,10 +65,17 @@
 @section Scripts {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="~/js/api-form-handler.js"></script>
+    <script src="~/js/auth-handler.js" asp-append-version="true"></script>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", async function () {
+            const token = await window.ensureValidToken();
+            if (!token) {
+                sessionStorage.setItem('returnUrl', window.location.pathname);
+                window.location.href = "/AuthView/Login";
+                return;
+            }
+
             let pickerMap = L.map('picker-map').setView([52.2297, 21.0122], 11);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
@@ -93,50 +100,14 @@
             pickerMap.on('click', function (e) {
                 const lat = e.latlng.lat.toFixed(5);
                 const lng = e.latlng.lng.toFixed(5);
-
                 latInput.value = lat;
                 lngInput.value = lng;
 
-                if (pickerMarker) {
-                    pickerMarker.setLatLng(e.latlng);
-                } else {
-                    pickerMarker = L.marker(e.latlng).addTo(pickerMap);
-                }
+                if (pickerMarker) pickerMarker.setLatLng(e.latlng);
+                else pickerMarker = L.marker(e.latlng).addTo(pickerMap);
 
                 updateCircle(lat, lng, radiusInput.value || 15);
             });
-
-            async function loadExistingInfrastructure() {
-                const token = localStorage.getItem('jwt');
-                const headers = { 'Authorization': 'Bearer ' + token };
-                const mapLayer = L.featureGroup().addTo(pickerMap);
-
-                const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
-                const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
-                const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -24] });
-
-                try {
-                    const [hospRes, polRes, fireRes] = await Promise.all([
-                        fetch('/api/Medical/hospitals', { headers }),
-                        fetch('/api/Police/departments', { headers }),
-                        fetch('/api/Fire/departments', { headers })
-                    ]);
-
-                    if (hospRes.ok) {
-                        const data = await hospRes.json();
-                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: greenIcon, opacity: 0.7}).bindPopup(d.name).addTo(mapLayer); });
-                    }
-                    if (polRes.ok) {
-                        const data = await polRes.json();
-                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: blueIcon, opacity: 0.7}).bindPopup(d.name).addTo(mapLayer); });
-                    }
-                    if (fireRes.ok) {
-                        const data = await fireRes.json();
-                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: orangeIcon, opacity: 0.7}).bindPopup(d.name).addTo(mapLayer); });
-                    }
-                } catch(e) { console.error(e); }
-            }
-            loadExistingInfrastructure();
 
             radiusInput.addEventListener('change', function() {
                 if (pickerMarker) {
@@ -147,62 +118,107 @@
 
             setTimeout(() => { pickerMap.invalidateSize(); }, 500);
 
-        // USUŃ setupApiFormSubmit i wklej to:
-                    document.getElementById('createHospitalForm').addEventListener('submit', async function(e) {
-                        e.preventDefault();
-                        const errorMsg = document.getElementById('form-error');
-                        errorMsg.classList.add('d-none');
+            async function loadExistingInfrastructure() {
+                const headers = { 'Authorization': 'Bearer ' + token };
+                const mapLayer = L.featureGroup().addTo(pickerMap);
 
-                        const latVal = latInput.value;
-                        const lngVal = lngInput.value;
+                const createMarkerIcon = (iconClass, bgColor, hasHelipad = false) => {
+                    const helipadBadge = hasHelipad ? `<div style="position: absolute; bottom: -6px; right: -6px; background-color: #ffc107; color: #000; font-size: 10px; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #343a40;" title="Posiada Lądowisko">H</div>` : '';
+                    const htmlContent = `
+                        <div style="background-color: ${bgColor}; color: white; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.5); position: relative; opacity: 0.85;">
+                            <i class="fas ${iconClass}"></i>${helipadBadge}
+                        </div>`;
+                    return L.divIcon({ html: htmlContent, className: 'custom-building-marker', iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -17] });
+                };
 
-                        if (!latVal || !lngVal) {
-                            alert("Proszę wskazać lokalizację placówki na mapie!");
-                            return;
-                        }
+                const iconHospital = (hasHeli) => createMarkerIcon('fa-hospital', '#28a745', hasHeli);
+                const iconPolice = (hasHeli) => createMarkerIcon('fa-shield-alt', '#007bff', hasHeli);
+                const iconFire = (hasHeli) => createMarkerIcon('fa-fire-extinguisher', '#fd7e14', hasHeli);
+                const iconAirbase = createMarkerIcon('fa-plane-departure', '#343a40', true);
 
-                        const payload = {
-                            name: document.getElementById('name').value,
-                            address: document.getElementById('address').value,
-                            hasSOR: document.getElementById('hasSOR').checked,
-                            hasHelipad: document.getElementById('hasHelipad').checked,
-                            latitude: parseFloat(latVal),
-                            longitude: parseFloat(lngVal),
-                            operatingRadiusKm: parseFloat(radiusInput.value)
-                        };
+                try {
+                    const [hospRes, polRes, fireRes, airRes] = await Promise.all([
+                        fetch('/api/Medical/hospitals', { headers }),
+                        fetch('/api/Police/departments', { headers }),
+                        fetch('/api/Fire/departments', { headers }),
+                        fetch('/api/Aviation/airbases', { headers })
+                    ]);
 
-                        try {
-                            const res = await fetch('/api/Medical/hospitals', {
+                    if (hospRes.ok) {
+                        const data = await hospRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconHospital(d.hasHelipad || d.HasHelipad)}).bindPopup(`<b>Szpital:</b> ${d.name || d.Name}`).addTo(mapLayer); });
+                    }
+                    if (polRes.ok) {
+                        const data = await polRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconPolice(d.hasHelipad || d.HasHelipad)}).bindPopup(`<b>Policja:</b> ${d.name || d.Name}`).addTo(mapLayer); });
+                    }
+                    if (fireRes.ok) {
+                        const data = await fireRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconFire(d.hasHelipad || d.HasHelipad)}).bindPopup(`<b>Straż Pożarna:</b> ${d.name || d.Name}`).addTo(mapLayer); });
+                    }
+                    if (airRes.ok) {
+                        const data = await airRes.json();
+                        data.forEach(d => { if (d.latitude) L.marker([d.latitude, d.longitude], {icon: iconAirbase}).bindPopup(`<b>Baza Lotnicza:</b> ${d.name || d.Name}`).addTo(mapLayer); });
+                    }
+                } catch(e) { console.error("Błąd ładowania placówek tła:", e); }
+            }
+            loadExistingInfrastructure();
+
+            document.getElementById('createHospitalForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const errorMsg = document.getElementById('form-error');
+                errorMsg.classList.add('d-none');
+
+                const latVal = latInput.value;
+                const lngVal = lngInput.value;
+
+                if (!latVal || !lngVal) {
+                    alert("Proszę wskazać lokalizację placówki na mapie!");
+                    return;
+                }
+
+                const payload = {
+                    name: document.getElementById('name').value,
+                    address: document.getElementById('address').value,
+                    hasSOR: document.getElementById('hasSOR').checked,
+                    hasHelipad: document.getElementById('hasHelipad').checked,
+                    latitude: parseFloat(latVal),
+                    longitude: parseFloat(lngVal),
+                    operatingRadiusKm: parseFloat(radiusInput.value)
+                };
+
+                try {
+                    const res = await fetch('/api/Medical/hospitals', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        if (payload.hasHelipad) {
+                            await fetch('/api/Aviation/airbases', {
                                 method: 'POST',
                                 headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                            });
-
-                            if (res.ok) {
-                                if (payload.hasHelipad) {
-                                    await fetch('/api/Aviation/airbases', {
-                                        method: 'POST',
-                                        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            name: `Lądowisko: ${payload.name}`,
-                                            icaoCode: "MEDIC",
-                                            serviceType: 0,
-                                            latitude: payload.latitude,
-                                            longitude: payload.longitude
-                                        })
-                                    }).catch(err => console.error("Błąd lądowiska:", err));
-                                }
-
-                                window.location.href = '/Medic/Hospitals';
-                            } else {
-                                errorMsg.textContent = "Błąd podczas dodawania szpitala.";
-                                errorMsg.classList.remove('d-none');
-                            }
-                        } catch(e) {
-                            errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
-                            errorMsg.classList.remove('d-none');
+                                body: JSON.stringify({
+                                    name: `Lądowisko: ${payload.name}`,
+                                    icaoCode: "MEDIC",
+                                    serviceType: 0,
+                                    latitude: payload.latitude,
+                                    longitude: payload.longitude
+                                })
+                            }).catch(err => console.error("Błąd lądowiska:", err));
                         }
-                    });
+
+                        window.location.href = '/Medic/Hospitals';
+                    } else {
+                        errorMsg.textContent = "Błąd podczas dodawania szpitala.";
+                        errorMsg.classList.remove('d-none');
+                    }
+                } catch(e) {
+                    errorMsg.textContent = "Błąd sieci. Serwer nie odpowiada.";
+                    errorMsg.classList.remove('d-none');
+                }
+            });
         });
     </script>
 }

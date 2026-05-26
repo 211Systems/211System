@@ -65,44 +65,54 @@
                     body: JSON.stringify({ email: email, password: password })
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    localStorage.setItem('jwt', data.token);
+                    if (response.ok) {
+                            const data = await response.json();
+                            localStorage.setItem('jwt', data.token);
 
-                    if (password.startsWith("Temp")) {
-                        window.location.href = '/AuthView/Setup';
-                    } else {
-                        const base64Url = data.token.split('.')[1];
-                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                        }).join(''));
-                        const decodedToken = JSON.parse(jsonPayload);
+                            if (password.startsWith("Temp")) {
+                                window.location.href = '/AuthView/Setup';
+                                return;
+                            }
 
-                        const role = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+                            const base64Url = data.token.split('.')[1];
+                            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                            }).join(''));
+                            const decodedToken = JSON.parse(jsonPayload);
 
-                        if (role === "Admin") {
-                            window.location.href = '/Admin/Home/Index';
+                            const roleClaim = decodedToken["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decodedToken.role;
+                            const roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+
+                            const returnUrl = sessionStorage.getItem('returnUrl');
+                            if (returnUrl) {
+                                sessionStorage.removeItem('returnUrl');
+                                window.location.href = returnUrl;
+                                return;
+                            }
+
+                            if (roles.includes("Admin")) {
+                                window.location.href = '/Admin/Home/Index';
+                            }
+                            else if (roles.includes("Policjant") || roles.includes("Komendant") || roles.includes("Inspektor")) {
+                                window.location.href = '/Police/Home/Index';
+                            }
+                            else if (roles.includes("Kierownik Szpitala") || roles.includes("Lekarz")) {
+                                window.location.href = '/Medic/Hospitals';
+                            }
+                            else if (roles.includes("Medyk")) {
+                                window.location.href = '/Medic/Operations';
+                            }
+                            else if (roles.includes("Strazak") || roles.includes("Kapitan") || roles.includes("Naczelnik")) {
+                                window.location.href = '/Fire/Home/Index';
+                            }
+                            else if (roles.includes("Admin112") || roles.includes("Dyspozytor112")) {
+                                window.location.href = '/Dispatch/Home/Index';
+                            } else {
+                                window.location.href = '/';
+                            }
                         }
-                        else if (role === "Policjant" || role === "Komendant" || role === "Inspektor") {
-                            window.location.href = '/Police/Home/Index';
-                        }
-                        else if (role === "Kierownik Szpitala" || role === "Lekarz") {
-                            window.location.href = '/Medic/Hospitals';
-                        }
-                        else if (role === "Medyk") {
-                            window.location.href = '/Medic/Operations';
-                        }
-                        else if (role === "Strazak" || role === "Kapitan" || role === "Naczelnik") {
-                            window.location.href = '/Fire/Home/Index';
-                        }
-                        else if (role === "Admin112" || role === "Dyspozytor112") {
-                            window.location.href = '/Dispatch/Home/Index';
-                        } else {
-                            window.location.href = '/';
-                        }
-                    }
-                } else {
+                 else {
                     try {
                         const errorData = await response.json();
                         errorMsg.textContent = errorData.message || errorData.Message || "Nieprawidłowy email lub hasło.";

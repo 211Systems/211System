@@ -2,17 +2,28 @@
 window.activeSimulations = {};
 window.vehicleMarkers = {};
 
-const iconPoliceCar = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconAmbulance = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconFireTruck = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
-const iconAviation = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [16, 26], iconAnchor: [8, 26] });
+window.getIconByService = function (type) {
+    let iconClass = 'fa-car';
+    let bgColor = '#6c757d';
 
-function getIconByService(type) {
-    if (type === 'police') return iconPoliceCar;
-    if (type === 'medic') return iconAmbulance;
-    if (type === 'aviation') return iconAviation;
-    return iconFireTruck;
-}
+    if (type === 'police') { iconClass = 'fa-car-side'; bgColor = '#007bff'; }
+    else if (type === 'medic') { iconClass = 'fa-ambulance'; bgColor = '#28a745'; }
+    else if (type === 'fire') { iconClass = 'fa-fire-extinguisher'; bgColor = '#dc3545'; }
+    else if (type === 'aviation') { iconClass = 'fa-helicopter'; bgColor = '#343a40'; }
+
+    const htmlContent = `
+        <div style="background-color: ${bgColor}; color: white; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+            <i class="fas ${iconClass}"></i>
+        </div>`;
+
+    return L.divIcon({
+        html: htmlContent,
+        className: 'custom-vehicle-marker',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16]
+    });
+};
 
 window.getRandomLocationInRadius = function (centerLat, centerLng, radiusKm) {
     const radiusInDegrees = radiusKm / 111.3;
@@ -289,10 +300,14 @@ window.updateCounters = async function () {
     const fetchSafeArray = async (url) => {
         try {
             const res = await fetch(url, { headers });
-            if (!res.ok) return [];
+            if (!res.ok) {
+                console.error(`[Błąd API] ${url} zwrócił status: ${res.status}`);
+                return [];
+            }
             const data = await res.json();
             return Array.isArray(data) ? data : [];
         } catch (e) {
+            console.error(`[Błąd Sieci] Nie udało się pobrać z ${url}:`, e);
             return [];
         }
     };
@@ -780,13 +795,21 @@ document.addEventListener("DOMContentLoaded", function () {
         const id = document.getElementById('editIncidentId').value;
         const fd = new FormData();
         fd.append('NewStatus', document.getElementById('editIncidentStatus').value);
-        fd.append('NewSeverity', document.getElementById('editIncidentPriority').value);
+        fd.append('NewSeverityLevelId', document.getElementById('editIncidentPriority').value);
+
+        if (window.currentOperatorId) {
+            fd.append('OperatorId', window.currentOperatorId);
+        }
 
         const fi = document.getElementById('editIncPhoto');
         if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);
 
         try {
-            const res = await fetch(`/api/CPR112/Incidents/${id}/status`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + window.jwtToken }, body: fd });
+            const res = await fetch(`/api/CPR112/Incidents/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + window.jwtToken },
+                body: fd
+            });
             if (res.ok) {
                 $('#statusModal').modal('hide');
                 window.refreshAll();
@@ -827,6 +850,7 @@ window.showHistory = async function (id) {
         if (res.ok) {
             const data = await res.json();
             const container = document.getElementById('history-timeline');
+            if (!container) return;
 
             if (data.length === 0) {
                 container.innerHTML = `<div><i class="fas fa-info bg-secondary"></i><div class="timeline-item bg-dark border-secondary"><div class="timeline-body text-white text-center p-3">Brak zarejestrowanych zmian dla tego zgłoszenia.</div></div></div>`;
@@ -842,12 +866,16 @@ window.showHistory = async function (id) {
                     if (h.newStatus === 'Fałszywy alarm') { iconColor = 'bg-warning'; textColor = 'text-warning'; iconClass = 'fa-exclamation-triangle'; }
                     if (h.newStatus.includes('powrócił') || h.newStatus.includes('zakończył działania')) { iconColor = 'bg-secondary'; textColor = 'text-light'; iconClass = 'fa-undo'; }
 
+                    const operatorInfo = h.operatorName ? `<span class="badge badge-secondary ml-2"><i class="fas fa-user-check"></i> ${h.operatorName}</span>` : '<span class="badge badge-secondary ml-2"><i class="fas fa-robot"></i> System</span>';
+
                     return `
                     <div>
                         <i class="fas ${iconClass} ${iconColor} text-white"></i>
                         <div class="timeline-item bg-dark border-secondary shadow-sm" style="border: 1px solid #6c757d;">
                             <span class="time text-light mt-2 mr-2"><i class="fas fa-clock"></i> ${timeStr} <small>(${dateStr})</small></span>
-                            <h3 class="timeline-header border-secondary text-white border-bottom-0"><b class="${textColor}">Aktualizacja Statusu</b></h3>
+                            <h3 class="timeline-header border-secondary text-white border-bottom-0">
+                                <b class="${textColor}">Aktualizacja Statusu</b> ${operatorInfo}
+                            </h3>
                             <div class="timeline-body pt-0 text-white">
                                 Stan zmieniony z <span class="text-secondary" style="text-decoration: line-through;">${h.oldStatus}</span> 
                                 <i class="fas fa-arrow-right mx-2 text-secondary"></i> <b class="${textColor}">${h.newStatus}</b>
