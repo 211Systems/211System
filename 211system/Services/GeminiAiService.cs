@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -19,6 +20,13 @@ namespace _211system.Services
             _httpClient = httpClient;
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
             _apiKey = configuration["GeminiApiKey"] ?? throw new ArgumentNullException("Brak klucza GeminiApiKey w konfiguracji.");
+        }
+
+        private static bool IsTransientOverloadStatus(HttpStatusCode status)
+        {
+            // 429 TooManyRequests, 503 ServiceUnavailable, 504 GatewayTimeout, 529 (overload)
+            int code = (int)status;
+            return code == 429 || code == 503 || code == 504 || code == 529;
         }
 
         public async Task<List<AiDispatchSuggestion>> GetAutoDispatchPlanAsync(AiDispatchRequestDto requestData)
@@ -77,11 +85,36 @@ Aktualny stan systemu (incydenty, wolne jednostki i warunki meteorologiczne):
 
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync(url, content);
+            HttpResponseMessage response;
+            try
+            {
+                response = await _httpClient.PostAsync(url, content);
+            }
+            catch (TaskCanceledException tcex)
+            {
+                throw new AiServiceUnavailableException(
+                    "Model AI nie odpowiedział w wymaganym czasie. Spróbuj ponownie za chwilę.",
+                    tcex);
+            }
+            catch (HttpRequestException hex)
+            {
+                throw new AiServiceUnavailableException(
+                    "Nie można połączyć się z modelem AI. Spróbuj ponownie za chwilę.",
+                    hex);
+            }
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync();
+
+                if (IsTransientOverloadStatus(response.StatusCode))
+                {
+                    throw new AiServiceUnavailableException(
+                        "Model AI Gemini jest aktualnie przeciążony. Spróbuj ponownie za chwilę.",
+                        upstreamStatusCode: (int)response.StatusCode,
+                        upstreamBody: errorBody);
+                }
+
                 throw new Exception($"Blad polaczenia z Gemini API (Kod {response.StatusCode}): {errorBody}");
             }
 

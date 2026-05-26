@@ -42,10 +42,11 @@ namespace _211system.DTOs.Ai
     {
         public Guid IncidentId { get; set; }
         public Guid UnitId { get; set; }
-        public string UnitType { get; set; }
-        public string Reasoning { get; set; }
-        public string IncidentDescription { get; set; }
-        public string UnitName { get; set; }
+
+        public string? UnitType { get; set; }
+        public string? Reasoning { get; set; }
+        public string? IncidentDescription { get; set; }
+        public string? UnitName { get; set; }
     }
 
     public class AiWeatherDto

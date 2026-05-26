@@ -4,8 +4,12 @@ using _211system.Data;
 using _211system.DTOs.Ai;
 using _211system.Services;
 using _211system.Models;
+using _211system.Models.Aviation;
 using _211system.Models.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
+using FireDepartment;
+using Police;
 
 namespace _211system.Controllers
 {
@@ -17,12 +21,18 @@ namespace _211system.Controllers
         private readonly _211DbContext _context;
         private readonly IAiService _aiService;
         private readonly IWeatherService _weatherService;
+        private readonly ILogger<AiController> _logger;
 
-        public AiController(_211DbContext context, IAiService aiService, IWeatherService weatherService)
+        public AiController(
+            _211DbContext context,
+            IAiService aiService,
+            IWeatherService weatherService,
+            ILogger<AiController> logger)
         {
             _context = context;
             _aiService = aiService;
             _weatherService = weatherService;
+            _logger = logger;
         }
 
         [HttpPost("auto-dispatch")]
@@ -97,7 +107,6 @@ namespace _211system.Controllers
                 AvailableFireAirUnits = fireAir
             };
 
-            // Pogoda na podstawie lokalizacji pierwszego incydentu
             if (incidents[0].Latitude != 0 || incidents[0].Longitude != 0)
             {
                 try
@@ -121,91 +130,255 @@ namespace _211system.Controllers
                 }
                 catch
                 {
-                    // Pogoda niedostepna — AI poradzi sobie bez niej, nie blokujemy dyspozycji
                     requestData.CurrentWeather = null;
                 }
             }
 
-            var suggestions = await _aiService.GetAutoDispatchPlanAsync(requestData);
+            List<AiDispatchSuggestion> suggestions;
+            try
+            {
+                suggestions = await _aiService.GetAutoDispatchPlanAsync(requestData);
+            }
+            catch (AiServiceUnavailableException ex)
+            {
+                _logger.LogWarning(ex,
+                    "Model AI niedostępny (kod upstream: {Upstream}).",
+                    ex.UpstreamStatusCode);
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    message = ex.Message,
+                    retryable = true,
+                    upstreamStatus = ex.UpstreamStatusCode
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Nieoczekiwany błąd podczas wywołania AI.");
+                return StatusCode(500, new { message = "Błąd modelu AI: " + ex.Message });
+            }
+
             return Ok(suggestions);
         }
 
         [HttpPost("confirm-dispatch")]
         public async Task<IActionResult> ConfirmDispatchPlan([FromBody] List<AiDispatchSuggestion> suggestions)
         {
+            if (suggestions == null || suggestions.Count == 0)
+                return BadRequest(new { message = "Brak propozycji do zatwierdzenia." });
+
+            var assigned = new List<object>();
+            var skipped = new List<object>();
+
             foreach (var sug in suggestions)
             {
-                var incident = await _context.Incidents.FindAsync(sug.IncidentId);
+                try
+                {
+                    var incident = await _context.Incidents.FindAsync(sug.IncidentId);
+                    if (incident == null)
+                    {
+                        skipped.Add(new { sug.IncidentId, sug.UnitId, sug.UnitType, reason = "Incydent nie istnieje." });
+                        continue;
+                    }
 
-                // Pomijamy jesli incydent nie istnieje lub juz nie jest "Nowy"
-                if (incident == null || incident.Status != "Nowe") continue;
+                    if (incident.Status != "Nowe" && incident.Status != "W toku")
+                    {
+                        skipped.Add(new { sug.IncidentId, sug.UnitId, sug.UnitType, reason = $"Incydent jest w stanie '{incident.Status}'." });
+                        continue;
+                    }
 
-                incident.Status = "W toku";
+                    bool unitAssigned = false;
 
-                if (sug.UnitType == "Medical")
-                {
-                    var amb = await _context.Ambulances.FindAsync(sug.UnitId);
-                    if (amb != null && amb.IsAvailable)
+                    switch (sug.UnitType)
                     {
-                        amb.IsAvailable = false;
-                        amb.CurrentIncidentId = sug.IncidentId;
+                        case "Medical":
+                            unitAssigned = await TryAssignAmbulanceAsync(sug, incident);
+                            if (unitAssigned) incident.IsMedicalActive = true;
+                            break;
+
+                        case "Fire":
+                            unitAssigned = await TryAssignFireTruckAsync(sug, incident);
+                            if (unitAssigned) incident.IsFireActive = true;
+                            break;
+
+                        case "Police":
+                            unitAssigned = await TryAssignPoliceCarAsync(sug, incident);
+                            if (unitAssigned) incident.IsPoliceActive = true;
+                            break;
+
+                        case "MedicalAir":
+                            unitAssigned = await TryAssignAirUnitAsync(sug, incident);
+                            if (unitAssigned) incident.IsMedicalActive = true;
+                            break;
+
+                        case "PoliceAir":
+                            unitAssigned = await TryAssignAirUnitAsync(sug, incident);
+                            if (unitAssigned) incident.IsPoliceActive = true;
+                            break;
+
+                        case "FireAir":
+                            unitAssigned = await TryAssignAirUnitAsync(sug, incident);
+                            if (unitAssigned) incident.IsFireActive = true;
+                            break;
+
+                        default:
+                            skipped.Add(new { sug.IncidentId, sug.UnitId, sug.UnitType, reason = $"Nieznany typ jednostki: '{sug.UnitType}'." });
+                            continue;
                     }
-                    incident.IsMedicalActive = true;
+
+                    if (!unitAssigned)
+                    {
+                        skipped.Add(new { sug.IncidentId, sug.UnitId, sug.UnitType, reason = "Jednostka nie istnieje lub jest niedostępna." });
+                        continue;
+                    }
+
+                    if (incident.Status == "Nowe")
+                    {
+                        var oldStatus = incident.Status;
+                        incident.Status = "W toku";
+                        _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                        {
+                            IncidentId = incident.Id,
+                            OldStatus = oldStatus,
+                            NewStatus = "W toku",
+                            ChangedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    assigned.Add(new { sug.IncidentId, sug.UnitId, sug.UnitType });
                 }
-                else if (sug.UnitType == "Fire")
+                catch (Exception ex)
                 {
-                    var fire = await _context.FireTrucks.FindAsync(sug.UnitId);
-                    if (fire != null && fire.IsAvailable)
-                    {
-                        fire.IsAvailable = false;
-                        fire.CurrentIncidentId = sug.IncidentId;
-                    }
-                    incident.IsFireActive = true;
-                }
-                else if (sug.UnitType == "Police")
-                {
-                    var pol = await _context.PoliceCars.FindAsync(sug.UnitId);
-                    if (pol != null && pol.IsAvailable)
-                    {
-                        pol.IsAvailable = false;
-                        pol.CurrentIncidentId = sug.IncidentId;
-                    }
-                    incident.IsPoliceActive = true;
-                }
-                else if (sug.UnitType == "MedicalAir")
-                {
-                    var unit = await _context.AirUnits.FindAsync(sug.UnitId);
-                    if (unit != null && unit.IsAvailable)
-                    {
-                        unit.IsAvailable = false;
-                        unit.CurrentIncidentId = sug.IncidentId;
-                    }
-                    incident.IsMedicalActive = true;
-                }
-                else if (sug.UnitType == "PoliceAir")
-                {
-                    var unit = await _context.AirUnits.FindAsync(sug.UnitId);
-                    if (unit != null && unit.IsAvailable)
-                    {
-                        unit.IsAvailable = false;
-                        unit.CurrentIncidentId = sug.IncidentId;
-                    }
-                    incident.IsPoliceActive = true;
-                }
-                else if (sug.UnitType == "FireAir")
-                {
-                    var unit = await _context.AirUnits.FindAsync(sug.UnitId);
-                    if (unit != null && unit.IsAvailable)
-                    {
-                        unit.IsAvailable = false;
-                        unit.CurrentIncidentId = sug.IncidentId;
-                    }
-                    incident.IsFireActive = true;
+                    _logger.LogError(ex,
+                        "Bład przy przygotowywaniu dyspozycji AI dla incydentu {IncidentId}, jednostka {UnitId} ({UnitType}).",
+                        sug.IncidentId, sug.UnitId, sug.UnitType);
+                    skipped.Add(new { sug.IncidentId, sug.UnitId, sug.UnitType, reason = "Wewnętrzny błąd przygotowania: " + ex.Message });
                 }
             }
 
-            await _context.SaveChangesAsync();
-            return Ok();
+            if (assigned.Count == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "Nie udało się przypisać żadnej jednostki.",
+                    assigned,
+                    skipped
+                });
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException dbEx)
+            {
+                var detail = dbEx.InnerException?.Message ?? dbEx.Message;
+                _logger.LogError(dbEx,
+                    "Bład zapisu dyspozycji AI do bazy. Szczegóły: {Detail}", detail);
+                return StatusCode(500, new
+                {
+                    message = "Błąd podczas zapisu dyspozycji do bazy: " + detail,
+                    assigned,
+                    skipped
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Nieoczekiwany błąd przy zapisie dyspozycji AI.");
+                return StatusCode(500, new
+                {
+                    message = "Nieoczekiwany błąd: " + ex.Message,
+                    assigned,
+                    skipped
+                });
+            }
+
+            return Ok(new
+            {
+                message = $"Zadysponowano {assigned.Count} jednostek (pominięto {skipped.Count}).",
+                assigned,
+                skipped
+            });
+        }
+
+        private async Task<bool> TryAssignAmbulanceAsync(AiDispatchSuggestion sug, CPR112.Models.Incident incident)
+        {
+            var amb = await _context.Ambulances.FindAsync(sug.UnitId);
+            if (amb == null || !amb.IsAvailable) return false;
+
+            amb.IsAvailable = false;
+            amb.CurrentIncidentId = sug.IncidentId;
+            amb.Status = VehicleOperationalStatus.EnRouteToIncident;
+
+            if (amb.ParamedicId.HasValue)
+            {
+                _context.MedicalOperations.Add(new _211system.Models.Hospital.MedicalOperation
+                {
+                    ReportId = incident.Id,
+                    ParamedicId = amb.ParamedicId,
+                    StartTime = DateTime.UtcNow
+                });
+            }
+
+            return true;
+        }
+
+        private async Task<bool> TryAssignFireTruckAsync(AiDispatchSuggestion sug, CPR112.Models.Incident incident)
+        {
+            var truck = await _context.FireTrucks.FindAsync(sug.UnitId);
+            if (truck == null || !truck.IsAvailable) return false;
+
+            truck.IsAvailable = false;
+            truck.CurrentIncidentId = sug.IncidentId;
+            truck.Status = VehicleOperationalStatus.EnRouteToIncident;
+
+            _context.FireOperations.Add(new FireDepartmentOperation
+            {
+                FDepartmentId = truck.FDepartmentId,
+                IncidentId = incident.Id,
+                FiremanId = truck.FiremanId,
+                StartTime = DateTime.UtcNow
+            });
+
+            return true;
+        }
+
+        private async Task<bool> TryAssignPoliceCarAsync(AiDispatchSuggestion sug, CPR112.Models.Incident incident)
+        {
+            var car = await _context.PoliceCars.FindAsync(sug.UnitId);
+            if (car == null || !car.IsAvailable) return false;
+
+            car.IsAvailable = false;
+            car.CurrentIncidentId = sug.IncidentId;
+            car.Status = VehicleOperationalStatus.EnRouteToIncident;
+
+            _context.PoliceOperations.Add(new PoliceOperation
+            {
+                PDepartmentId = car.PDepartmentId,
+                IncidentId = incident.Id,
+                PolicemanId = car.PolicemanId,
+                StartTime = DateTime.UtcNow
+            });
+
+            return true;
+        }
+
+        private async Task<bool> TryAssignAirUnitAsync(AiDispatchSuggestion sug, CPR112.Models.Incident incident)
+        {
+            var unit = await _context.AirUnits.FindAsync(sug.UnitId);
+            if (unit == null || !unit.IsAvailable) return false;
+
+            unit.IsAvailable = false;
+            unit.CurrentIncidentId = sug.IncidentId;
+            unit.Status = VehicleOperationalStatus.EnRouteToIncident;
+
+            _context.AviationOperations.Add(new AviationOperation
+            {
+                AirUnitId = unit.Id,
+                IncidentId = incident.Id,
+                StartTime = DateTime.UtcNow
+            });
+
+            return true;
         }
     }
 }
