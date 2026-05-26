@@ -401,27 +401,41 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
         public async Task<IActionResult> FreeAmbulance(Guid id)
         {
-            var ambulance = await _context.Ambulances.FindAsync(id);
-            if (ambulance == null) return NotFound();
-
-            ambulance.IsAvailable = true;
-            ambulance.Status = VehicleOperationalStatus.InBase;
-
-            if (ambulance.CurrentIncidentId.HasValue && ambulance.ParamedicId.HasValue)
+            try
             {
-                var op = await _context.MedicalOperations.FirstOrDefaultAsync(o => o.ReportId == ambulance.CurrentIncidentId && o.ParamedicId == ambulance.ParamedicId && o.EndTime == null);
-                if (op != null)
+                var ambulance = await _context.Ambulances.FindAsync(id);
+                if (ambulance == null) return NotFound(new { message = "Nie znaleziono karetki." });
+
+                ambulance.IsAvailable = true;
+                ambulance.Status = VehicleOperationalStatus.InBase;
+
+                if (ambulance.CurrentIncidentId.HasValue)
                 {
-                    op.EndTime = DateTime.UtcNow;
-                    _context.MedicalOperations.Update(op);
+                    var query = _context.MedicalOperations
+                        .Where(o => o.ReportId == ambulance.CurrentIncidentId && o.EndTime == null);
+
+                    if (ambulance.ParamedicId.HasValue)
+                        query = query.Where(o => o.ParamedicId == ambulance.ParamedicId);
+
+                    var openOps = await query.ToListAsync();
+                    foreach (var op in openOps)
+                    {
+                        op.EndTime = DateTime.UtcNow;
+                        _context.MedicalOperations.Update(op);
+                    }
+
+                    ambulance.CurrentIncidentId = null;
                 }
-                ambulance.CurrentIncidentId = null;
+
+                _context.Ambulances.Update(ambulance);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Karetka zwolniona." });
             }
-
-            _context.Ambulances.Update(ambulance);
-            await _context.SaveChangesAsync();
-
-            return Ok();
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd zwalniania karetki: " + ex.Message });
+            }
         }
     }
 }

@@ -687,24 +687,33 @@
             btn.disabled = true;
 
             try {
-                const response = await fetch('/api/Ai/auto-dispatch', { 
-                    method: 'POST', 
+                const response = await fetch('/api/Ai/auto-dispatch', {
+                    method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + window.jwtToken }
                 });
 
+                if (response.status === 503 || response.status === 429) {
+                    let payload = null;
+                    try { payload = await response.json(); } catch (_) { }
+                    const msg = (payload && payload.message)
+                        ? payload.message
+                        : "Model AI Gemini jest aktualnie przeciążony. Spróbuj ponownie za chwilę.";
+                    console.warn("AI tymczasowo niedostępne:", payload || response.status);
+                    alert(msg + "\n\nMożesz w międzyczasie ręcznie wysłać jednostki przyciskami w panelach służb.");
+                    return;
+                }
+
                 if (response.ok) {
                     window.aiSuggestionsData = await response.json();
-                    
+
                     if (window.aiSuggestionsData.length === 0) {
                         alert("Brak nowych incydentów lub brak wolnych jednostek.");
-                        btn.innerHTML = originalContent;
-                        btn.disabled = false;
                         return;
                     }
 
                     const tbody = document.getElementById('ai-suggestions-body');
                     tbody.innerHTML = '';
-                    
+
                     window.aiSuggestionsData.forEach(sug => {
                         let badge = 'badge-secondary';
                         if (sug.unitType === 'Medical') badge = 'badge-success';
@@ -724,11 +733,16 @@
                     console.log("Dane od AI:", window.aiSuggestionsData);
                     $('#aiDispatchModal').appendTo('body').modal('show');
                 } else {
-                    alert("Błąd podczas analizy AI.");
+                    let payload = null;
+                    try { payload = await response.json(); } catch (_) { }
+                    const detail = (payload && (payload.message || payload.title))
+                        || `HTTP ${response.status}`;
+                    console.error("Błąd analizy AI:", payload || response.status);
+                    alert("Błąd podczas analizy AI:\n" + detail);
                 }
             } catch (e) {
                 console.error(e);
-                alert("Błąd sieci podczas łączenia z AI.");
+                alert("Błąd sieci podczas łączenia z AI: " + (e && e.message ? e.message : "nieznany"));
             } finally {
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
@@ -741,23 +755,65 @@
             try {
                 const response = await fetch('/api/Ai/confirm-dispatch', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Authorization': 'Bearer ' + window.jwtToken,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(window.aiSuggestionsData)
                 });
 
+                let payload = null;
+                try { payload = await response.json(); } catch (_) { }
+
                 if (response.ok) {
                     $('#aiDispatchModal').modal('hide');
-                    alert("Sukces! Jednostki wyruszyły do akcji.");
+
+                    const assignedCount = payload && payload.assigned ? payload.assigned.length : 0;
+                    const skippedCount = payload && payload.skipped ? payload.skipped.length : 0;
+
+                    let msg = `Sukces! Zadysponowano ${assignedCount} jednostek.`;
+                    if (skippedCount > 0) {
+                        msg += `\n\nPominięto ${skippedCount} propozycji:`;
+                        payload.skipped.forEach(s => {
+                            msg += `\n• ${s.unitType || '?'} (${s.unitId || '?'}) - ${s.reason || 'brak powodu'}`;
+                        });
+                    }
+                    alert(msg);
+
                     window.refreshMapData();
-                    window.refreshAll(); 
+                    window.refreshAll();
                 } else {
-                    alert("Błąd podczas zapisu dyspozycji do bazy.");
+                    let detail = `HTTP ${response.status}`;
+
+                    if (payload) {
+                        if (payload.message) {
+                            detail = payload.message;
+                        } else if (payload.title) {
+                            detail = payload.title;
+                            if (payload.errors && typeof payload.errors === 'object') {
+                                const errs = Object.entries(payload.errors)
+                                    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join('; ') : v}`)
+                                    .join('\n');
+                                if (errs) detail += `\n${errs}`;
+                            }
+                        } else {
+                            detail = JSON.stringify(payload);
+                        }
+
+                        if (payload.skipped && payload.skipped.length > 0) {
+                            detail += "\n\nPominięte propozycje:";
+                            payload.skipped.forEach(s => {
+                                detail += `\n• ${s.unitType || '?'} (${s.unitId || '?'}) - ${s.reason || 'brak powodu'}`;
+                            });
+                        }
+                    }
+
+                    console.error("Błąd zapisu dyspozycji:", payload || response.status);
+                    alert("Błąd podczas zapisu dyspozycji do bazy.\n\n" + detail);
                 }
             } catch (e) {
-                alert("Błąd sieci.");
+                console.error("Błąd sieci confirmAiDispatch:", e);
+                alert("Błąd sieci: " + (e && e.message ? e.message : "nieznany"));
             }
         };
     </script>

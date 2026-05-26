@@ -419,22 +419,42 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
         public async Task<IActionResult> FreeFireTruck(Guid id)
         {
-            var truck = await _context.FireTrucks.FindAsync(id);
-            if (truck == null) return NotFound();
-
-            truck.IsAvailable = true;
-            truck.Status = VehicleOperationalStatus.InBase;
-
-            if (truck.CurrentIncidentId.HasValue && truck.FiremanId.HasValue)
+            try
             {
-                var op = await _context.FireOperations.FirstOrDefaultAsync(o => o.IncidentId == truck.CurrentIncidentId && o.FiremanId == truck.FiremanId && o.EndTime == null);
-                if (op != null) { op.EndTime = DateTime.UtcNow; _context.FireOperations.Update(op); }
-                truck.CurrentIncidentId = null;
-            }
+                var truck = await _context.FireTrucks.FindAsync(id);
+                if (truck == null) return NotFound(new { message = "Nie znaleziono pojazdu PSP." });
 
-            _context.FireTrucks.Update(truck);
-            await _context.SaveChangesAsync();
-            return Ok();
+                truck.IsAvailable = true;
+                truck.Status = VehicleOperationalStatus.InBase;
+
+                if (truck.CurrentIncidentId.HasValue)
+                {
+                    var query = _context.FireOperations
+                        .Where(o => o.IncidentId == truck.CurrentIncidentId && o.EndTime == null);
+
+                    if (truck.FiremanId.HasValue)
+                        query = query.Where(o => o.FiremanId == truck.FiremanId || o.FiremanId == null);
+                    else
+                        query = query.Where(o => o.FDepartmentId == truck.FDepartmentId);
+
+                    var openOps = await query.ToListAsync();
+                    foreach (var op in openOps)
+                    {
+                        op.EndTime = DateTime.UtcNow;
+                        _context.FireOperations.Update(op);
+                    }
+
+                    truck.CurrentIncidentId = null;
+                }
+
+                _context.FireTrucks.Update(truck);
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Pojazd PSP zwolniony." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd zwalniania pojazdu PSP: " + ex.Message });
+            }
         }
     }
 }

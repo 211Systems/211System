@@ -403,22 +403,42 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]
         public async Task<IActionResult> FreePoliceCar(Guid id)
         {
-            var car = await _context.PoliceCars.FindAsync(id);
-            if (car == null) return NotFound();
-
-            car.IsAvailable = true;
-            car.Status = VehicleOperationalStatus.InBase;
-
-            if (car.CurrentIncidentId.HasValue && car.PolicemanId.HasValue)
+            try
             {
-                var op = await _context.PoliceOperations.FirstOrDefaultAsync(o => o.IncidentId == car.CurrentIncidentId && o.PolicemanId == car.PolicemanId && o.EndTime == null);
-                if (op != null) { op.EndTime = DateTime.UtcNow; _context.PoliceOperations.Update(op); }
-                car.CurrentIncidentId = null;
-            }
+                var car = await _context.PoliceCars.FindAsync(id);
+                if (car == null) return NotFound(new { message = "Nie znaleziono radiowozu." });
 
-            _context.PoliceCars.Update(car);
-            await _context.SaveChangesAsync();
-            return Ok();
+                car.IsAvailable = true;
+                car.Status = VehicleOperationalStatus.InBase;
+
+                if (car.CurrentIncidentId.HasValue)
+                {
+                    var query = _context.PoliceOperations
+                        .Where(o => o.IncidentId == car.CurrentIncidentId && o.EndTime == null);
+
+                    if (car.PolicemanId.HasValue)
+                        query = query.Where(o => o.PolicemanId == car.PolicemanId || o.PolicemanId == null);
+                    else
+                        query = query.Where(o => o.PDepartmentId == car.PDepartmentId);
+
+                    var openOps = await query.ToListAsync();
+                    foreach (var op in openOps)
+                    {
+                        op.EndTime = DateTime.UtcNow;
+                        _context.PoliceOperations.Update(op);
+                    }
+
+                    car.CurrentIncidentId = null;
+                }
+
+                _context.PoliceCars.Update(car);
+                await _context.SaveChangesAsync();
+                return Ok(new { message = "Radiowóz zwolniony." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Błąd zwalniania radiowozu: " + ex.Message });
+            }
         }
     }
 }
