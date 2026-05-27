@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using _211system.Data;
+using _211system.Models;
 using _211system.Models.Dtos.Police;
 using _211system.Models.Interfaces;
 using _211system.Services;
@@ -36,7 +37,8 @@ namespace _211system.Models.Services
                 District = dto.District,
                 Latitude = dto.Latitude,
                 Longitude = dto.Longitude,
-                OperatingRadiusKm = dto.OperatingRadiusKm > 0 ? dto.OperatingRadiusKm : 15.0
+                OperatingRadiusKm = dto.OperatingRadiusKm > 0 ? dto.OperatingRadiusKm : 15.0,
+                HasHelipad = dto.HasHelipad
             };
             await _context.PoliceDepartments.AddAsync(department);
             await _context.SaveChangesAsync();
@@ -219,18 +221,22 @@ namespace _211system.Models.Services
 
         public async Task<IEnumerable<PDepartmentDto>> GetAllDepartmentsAsync()
         {
-            return await _context.PoliceDepartments
-                .Select(d => new PDepartmentDto
-                {
-                    Id = d.PDepartmentId,
-                    Name = d.Name,
-                    Address = d.Address,
-                    District = d.District,
-                    Latitude = d.Latitude,
-                    Longitude = d.Longitude,
-                    OperatingRadiusKm = d.OperatingRadiusKm
-                })
+            var departments = await _context.PoliceDepartments.ToListAsync();
+            var airbases = await _context.Airbases
+                .Where(a => a.ServiceType == ServiceType.Police)
                 .ToListAsync();
+
+            return departments.Select(d => new PDepartmentDto
+            {
+                Id = d.PDepartmentId,
+                Name = d.Name,
+                Address = d.Address,
+                District = d.District,
+                Latitude = d.Latitude,
+                Longitude = d.Longitude,
+                OperatingRadiusKm = d.OperatingRadiusKm,
+                HasHelipad = HelipadHelper.ResolveHasHelipad(d.HasHelipad, d.Latitude, d.Longitude, ServiceType.Police, airbases)
+            });
         }
 
         public async Task<IEnumerable<PolicemanDto>> GetAllPolicemenAsync()
