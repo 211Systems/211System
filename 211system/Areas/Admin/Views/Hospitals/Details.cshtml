@@ -69,7 +69,7 @@
                         <input type="text" id="staffSurname" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Email Służbowy</label>
+                        <label>Email Służbowy (Login)</label>
                         <input type="email" id="staffEmail" class="form-control" required>
                     </div>
                     <div class="form-group">
@@ -79,6 +79,15 @@
                     <div class="form-group">
                         <label>Specjalizacja</label>
                         <input type="text" id="staffSpecialization" class="form-control" placeholder="np. Ratownik, Lekarz SOR" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Hierarchia / Rola w systemie</label>
+                        <select id="medicStaffRole" class="form-control" required>
+                            <option value="Medyk">Medyk</option>
+                            <option value="Lekarz">Lekarz</option>
+                            <option value="Kierownik Szpitala">Kierownik Szpitala</option>
+                        </select>
                     </div>
 
                     <div id="generated-password-alert" class="alert alert-warning d-none">
@@ -128,7 +137,9 @@
                 email: document.getElementById('staffEmail').value,
                 licenseNumber: document.getElementById('staffLicense').value,
                 specialization: document.getElementById('staffSpecialization').value,
-                hospitalId: "@departmentId"
+                rank: document.getElementById('medicStaffRole').value,
+                hospitalId: "@departmentId",
+                paraAccountId: "Auto-Generated"
             })
         });
     </script>

@@ -13,7 +13,6 @@
                         <b>Adres</b> <a class="float-right" id="hosp-address">...</a>
                     </li>
                 </ul>
-
                 <div id="admin-hospital-actions" class="d-none mb-3">
                     <button class="btn btn-warning btn-block mb-2" data-toggle="modal" data-target="#editHospitalModal">
                         <b><i class="fas fa-edit"></i> Edytuj Szpital</b>
@@ -22,7 +21,6 @@
                         <b><i class="fas fa-trash"></i> Usuń Szpital</b>
                     </button>
                 </div>
-
                 <a href="/Medic/Hospitals" class="btn btn-success btn-block"><b>Wróć do listy</b></a>
             </div>
         </div>
@@ -42,15 +40,14 @@
                         <thead>
                             <tr>
                                 <th style="width: 70px;" class="text-center">Awatar</th>
-                                <th>Imię i Nazwisko</th>
+                                <th>Imię, Nazwisko i Rola</th>
                                 <th>Nr Prawa Wyk. Zawodu</th>
-                                <th>Specjalizacja</th>
                                 <th>Email i Status</th>
                                 <th class="text-right">Akcje</th>
                             </tr>
                         </thead>
                         <tbody id="staff-table-body">
-                            <tr><td colspan="6" class="text-center">Ładowanie personelu...</td></tr>
+                            <tr><td colspan="5" class="text-center">Ładowanie...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -64,11 +61,9 @@
         <div class="modal-content dark-mode">
             <div class="modal-header bg-success">
                 <h5 class="modal-title">Rejestracja Medyka</h5>
-                <button type="button" class="close text-white float-right" data-dismiss="modal" aria-label="Zamknij" style="outline: none; border: none;">
-                    <i class="fas fa-times"></i>
-                </button>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
             </div>
-            <form id="addParamedicForm">
+            <form id="addStaffForm">
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Imię</label>
@@ -87,16 +82,16 @@
                         <input type="text" id="staffLicense" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Hierarchia / Rola w systemie</label>
+                        <label>Hierarchia / Rola</label>
                         <select id="staffRole" class="form-control" required>
+                            <option value="Medyk">Medyk</option>
+                            <option value="Lekarz">Lekarz</option>
+                            <option value="Kierownik Szpitala">Kierownik Szpitala</option>
                         </select>
                     </div>
-                    
                     <div id="generated-password-alert" class="alert alert-warning d-none">
-                        <h5><i class="icon fas fa-check"></i> Konto aktywne!</h5>
-                        Tymczasowe hasło pracownika: <strong id="temp-password-display" style="font-size: 1.2em;"></strong>
+                        Tymczasowe hasło: <strong id="temp-password-display"></strong>
                     </div>
-                    <p id="staff-error" class="text-danger d-none"></p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
@@ -111,15 +106,13 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode">
             <div class="modal-header bg-warning">
-                <h5 class="modal-title text-dark"><i class="fas fa-hospital-alt"></i> Edytuj Placówkę</h5>
-                <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title text-dark">Edytuj Placówkę</h5>
+                <button type="button" class="close text-dark" data-dismiss="modal">&times;</button>
             </div>
             <form id="editHospitalForm">
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Nazwa Placówki</label>
+                        <label>Nazwa</label>
                         <input type="text" id="editHospName" class="form-control" required>
                     </div>
                     <div class="form-group">
@@ -127,16 +120,12 @@
                         <input type="text" id="editHospAddress" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Czy posiada oddział SOR?</label>
-                        <select id="editHospSor" class="form-control" required>
-                            <option value="true">TAK</option>
-                            <option value="false">NIE</option>
-                        </select>
+                        <label>Czy posiada SOR?</label>
+                        <select id="editHospSor" class="form-control"><option value="true">TAK</option><option value="false">NIE</option></select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
+                    <button type="submit" class="btn btn-warning">Zapisz</button>
                 </div>
             </form>
         </div>
@@ -147,57 +136,28 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode">
             <div class="modal-header bg-warning">
-                <h5 class="modal-title text-dark"><i class="fas fa-user-edit"></i> Edytuj Pracownika</h5>
-                <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title text-dark">Edytuj Pracownika</h5>
+                <button type="button" class="close text-dark" data-dismiss="modal">&times;</button>
             </div>
             <form id="editParamedicForm">
                 <div class="modal-body">
                     <input type="hidden" id="editEmpId">
+                    <div class="form-group"><label>Imię</label><input type="text" id="editEmpName" class="form-control" required></div>
+                    <div class="form-group"><label>Nazwisko</label><input type="text" id="editEmpLastName" class="form-control" required></div>
+                    <div class="form-group"><label>Nr Prawa Wyk.</label><input type="text" id="editEmpLicense" class="form-control" required></div>
                     <div class="form-group">
-                        <label>Imię</label>
-                        <input type="text" id="editEmpName" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Nazwisko</label>
-                        <input type="text" id="editEmpLastName" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Nr Prawa Wykonywania Zawodu</label>
-                        <input type="text" id="editEmpLicense" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Rola (Hierarchia)</label>
-                        <select id="editEmpRole" class="form-control" required></select>
+                        <label>Rola</label>
+                        <select id="editEmpRole" class="form-control" required>
+                            <option value="Medyk">Medyk</option>
+                            <option value="Lekarz">Lekarz</option>
+                            <option value="Kierownik Szpitala">Kierownik Szpitala</option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
-                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
+                    <button type="submit" class="btn btn-warning">Zapisz</button>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-<div class="modal fade" id="unlockedAccountModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content dark-mode border-info">
-            <div class="modal-header bg-info">
-                <h5 class="modal-title"><i class="fas fa-lock-open"></i> Konto odblokowane!</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body text-center">
-                <p>Konto zostało pomyślnie zresetowane i odblokowane.</p>
-                <p>Przekaż pracownikowi to nowe, tymczasowe hasło:</p>
-                <h2 class="text-warning font-weight-bold my-4" id="new-password-display"></h2>
-                <p class="text-muted small">Ze względów bezpieczeństwa hasło wyświetla się tylko raz. <br/>Zapisz je przed zamknięciem okna.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
-            </div>
         </div>
     </div>
 </div>
@@ -208,110 +168,85 @@
     <script>
         const currHospitalId = window.location.pathname.split('/').filter(Boolean).pop();
 
-        document.addEventListener("DOMContentLoaded", async function () {
-            const validToken = await window.ensureValidToken();
-            if (!validToken) {
-                sessionStorage.setItem('returnUrl', window.location.pathname);
-                window.location.href = "/AuthView/Login";
-                return;
-            }
+        window.manageAccountLock = async function(email) {
+            if (!confirm("Zmienić status konta dla: " + email + "?")) return;
+            const res = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+            if (!res.ok) return;
+            const isLocked = await res.json();
+            const actionRes = await fetch(isLocked ? `/api/Auth/unlock/${email}` : `/api/Auth/lock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+            if (actionRes.ok) window.location.reload();
+            else alert("Błąd.");
+        };
 
+        async function updateStatuses() {
+            const spans = document.querySelectorAll('[id^="lock-status-"]');
+            for (let s of spans) {
+                const email = s.getAttribute('data-email');
+                if (!email) continue;
+                try {
+                    const r = await fetch(`/api/Auth/status/${email}`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                    if (r.ok) {
+                        const locked = await r.json();
+                        s.innerHTML = locked ? '<span class="badge bg-danger">Zablokowane</span>' : '<span class="badge bg-success">Aktywne</span>';
+                    }
+                } catch (e) { s.innerHTML = 'Błąd'; }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async function () {
             await window.setupDepartmentDetails({
                 departmentId: currHospitalId,
-                endpoints: {
-                    department: '/api/Medical/hospitals',
-                    staff: '/api/Medical/paramedics',
-                    addStaff: '/api/Medical/paramedics'
-                },
+                endpoints: { department: '/api/Medical/hospitals', staff: '/api/Medical/paramedics', addStaff: '/api/Medical/paramedics' },
                 foreignKeyField: 'hospitalId',
-                emptyStaffColspan: 6,
-                addStaffFormId: 'addParamedicForm',
-
+                emptyStaffColspan: 5,
+                addStaffFormId: 'addStaffForm',
                 onInit: async (decodedToken) => {
-                    if (!decodedToken) return;
-
                     const roles = window.getUserRoles(decodedToken);
-                    const email = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
-
-                    const isAdmin = roles.includes("Admin");
-                    const isKierownik = roles.includes("Kierownik Szpitala");
-                    const isLekarz = roles.includes("Lekarz");
-
-                    if (isAdmin) document.getElementById('admin-hospital-actions')?.classList.remove('d-none');
-
-                    const btnOpenModal = document.getElementById('btn-open-modal');
-                    if (isAdmin) {
-                        if (btnOpenModal) btnOpenModal.classList.remove('d-none');
-                    } else if (isKierownik || isLekarz) {
-                        try {
-                            const res = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + validToken } });
-                            if (res.ok) {
-                                const allStaff = await res.json();
-                                const myRecord = allStaff.find(s => s.email === email || s.Email === email);
-                                if (myRecord && (myRecord.hospitalId === currHospitalId || myRecord.HospitalId === currHospitalId)) {
-                                    if (btnOpenModal) btnOpenModal.classList.remove('d-none');
-                                }
-                            }
-                        } catch (e) { console.error(e); }
+                    if (roles.includes("Admin") || roles.includes("Kierownik Szpitala")) {
+                        document.getElementById('btn-open-modal')?.classList.remove('d-none');
+                        document.getElementById('admin-hospital-actions')?.classList.remove('d-none');
                     }
                 },
-
                 renderDepartment: (dept) => {
                     document.getElementById('hosp-name').textContent = dept.name || dept.Name;
                     document.getElementById('hosp-address').textContent = dept.address || dept.Address;
-                    const hasSor = dept.hasSOR !== undefined ? dept.hasSOR : dept.HasSOR;
-                    document.getElementById('hosp-sor').innerHTML = hasSor
-                        ? '<span class="badge bg-success">Posiada SOR</span>' : '<span class="badge bg-danger">Brak SOR</span>';
-
+                    document.getElementById('hosp-sor').innerHTML = (dept.hasSOR || dept.HasSOR) ? '<span class="badge bg-success">Posiada SOR</span>' : '<span class="badge bg-danger">Brak SOR</span>';
                     document.getElementById('editHospName').value = dept.name || dept.Name;
                     document.getElementById('editHospAddress').value = dept.address || dept.Address;
-                    document.getElementById('editHospSor').value = hasSor ? "true" : "false";
+                    document.getElementById('editHospSor').value = (dept.hasSOR || dept.HasSOR) ? "true" : "false";
                 },
-
-                renderStaffRow: (p, decodedToken, allStaff) => {
-                       const firstName = p.name || p.Name || "Brak";
-                        const lastName = p.lastName || p.LastName || "";
-                        const name = `${firstName} ${lastName}`;
-                        const pId = p.id || p.Id;
-                        const pEmail = p.email || p.Email || "Brak";
-                        const pLicense = p.licenseNumber || p.LicenseNumber || "Brak";
-                        const rank = p.rank || p.Rank || "Medyk";
-                        const spec = p.specialization || p.Specialization || "Medycyna";
-                        const avatarSrc = p.avatarUrl || p.AvatarUrl || `https://ui-avatars.com/api/?name=${firstName}+${lastName}`;
-
-                    return `<tr>
-                        <td class="text-center"><img src="${p.avatarUrl || 'https://ui-avatars.com/api/?name=' + name}" class="img-circle" style="width:40px;"></td>
-                        <td><b>${name}</b></td>
-                        <td>${p.licenseNumber || p.LicenseNumber}</td>
-                        <td><span class="badge bg-success">${p.specialization || "Medycyna"}</span></td>
-                        <td>${pEmail}<br/><span id="lock-status-${pId}"><i class="fas fa-spinner fa-spin"></i></span></td>
-                        <td class="text-right">
-                            <button onclick="window.manageAccountLock('${pEmail}')" class="btn btn-sm btn-dark"><i class="fas fa-user-lock"></i></button>
-                            <button onclick="window.openEditEmpModal('${pId}', '${p.name || p.Name}', '${p.lastName || p.LastName}', '${p.licenseNumber || p.LicenseNumber}', '${p.rank || 'Medyk'}')" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
-                            <button onclick="window.deleteParamedic('${pId}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>`;
-                },
-
+                renderStaffRow: (p) => `<tr>
+                    <td><img src="${p.avatarUrl || 'https://ui-avatars.com/api/?name=' + (p.name || 'Medyk')}" class="img-circle" style="width:40px;"></td>
+                    <td><b>${p.name || ''} ${p.lastName || ''}</b><br><small>${p.rank || 'Medyk'}</small></td>
+                    <td>${p.licenseNumber || ''}</td>
+                    <td>${p.email || ''}<br/><span id="lock-status-${p.id || p.Id}" data-email="${p.email || p.Email}"><i class="fas fa-spinner fa-spin"></i></span></td>
+                    <td class="text-right">
+                        <button onclick="window.manageAccountLock('${p.email || p.Email}')" class="btn btn-sm btn-dark"><i class="fas fa-user-lock"></i></button>
+                        <button onclick="window.openEditEmpModal('${p.id || p.Id}', '${p.name || ''}', '${p.lastName || ''}', '${p.licenseNumber || ''}', '${p.rank || ''}')" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.deleteParamedic('${p.id || p.Id}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`,
                 buildStaffPayload: () => ({
                     name: document.getElementById('staffName').value,
-                    lastName: document.getElementById('staffSurname').value,
+                    lastName: document.getElementById('staffLastName').value,
                     email: document.getElementById('staffEmail').value,
                     licenseNumber: document.getElementById('staffLicense').value,
-                    specialization: document.getElementById('staffSpecialization').value,
+                    specialization: "Brak",
+                    rank: document.getElementById('staffRole').value,
                     hospitalId: currHospitalId,
-                    rank: document.getElementById('staffRole').value
+                    paraAccountId: "Auto-Generated"
                 })
             });
+            setTimeout(updateStatuses, 1000);
         });
 
-        window.deleteParamedic = async function(id) {
-            if (!confirm("Zwolnić pracownika?")) return;
+        window.deleteParamedic = async (id) => {
+            if (!confirm("Zwolnić?")) return;
             const res = await fetch(`/api/Medical/paramedics/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
             if (res.ok) window.location.reload();
         };
 
-        window.openEditEmpModal = function(id, n, ln, l, r) {
+        window.openEditEmpModal = (id, n, ln, l, r) => {
             document.getElementById('editEmpId').value = id;
             document.getElementById('editEmpName').value = n;
             document.getElementById('editEmpLastName').value = ln;
@@ -320,7 +255,7 @@
             $('#editParamedicModal').modal('show');
         };
 
-        document.getElementById('editParamedicForm').addEventListener('submit', async function(e) {
+        document.getElementById('editParamedicForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('editEmpId').value;
             const data = { name: document.getElementById('editEmpName').value, lastName: document.getElementById('editEmpLastName').value, licenseNumber: document.getElementById('editEmpLicense').value, rank: document.getElementById('editEmpRole').value };
@@ -328,7 +263,7 @@
             if (res.ok) window.location.reload();
         });
 
-        document.getElementById('editHospitalForm').addEventListener('submit', async function(e) {
+        document.getElementById('editHospitalForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const data = { name: document.getElementById('editHospName').value, address: document.getElementById('editHospAddress').value, hasSOR: document.getElementById('editHospSor').value === "true" };
             const res = await fetch(`/api/Medical/hospitals/${currHospitalId}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });

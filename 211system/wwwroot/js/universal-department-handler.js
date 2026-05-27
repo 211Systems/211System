@@ -47,7 +47,7 @@ if (token) {
         currentUserRoles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
         currentUserEmail = decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] || decodedToken.email || "";
         
-        const hierarchyKeys = Object.keys(moduleConfig.hierarchy);
+        const hierarchyKeys = Object.keys(moduleConfig.hierarchy || {});
         
         currentUserRoles.forEach(r => { 
             if (!r) return;
@@ -65,7 +65,7 @@ if (token) {
 document.addEventListener("DOMContentLoaded", async function () {
     if (!apiEndpoints.department) return;
 
-    if (myRankValue >= 3) {
+    if (myRankValue >= 3 || myRankValue === 100) {
         const actionBox = document.getElementById('admin-department-actions');
         if (actionBox) actionBox.classList.remove('d-none');
         const editBtn = document.querySelector('[data-target="#editDepartmentModal"]');
@@ -77,20 +77,25 @@ document.addEventListener("DOMContentLoaded", async function () {
     const btnAddModal = document.getElementById('btn-open-personnel-modal');
 
     let assignableRoles = [];
-    if (myRankValue >= 2) {
-        assignableRoles = Object.keys(moduleConfig.hierarchy).filter(role => role !== "Admin" && moduleConfig.hierarchy[role] <= myRankValue);
+    if (moduleConfig.hierarchy) {
+        assignableRoles = Object.keys(moduleConfig.hierarchy).filter(role => role !== "Admin");
+        
+        if (myRankValue > 0 && myRankValue !== 100) {
+            assignableRoles = assignableRoles.filter(role => moduleConfig.hierarchy[role] <= myRankValue);
+        }
     }
 
     if (assignableRoles.length > 0) {
         if (btnAddModal) btnAddModal.classList.remove('d-none');
-        if (roleSelect && editRoleSelect) {
-            roleSelect.innerHTML = ''; editRoleSelect.innerHTML = '';
-            assignableRoles.forEach(r => {
-                const opt = `<option value="${r}">${r}</option>`;
-                roleSelect.innerHTML += opt;
-                editRoleSelect.innerHTML += opt;
-            });
-        }
+        
+        if (roleSelect) roleSelect.innerHTML = ''; 
+        if (editRoleSelect) editRoleSelect.innerHTML = '';
+        
+        assignableRoles.forEach(r => {
+            const opt = `<option value="${r}">${r}</option>`;
+            if (roleSelect) roleSelect.innerHTML += opt;
+            if (editRoleSelect) editRoleSelect.innerHTML += opt;
+        });
     } else if (btnAddModal) {
         btnAddModal.classList.add('d-none');
     }
@@ -339,7 +344,7 @@ globalThis.manageAccountLock = async function(email) {
         const isLocked = await statusRes.json();
 
         if (isLocked) {
-            if(confirm(`UWAGA: Konto funkcjonariusza ${email} jest obecnie ZABLOKOWANE.\n\nCzy chcesz je ODBLOKOWAĆ i wygenerować nowe hasło dostępowe?`)) {
+            if(confirm(`UWAGA: Konto funkcjonariusza/medyka ${email} jest obecnie ZABLOKOWANE.\n\nCzy chcesz je ODBLOKOWAĆ i wygenerować nowe hasło dostępowe?`)) {
                 const unlockRes = await fetch(`/api/Auth/unlock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
                 
                 if(unlockRes.ok) {
@@ -354,7 +359,7 @@ globalThis.manageAccountLock = async function(email) {
                 }
             }
         } else {
-            if(confirm(`Konto funkcjonariusza ${email} jest obecnie AKTYWNE.\n\nCzy na pewno chcesz zablokować dostęp do systemu 211?`)) {
+            if(confirm(`Konto ${email} jest obecnie AKTYWNE.\n\nCzy na pewno chcesz zablokować dostęp do systemu 211?`)) {
                 const lockRes = await fetch(`/api/Auth/lock/${email}`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
                 
                 if(lockRes.ok) {
@@ -370,26 +375,19 @@ globalThis.manageAccountLock = async function(email) {
     }
 };
 
-
 window.deleteDepartment = async function() {
     console.log("Rozpoczynam procedurę usuwania placówki...");
-    console.log("URL endpointu: ", apiEndpoints.department);
-    console.log("ID placówki: ", departmentId);
-
+    
     if (!confirm("UWAGA! Czy na pewno chcesz usunąć całą placówkę? Zostaną usunięci również wszyscy pracownicy!")) {
         return;
     }
 
     try {
         const url = `${apiEndpoints.department}/${departmentId}`;
-        console.log("Wysyłam żądanie DELETE na adres: ", url);
-
         const response = await fetch(url, {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer ' + token }
         });
-
-        console.log("Status odpowiedzi z serwera: ", response.status);
 
         if (response.ok) {
             alert("Placówka usunięta pomyślnie.");
@@ -401,12 +399,9 @@ window.deleteDepartment = async function() {
                 window.location.href = '/';
             }
         } else {
-            const errorText = await response.text();
-            console.error("Błąd z serwera: ", errorText);
-            alert(`Błąd usuwania! Serwer zwrócił status: ${response.status}.\nSzczegóły w konsoli (F12). \n\nNajpierw upewnij się, że zwolniłeś wszystkich pracowników!`);
+            alert(`Błąd usuwania! Serwer zwrócił status: ${response.status}.\nNajpierw upewnij się, że zwolniłeś wszystkich pracowników!`);
         }
     } catch (error) {
-        console.error("Krytyczny błąd sieci: ", error);
         alert("Błąd połączenia z serwerem podczas usuwania.");
     }
 };
