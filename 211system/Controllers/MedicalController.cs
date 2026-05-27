@@ -411,8 +411,10 @@ namespace _211system.Controllers
 
                 if (ambulance.CurrentIncidentId.HasValue)
                 {
+                    var incidentId = ambulance.CurrentIncidentId.Value;
+
                     var query = _context.MedicalOperations
-                        .Where(o => o.ReportId == ambulance.CurrentIncidentId && o.EndTime == null);
+                        .Where(o => o.ReportId == incidentId && o.EndTime == null);
 
                     if (ambulance.ParamedicId.HasValue)
                         query = query.Where(o => o.ParamedicId == ambulance.ParamedicId);
@@ -425,6 +427,28 @@ namespace _211system.Controllers
                     }
 
                     ambulance.CurrentIncidentId = null;
+
+                    var incident = await _context.Incidents.FindAsync(incidentId);
+                    if (incident != null)
+                    {
+                        incident.IsMedicalActive = false;
+
+                        if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive
+                            && incident.Status != "Zakończone")
+                        {
+                            var oldStatus = incident.Status;
+                            incident.Status = "Zakończone";
+                            _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                            {
+                                IncidentId = incident.Id,
+                                OldStatus = oldStatus,
+                                NewStatus = "Zakończone",
+                                ChangedAt = DateTime.UtcNow
+                            });
+                        }
+
+                        _context.Incidents.Update(incident);
+                    }
                 }
 
                 _context.Ambulances.Update(ambulance);

@@ -246,30 +246,37 @@ namespace _211system.Controllers
             }
 
             var incident = await _context.Incidents.FindAsync(operation.IncidentId);
-            if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
+            if (incident != null)
             {
-                if (incident.Status != "Zakończone")
+                incident.IsFireActive = false;
+
+                if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
                 {
-                    var oldStatus = incident.Status;
-                    incident.Status = "Zakończone";
+                    if (incident.Status != "Zakończone")
+                    {
+                        var oldStatus = incident.Status;
+                        incident.Status = "Zakończone";
+                        _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                        {
+                            IncidentId = incident.Id,
+                            OldStatus = oldStatus,
+                            NewStatus = "Zakończone",
+                            ChangedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+                else
+                {
                     _context.IncidentStatusHistories.Add(new IncidentStatusHistory
                     {
                         IncidentId = incident.Id,
-                        OldStatus = oldStatus,
-                        NewStatus = "Zakończone",
+                        OldStatus = incident.Status,
+                        NewStatus = "Wóz PSP powrócił do bazy",
                         ChangedAt = DateTime.UtcNow
                     });
                 }
-            }
-            else
-            {
-                _context.IncidentStatusHistories.Add(new IncidentStatusHistory
-                {
-                    IncidentId = incident.Id,
-                    OldStatus = incident.Status,
-                    NewStatus = "Wóz PSP powrócił do bazy",
-                    ChangedAt = DateTime.UtcNow
-                });
+
+                _context.Incidents.Update(incident);
             }
 
             await _context.SaveChangesAsync();
@@ -429,8 +436,10 @@ namespace _211system.Controllers
 
                 if (truck.CurrentIncidentId.HasValue)
                 {
+                    var incidentId = truck.CurrentIncidentId.Value;
+
                     var query = _context.FireOperations
-                        .Where(o => o.IncidentId == truck.CurrentIncidentId && o.EndTime == null);
+                        .Where(o => o.IncidentId == incidentId && o.EndTime == null);
 
                     if (truck.FiremanId.HasValue)
                         query = query.Where(o => o.FiremanId == truck.FiremanId || o.FiremanId == null);
@@ -445,6 +454,28 @@ namespace _211system.Controllers
                     }
 
                     truck.CurrentIncidentId = null;
+
+                    var incident = await _context.Incidents.FindAsync(incidentId);
+                    if (incident != null)
+                    {
+                        incident.IsFireActive = false;
+
+                        if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive
+                            && incident.Status != "Zakończone")
+                        {
+                            var oldStatus = incident.Status;
+                            incident.Status = "Zakończone";
+                            _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                            {
+                                IncidentId = incident.Id,
+                                OldStatus = oldStatus,
+                                NewStatus = "Zakończone",
+                                ChangedAt = DateTime.UtcNow
+                            });
+                        }
+
+                        _context.Incidents.Update(incident);
+                    }
                 }
 
                 _context.FireTrucks.Update(truck);

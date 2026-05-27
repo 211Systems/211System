@@ -1,18 +1,18 @@
-using System;
-using System.Security.Claims;
-using System.Threading.Tasks;
+using _211system.Controllers;
+using _211system.Data;
+using _211system.DTOs.CPR112;
+using _211system.Models;
+using _211system.Models.Interfaces;
+using _211system.Services;
+using CPR112.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Xunit;
-using _211system.Controllers;
-using _211system.Data;
-using _211system.DTOs.CPR112;
-using _211system.Services;
-using _211system.Models.Interfaces;
-using CPR112.Models;
-using _211system.Models;
 
 namespace _211system.Tests
 {
@@ -24,6 +24,23 @@ namespace _211system.Tests
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
             return new _211DbContext(options);
+        }
+
+        private IncidentsController CreateController(
+            _211DbContext context,
+            Mock<IIncidentService>? serviceMock = null,
+            Mock<IBlobStorageService>? blobMock = null,
+            Mock<IWeatherService>? weatherMock = null)
+        {
+            serviceMock ??= new Mock<IIncidentService>();
+            blobMock ??= new Mock<IBlobStorageService>();
+            weatherMock ??= new Mock<IWeatherService>();
+
+            return new IncidentsController(
+                serviceMock.Object,
+                context,
+                blobMock.Object,
+                weatherMock.Object);
         }
 
         private void SetupControllerUser(IncidentsController controller, string identityId, string role = "Dyspozytor112")
@@ -40,14 +57,24 @@ namespace _211system.Tests
             };
         }
 
+        private void SetupChangeStatusSuccess(Mock<IIncidentService> serviceMock)
+        {
+            serviceMock
+                .Setup(s => s.ChangeIncidentStatusAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<ChangeIncidentStatusDto>()))
+                .Returns(Task.CompletedTask);
+        }
+
         [Fact]
         public async Task CreateIncident_ShouldReturnOk()
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
+            var controller = CreateController(context, serviceMock);
+
+            SetupControllerUser(controller, "test-user-id");
 
             var dto = new CreateIncidentDto
             {
@@ -56,8 +83,9 @@ namespace _211system.Tests
                 IncidentTypeId = 1
             };
 
-            serviceMock.Setup(s => s.CreateIncidentAsync(It.IsAny<CreateIncidentDto>()))
-                       .ReturnsAsync(new IncidentDto { Description = "Test" });
+            serviceMock
+                .Setup(s => s.CreateIncidentAsync(It.IsAny<CreateIncidentDto>()))
+                .ReturnsAsync(new IncidentDto { Id = Guid.NewGuid(), Description = "Test" });
 
             var result = await controller.CreateIncident(dto, null);
 
@@ -69,12 +97,12 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
+            var controller = CreateController(context, serviceMock);
             var id = Guid.NewGuid();
-            
-            serviceMock.Setup(s => s.GetIncidentByIdAsync(id)).ReturnsAsync(new IncidentDto { Id = id });
+
+            serviceMock
+                .Setup(s => s.GetIncidentByIdAsync(id))
+                .ReturnsAsync(new IncidentDto { Id = id });
 
             var result = await controller.GetIncidentById(id);
 
@@ -86,12 +114,12 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
+            var controller = CreateController(context, serviceMock);
             var id = Guid.NewGuid();
 
-            serviceMock.Setup(s => s.GetIncidentByIdAsync(id)).ThrowsAsync(new ArgumentException("Not found"));
+            serviceMock
+                .Setup(s => s.GetIncidentByIdAsync(id))
+                .ThrowsAsync(new ArgumentException("Not found"));
 
             var result = await controller.GetIncidentById(id);
 
@@ -102,14 +130,14 @@ namespace _211system.Tests
         public async Task ChangeStatus_Unauthorized_WhenNoIdentityIdInToken()
         {
             var context = GetInMemoryDbContext();
-            var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
+            var controller = CreateController(context);
 
             controller.ControllerContext = new ControllerContext
             {
-                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity())
+                }
             };
 
             var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto(), null);
@@ -122,13 +150,15 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
-            
-            SetupControllerUser(controller, "admin-identity-id", "Admin112");
+            var controller = CreateController(context, serviceMock);
 
-            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" }, null);
+            SetupControllerUser(controller, "admin-identity-id", "Admin112");
+            SetupChangeStatusSuccess(serviceMock);
+
+            var result = await controller.ChangeStatus(
+                Guid.NewGuid(),
+                new ChangeIncidentStatusDto { NewStatus = "W toku" },
+                null);
 
             Assert.IsType<NoContentResult>(result);
         }
@@ -138,20 +168,32 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
-            
-            context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
+
+            context.Operators112.Add(new Operator112
+            {
+                Id = operatorId,
+                OpAccountId = identityId,
+                FirstName = "A",
+                LastName = "B",
+                StationNumber = "1",
+                EncId = Guid.NewGuid()
+            });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
+            var controller = CreateController(context, serviceMock);
             SetupControllerUser(controller, identityId);
 
             var incidentId = Guid.NewGuid();
-            var dto = new ChangeIncidentStatusDto();
-            serviceMock.Setup(s => s.ChangeIncidentStatusAsync(incidentId, operatorId, dto)).ThrowsAsync(new ArgumentException("Incident not found"));
+            var dto = new ChangeIncidentStatusDto { NewStatus = "W toku" };
+
+            serviceMock
+                .Setup(s => s.ChangeIncidentStatusAsync(
+                    incidentId,
+                    operatorId,
+                    It.IsAny<ChangeIncidentStatusDto>()))
+                .ThrowsAsync(new ArgumentException("Incident not found"));
 
             var result = await controller.ChangeStatus(incidentId, dto, null);
 
@@ -163,20 +205,32 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
-            
-            context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
+
+            context.Operators112.Add(new Operator112
+            {
+                Id = operatorId,
+                OpAccountId = identityId,
+                FirstName = "A",
+                LastName = "B",
+                StationNumber = "1",
+                EncId = Guid.NewGuid()
+            });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
+            var controller = CreateController(context, serviceMock);
             SetupControllerUser(controller, identityId);
 
             var incidentId = Guid.NewGuid();
-            var dto = new ChangeIncidentStatusDto();
-            serviceMock.Setup(s => s.ChangeIncidentStatusAsync(incidentId, operatorId, dto)).ThrowsAsync(new InvalidOperationException("Same status"));
+            var dto = new ChangeIncidentStatusDto { NewStatus = "W toku" };
+
+            serviceMock
+                .Setup(s => s.ChangeIncidentStatusAsync(
+                    incidentId,
+                    operatorId,
+                    It.IsAny<ChangeIncidentStatusDto>()))
+                .ThrowsAsync(new InvalidOperationException("Same status"));
 
             var result = await controller.ChangeStatus(incidentId, dto, null);
 
@@ -188,18 +242,28 @@ namespace _211system.Tests
         {
             var context = GetInMemoryDbContext();
             var serviceMock = new Mock<IIncidentService>();
-            var blobMock = new Mock<IBlobStorageService>();
-            var weatherMock = new Mock<IWeatherService>();
             var identityId = "id-123";
             var operatorId = Guid.NewGuid();
-            
-            context.Operators112.Add(new Operator112 { Id = operatorId, OpAccountId = identityId, FirstName="A", LastName="B", StationNumber="1", EncId=Guid.NewGuid() });
+
+            context.Operators112.Add(new Operator112
+            {
+                Id = operatorId,
+                OpAccountId = identityId,
+                FirstName = "A",
+                LastName = "B",
+                StationNumber = "1",
+                EncId = Guid.NewGuid()
+            });
             await context.SaveChangesAsync();
 
-            var controller = new IncidentsController(serviceMock.Object, context, blobMock.Object, weatherMock.Object);
+            var controller = CreateController(context, serviceMock);
             SetupControllerUser(controller, identityId);
+            SetupChangeStatusSuccess(serviceMock);
 
-            var result = await controller.ChangeStatus(Guid.NewGuid(), new ChangeIncidentStatusDto { NewStatus = "W toku" }, null);
+            var result = await controller.ChangeStatus(
+                Guid.NewGuid(),
+                new ChangeIncidentStatusDto { NewStatus = "W toku" },
+                null);
 
             Assert.IsType<NoContentResult>(result);
         }

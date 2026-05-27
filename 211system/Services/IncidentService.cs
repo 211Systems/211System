@@ -121,7 +121,10 @@ namespace _211system.Services
                 incident.Status = dto.NewStatus;
             }
 
-            incident.SeverityLevelId = dto.NewSeverityLevelId;
+            if (dto.NewSeverityLevelId.HasValue)
+            {
+                incident.SeverityLevelId = dto.NewSeverityLevelId.Value;
+            }
 
             if (!string.IsNullOrEmpty(dto.NewPhotoUrl))
             {

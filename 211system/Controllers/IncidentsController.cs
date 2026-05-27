@@ -37,6 +37,19 @@ namespace _211system.Controllers
                 return BadRequest("Niepoprawny priorytet (ID=0)");
             try
             {
+                var applicationUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (applicationUserId != null)
+                {
+                    var currentOperator = await _context.Operators112
+                        .FirstOrDefaultAsync(o => o.OpAccountId == applicationUserId);
+
+                    dto.OperatorId = currentOperator?.Id;
+                }
+                else
+                {
+                    dto.OperatorId = null;
+                }
+
                 if (photo != null && photo.Length > 0)
                 {
                     var photoUrl = await _blobStorageService.UploadAsync(photo, "incidents");
@@ -71,7 +84,9 @@ namespace _211system.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = "Błąd podczas tworzenia zgłoszenia.", error = ex.Message });
+                var detail = ex.InnerException?.Message ?? ex.Message;
+                Console.WriteLine($"[BŁĄD CreateIncident] {detail}");
+                return BadRequest(new { message = "Błąd podczas tworzenia zgłoszenia.", error = detail });
             }
         }
 
