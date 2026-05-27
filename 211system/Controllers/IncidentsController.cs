@@ -189,29 +189,29 @@ namespace _211system.Controllers
                 if (incident == null) 
                     return NotFound(new { message = "Nie znaleziono zgłoszenia." });
 
-                var operations = await _context.MedicalOperations
-                    .Where(o => o.ReportId == id)
-                    .ToListAsync();
+                var medOps = await _context.MedicalOperations.Where(o => o.ReportId == id).ToListAsync();
+                if (medOps.Any()) _context.MedicalOperations.RemoveRange(medOps);
 
-                if (operations.Any())
-                {
-                    _context.MedicalOperations.RemoveRange(operations);
-                }
+                var polOps = await _context.PoliceOperations.Where(o => o.IncidentId == id).ToListAsync();
+                if (polOps.Any()) _context.PoliceOperations.RemoveRange(polOps);
 
-                var ambulances = await _context.Ambulances
-                    .Where(a => a.CurrentIncidentId == id)
-                    .ToListAsync();
+                var fireOps = await _context.FireOperations.Where(o => o.IncidentId == id).ToListAsync();
+                if (fireOps.Any()) _context.FireOperations.RemoveRange(fireOps);
 
-                if (ambulances.Any())
-                {
-                    foreach (var amb in ambulances)
-                    {
-                        amb.CurrentIncidentId = null;
-                        amb.IsAvailable = true;
-                        
-                        _context.Entry(amb).State = EntityState.Modified;
-                    }
-                }
+                var airOps = await _context.AviationOperations.Where(o => o.IncidentId == id).ToListAsync();
+                if (airOps.Any()) _context.AviationOperations.RemoveRange(airOps);
+
+                var ambulances = await _context.Ambulances.Where(a => a.CurrentIncidentId == id).ToListAsync();
+                foreach (var amb in ambulances) { amb.CurrentIncidentId = null; amb.IsAvailable = true; }
+
+                var policeCars = await _context.PoliceCars.Where(p => p.CurrentIncidentId == id).ToListAsync();
+                foreach (var car in policeCars) { car.CurrentIncidentId = null; car.IsAvailable = true; }
+
+                var fireTrucks = await _context.FireTrucks.Where(f => f.CurrentIncidentId == id).ToListAsync();
+                foreach (var truck in fireTrucks) { truck.CurrentIncidentId = null; truck.IsAvailable = true; }
+
+                var airUnits = await _context.AirUnits.Where(a => a.CurrentIncidentId == id).ToListAsync();
+                foreach (var air in airUnits) { air.CurrentIncidentId = null; air.IsAvailable = true; }
 
                 if (!string.IsNullOrEmpty(incident.PhotoUrl))
                 {
@@ -221,14 +221,12 @@ namespace _211system.Controllers
                 _context.Incidents.Remove(incident);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { 
-                    message = "Zgłoszenie usunięte, jednostki i akcje medyczne zwolnione.", 
-                    releasedCount = ambulances.Count 
-                });
+                return Ok(new { message = "Zgłoszenie usunięte, a wszystkie służby zostały zwolnione." });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = "Błąd krytyczny.", error = ex.Message });
+                var innerMsg = ex.InnerException != null ? ex.InnerException.Message : "Brak szczegółów";
+                return BadRequest(new { message = "Błąd krytyczny.", error = ex.Message, inner = innerMsg });
             }
         }
 

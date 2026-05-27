@@ -41,10 +41,10 @@ public class PdfReportService : IPdfReportService
         var fireOps = await _context.FireOperations.Include(fo => fo.Fireman).Where(fo => incidentIds.Contains(fo.IncidentId)).ToListAsync();
         var medicalOps = await _context.MedicalOperations.Include(mo => mo.Paramedic).Where(mo => incidentIds.Contains(mo.ReportId)).ToListAsync();
         
-        var airUnits = await _context.AirUnits
-            .Include(a => a.Airbase)
-            .Where(a => a.CurrentIncidentId != null && incidentIds.Contains(a.CurrentIncidentId.Value))
-            .ToListAsync();
+       var aviationOps = await _context.AviationOperations
+        .Include(ao => ao.AirUnit)
+        .Where(ao => ao.IncidentId.HasValue && incidentIds.Contains(ao.IncidentId.Value))
+        .ToListAsync();
 
         var policeCars = await _context.PoliceCars.ToListAsync();
         var fireTrucks = await _context.FireTrucks.ToListAsync();
@@ -102,8 +102,7 @@ public class PdfReportService : IPdfReportService
                     columns.ConstantColumn(60);
                     columns.ConstantColumn(60);
                     columns.RelativeColumn(2);
-                    columns.RelativeColumn(3);
-                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(5);
                     columns.RelativeColumn(2);
                 });
 
@@ -113,7 +112,6 @@ public class PdfReportService : IPdfReportService
                     header.Cell().Element(CellStyle).Text("Data");
                     header.Cell().Element(CellStyle).Text("Typ Zdarzenia");
                     header.Cell().Element(CellStyle).Text("Służby (Zastępy)");
-                    header.Cell().Element(CellStyle).Text("Lotnictwo");
                     header.Cell().Element(CellStyle).Text("Lokalizacja");
 
                     static IContainer CellStyle(IContainer container) => container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
@@ -125,23 +123,47 @@ public class PdfReportService : IPdfReportService
                     var pOps = policeOps.Where(po => po.IncidentId == incident.Id).ToList();
                     var fOps = fireOps.Where(fo => fo.IncidentId == incident.Id).ToList();
                     var mOps = medicalOps.Where(mo => mo.ReportId == incident.Id).ToList();
-                    var aUnits = airUnits.Where(a => a.CurrentIncidentId == incident.Id).ToList();
+                    var aOps = aviationOps.Where(ao => ao.IncidentId.HasValue && ao.IncidentId.Value == incident.Id).ToList();
+
+
+                    
 
                     string polStr = pOps.Any() ? string.Join("\n", pOps.Select(po => $"POL: {po.Policeman.Name} {po.Policeman.Lastname} ({policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})")) : "POL: Brak";
                     string fireStr = fOps.Any() ? string.Join("\n", fOps.Select(fo => $"PSP: {fo.Fireman.Name} {fo.Fireman.Lastname} ({fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})")) : "PSP: Brak";
                     string medStr = mOps.Any() ? string.Join("\n", mOps.Select(mo => $"ZRM: {mo.Paramedic.Name} {mo.Paramedic.LastName} ({ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id)?.LicensePlate ?? "Brak"})")) : "ZRM: Brak";
-                    string airStr = aUnits.Any() ? string.Join("\n", aUnits.Select(a => $"{a.Callsign} ({a.ServiceType}, Baza: {a.Airbase?.Name ?? "Brak"})")) : "Brak";
-                    
-                    string servicesText = $"{polStr}\n{fireStr}\n{medStr}";
+                    string airStr = aOps.Any() ? string.Join("\n", aOps.Select(ao => $"{ao.AirUnit?.Callsign ?? "Brak"} ({ao.AirUnit?.ServiceType ?? 0})")) : "Brak";
                     string locText = $"GPS: {incident.Latitude}, {incident.Longitude}";
 
-                    table.Cell().Element(CellContentStyle).Text(incident.IncidentNumber ?? "-");
-                    table.Cell().Element(CellContentStyle).Text(incident.ReportDate.ToString("dd.MM\nHH:mm"));
-                    table.Cell().Element(CellContentStyle).Text($"{incident.IncidentType?.Name ?? "-"}\n(P: {incident.SeverityLevel?.Name ?? "-"})");
-                    table.Cell().Element(CellContentStyle).Text(servicesText);
-                    table.Cell().Element(CellContentStyle).Text(airStr);
-                    table.Cell().Element(CellContentStyle).Text(locText);
+                    var servicesList = new List<string>();
 
+                    if (pOps.Any())
+                    {
+                        servicesList.Add("POL: \n" + string.Join(", ", pOps.Select(po => $"{po.Policeman.Name} {po.Policeman.Lastname} (Radiowóz: {policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})\n")));
+                    }
+
+
+                    if (fOps.Any())
+                    {
+                        servicesList.Add("PSP: \n" + string.Join(", ", fOps.Select(fo => $"{fo.Fireman.Name} {fo.Fireman.Lastname} (Wóz Strażacki: {fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})\n")));
+                    }
+
+                    if (mOps.Any())
+                    {
+                        servicesList.Add("ZRM: \n" + string.Join(", ", mOps.Select(mo => $"{mo.Paramedic.Name} {mo.Paramedic.LastName} (Ambulans: {ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id)?.LicensePlate ?? "Brak"})\n")));
+                    }
+
+                    if (aOps.Any())
+                    {
+                        servicesList.Add("LOT: \n" + string.Join(", ", aOps.Select(ao => $"{ao.AirUnit?.Callsign ?? "Brak"} ({ao.AirUnit?.ServiceType})\n")));
+                    }
+
+                    string servicesText = servicesList.Any() ? string.Join("\n", servicesList) : "Brak zadysponowanych służb";
+
+                    table.Cell().Element(CellContentStyle).Text(incident.IncidentNumber);
+                    table.Cell().Element(CellContentStyle).Text(incident.ReportDate.ToString("dd.MM\nHH:mm"));
+                    table.Cell().Element(CellContentStyle).Text($"{incident.IncidentType?.Name}\n(P: {incident.SeverityLevel?.Name})");
+                    table.Cell().Element(CellContentStyle).Text(servicesText);
+                    table.Cell().Element(CellContentStyle).Text($"GPS: {incident.Latitude}, {incident.Longitude}");
                     static IContainer CellContentStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
                 }
             });
