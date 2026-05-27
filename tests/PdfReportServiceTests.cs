@@ -55,8 +55,8 @@ namespace _211system.Tests
                 Id = Guid.NewGuid(),
                 IncidentNumber = "ZGL/2024/001",
                 Description = "Auto wpadło do rowu",
-                SeverityLevelId = 3, // Zamiast Severity = "Wysoki"
-                IncidentTypeId = 1,  // Wypadek
+                SeverityLevelId = 3,
+                IncidentTypeId = 1,
                 ReportDate = new DateTime(2024, 6, 15),
                 Status = "Zakończone"
             });
@@ -66,8 +66,8 @@ namespace _211system.Tests
                 Id = Guid.NewGuid(),
                 IncidentNumber = "ZGL/2024/002",
                 Description = "Płonie poddasze",
-                SeverityLevelId = 4, // Krytyczny
-                IncidentTypeId = 2,  // Pożar
+                SeverityLevelId = 4,
+                IncidentTypeId = 2,
                 ReportDate = new DateTime(2024, 7, 10),
                 Status = "Nowe"
             });
@@ -77,8 +77,8 @@ namespace _211system.Tests
                 Id = Guid.NewGuid(),
                 IncidentNumber = "ZGL/2023/001",
                 Description = "Woda w piwnicy",
-                SeverityLevelId = 2, // Średni
-                IncidentTypeId = 3,  // Zalanie
+                SeverityLevelId = 2,
+                IncidentTypeId = 3,
                 ReportDate = new DateTime(2023, 5, 5),
                 Status = "Zakończone"
             });

@@ -93,6 +93,7 @@ namespace _211system.Migrations
                     { 3, "Zatrzymanie krążenia", false, true, false },
                     { 4, "Kradzież / Włamanie", false, false, true },
                     { 5, "Zagrożenie miejscowe (drzewo/woda)", true, false, false }
+
                 });
 
             migrationBuilder.InsertData(

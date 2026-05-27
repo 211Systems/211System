@@ -66,35 +66,30 @@ namespace _211system.Data
         {
             base.OnModelCreating(builder);
 
-            // Relacja Operator112 -> Konto użytkownika
             builder.Entity<Operator112>()
                  .HasOne(o => o.OpAccount)
                  .WithMany()
                  .HasForeignKey(o => o.OpAccountId)
                  .OnDelete(DeleteBehavior.SetNull);
 
-            // Relacja Fireman -> Konto użytkownika
             builder.Entity<Fireman>()
                 .HasOne(f => f.FireAccount)
                 .WithMany()
                 .HasForeignKey(f => f.FireAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Relacja Paramedic -> Konto użytkownika
             builder.Entity<Paramedic>()
                 .HasOne(p => p.ParaAccount)
                 .WithMany()
                 .HasForeignKey(p => p.ParaAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Relacja Policeman -> Konto użytkownika
             builder.Entity<Policeman>()
                 .HasOne(p => p.PoliceAccount)
                 .WithMany()
                 .HasForeignKey(p => p.PoliceAccountId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Policja - Relacje
             builder.Entity<Policeman>()
                 .HasOne(p => p.Department)
                 .WithMany(d => d.Policemen)
@@ -107,7 +102,6 @@ namespace _211system.Data
                 .HasForeignKey(po => po.PDepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Straż - Relacje
             builder.Entity<Fireman>()
                 .HasOne(f => f.Department)
                 .WithMany(d => d.Firemen)
@@ -120,7 +114,6 @@ namespace _211system.Data
                 .HasForeignKey(fo => fo.FDepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Medycy - Relacje
             builder.Entity<Paramedic>()
                 .HasOne(p => p.Hospital)
                 .WithMany(h => h.Paramedics)
@@ -133,14 +126,12 @@ namespace _211system.Data
                 .HasForeignKey(mo => mo.ParamedicId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Lotnictwo - Relacje
             builder.Entity<AirUnit>()
                 .HasOne(a => a.Airbase)
                 .WithMany(b => b.AirUnits)
                 .HasForeignKey(a => a.AirbaseId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Relacja dla Dziennika Lotów
             builder.Entity<AviationOperation>()
                 .HasOne(ao => ao.AirUnit)
                 .WithMany()
@@ -159,7 +150,8 @@ namespace _211system.Data
                 new IncidentType { Id = 2, Name = "Pożar budynku", RequiresPolice = true, RequiresMedic = true, RequiresFire = true },
                 new IncidentType { Id = 3, Name = "Zatrzymanie krążenia", RequiresPolice = false, RequiresMedic = true, RequiresFire = false },
                 new IncidentType { Id = 4, Name = "Kradzież / Włamanie", RequiresPolice = true, RequiresMedic = false, RequiresFire = false },
-                new IncidentType { Id = 5, Name = "Zagrożenie miejscowe (drzewo/woda)", RequiresPolice = false, RequiresMedic = false, RequiresFire = true }
+                new IncidentType { Id = 5, Name = "Zagrożenie miejscowe (drzewo/woda)", RequiresPolice = false, RequiresMedic = false, RequiresFire = true },
+                new IncidentType { Id = 6, Name = "Inne", RequiresPolice = false, RequiresMedic = false, RequiresFire = false }
             );
         }
     }
