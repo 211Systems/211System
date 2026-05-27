@@ -4,14 +4,32 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class Eq : Migration
+    public partial class Type : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "Airbases",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    IcaoCode = table.Column<string>(type: "text", nullable: false),
+                    ServiceType = table.Column<int>(type: "integer", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Airbases", x => x.Id);
+                });
+
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
@@ -58,7 +76,10 @@ namespace _211system.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Region = table.Column<string>(type: "text", nullable: false)
+                    Region = table.Column<string>(type: "text", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    OperatingRadiusKm = table.Column<double>(type: "double precision", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -72,7 +93,11 @@ namespace _211system.Migrations
                     FDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Address = table.Column<string>(type: "text", nullable: false),
-                    District = table.Column<string>(type: "text", nullable: false)
+                    District = table.Column<string>(type: "text", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    OperatingRadiusKm = table.Column<double>(type: "double precision", nullable: false),
+                    HasHelipad = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -86,11 +111,31 @@ namespace _211system.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     HasSOR = table.Column<bool>(type: "boolean", nullable: false),
-                    Address = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false)
+                    Address = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    OperatingRadiusKm = table.Column<double>(type: "double precision", nullable: false),
+                    HasHelipad = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Hospitals", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IncidentTypes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    RequiresPolice = table.Column<bool>(type: "boolean", nullable: false),
+                    RequiresFire = table.Column<bool>(type: "boolean", nullable: false),
+                    RequiresMedic = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IncidentTypes", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -128,11 +173,29 @@ namespace _211system.Migrations
                     PDepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Address = table.Column<string>(type: "text", nullable: false),
-                    District = table.Column<string>(type: "text", nullable: false)
+                    District = table.Column<string>(type: "text", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    OperatingRadiusKm = table.Column<double>(type: "double precision", nullable: false),
+                    HasHelipad = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PoliceDepartments", x => x.PDepartmentId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SeverityLevels",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    ColorCode = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SeverityLevels", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -149,6 +212,32 @@ namespace _211system.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_StatusHistories", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AirUnits",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Callsign = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    ServiceType = table.Column<int>(type: "integer", nullable: false),
+                    AirbaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "boolean", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AirUnits", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AirUnits_Airbases_AirbaseId",
+                        column: x => x.AirbaseId,
+                        principalTable: "Airbases",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -400,30 +489,39 @@ namespace _211system.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     IncidentNumber = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
-                    Severity = table.Column<string>(type: "text", nullable: false),
+                    SeverityLevelId = table.Column<int>(type: "integer", nullable: false),
+                    IncidentTypeId = table.Column<int>(type: "integer", nullable: true),
                     ReportDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
                     PhotoUrl = table.Column<string>(type: "text", nullable: true),
-                    LocationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
                     OperatorId = table.Column<Guid>(type: "uuid", nullable: true),
                     IsPoliceActive = table.Column<bool>(type: "boolean", nullable: false),
                     IsFireActive = table.Column<bool>(type: "boolean", nullable: false),
-                    IsMedicalActive = table.Column<bool>(type: "boolean", nullable: false)
+                    IsMedicalActive = table.Column<bool>(type: "boolean", nullable: false),
+                    WeatherTemperature = table.Column<double>(type: "double precision", nullable: true),
+                    WeatherCondition = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Incidents", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Incidents_Encs_LocationId",
-                        column: x => x.LocationId,
-                        principalTable: "Encs",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        name: "FK_Incidents_IncidentTypes_IncidentTypeId",
+                        column: x => x.IncidentTypeId,
+                        principalTable: "IncidentTypes",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Incidents_Operators112_OperatorId",
                         column: x => x.OperatorId,
                         principalTable: "Operators112",
                         principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Incidents_SeverityLevels_SeverityLevelId",
+                        column: x => x.SeverityLevelId,
+                        principalTable: "SeverityLevels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -436,7 +534,10 @@ namespace _211system.Migrations
                     FiremanId = table.Column<Guid>(type: "uuid", nullable: true),
                     FireEquipmentid = table.Column<Guid>(type: "uuid", nullable: false),
                     IsAvailable = table.Column<bool>(type: "boolean", nullable: false),
-                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true)
+                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -464,7 +565,10 @@ namespace _211system.Migrations
                     HospitalId = table.Column<Guid>(type: "uuid", nullable: false),
                     IsAvailable = table.Column<bool>(type: "boolean", nullable: false),
                     CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ParamedicId = table.Column<Guid>(type: "uuid", nullable: true)
+                    ParamedicId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -492,7 +596,10 @@ namespace _211system.Migrations
                     PolicemanId = table.Column<Guid>(type: "uuid", nullable: true),
                     PoliceEquipmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     IsAvailable = table.Column<bool>(type: "boolean", nullable: false),
-                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true)
+                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -527,6 +634,32 @@ namespace _211system.Migrations
                         principalTable: "Incidents",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AviationOperations",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    AirUnitId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IncidentId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AviationOperations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AviationOperations_AirUnits_AirUnitId",
+                        column: x => x.AirUnitId,
+                        principalTable: "AirUnits",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_AviationOperations_Incidents_IncidentId",
+                        column: x => x.IncidentId,
+                        principalTable: "Incidents",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -595,6 +728,28 @@ namespace _211system.Migrations
                         principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_FireOperations_Incidents_IncidentId",
+                        column: x => x.IncidentId,
+                        principalTable: "Incidents",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "IncidentStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    IncidentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    OperatorId = table.Column<Guid>(type: "uuid", nullable: true),
+                    OldStatus = table.Column<string>(type: "text", nullable: false),
+                    NewStatus = table.Column<string>(type: "text", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IncidentStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_IncidentStatusHistories_Incidents_IncidentId",
                         column: x => x.IncidentId,
                         principalTable: "Incidents",
                         principalColumn: "Id",
@@ -776,6 +931,35 @@ namespace _211system.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.InsertData(
+                table: "IncidentTypes",
+                columns: new[] { "Id", "Name", "RequiresFire", "RequiresMedic", "RequiresPolice" },
+                values: new object[,]
+                {
+                    { 1, "Wypadek drogowy", true, true, true },
+                    { 2, "Pożar budynku", true, true, true },
+                    { 3, "Zatrzymanie krążenia", false, true, false },
+                    { 4, "Kradzież / Włamanie", false, false, true },
+                    { 5, "Zagrożenie miejscowe (drzewo/woda)", true, false, false },
+                    { 6, "Inne", false, false, false }
+                });
+
+            migrationBuilder.InsertData(
+                table: "SeverityLevels",
+                columns: new[] { "Id", "ColorCode", "Name" },
+                values: new object[,]
+                {
+                    { 1, "info", "Niski" },
+                    { 2, "warning", "Średni" },
+                    { 3, "danger", "Wysoki" },
+                    { 4, "dark", "Krytyczny" }
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AirUnits_AirbaseId",
+                table: "AirUnits",
+                column: "AirbaseId");
+
             migrationBuilder.CreateIndex(
                 name: "IX_AmbulanceEquipments_AmbulanceId",
                 table: "AmbulanceEquipments",
@@ -831,6 +1015,16 @@ namespace _211system.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Attachments_IncidentId",
                 table: "Attachments",
+                column: "IncidentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AviationOperations_AirUnitId",
+                table: "AviationOperations",
+                column: "AirUnitId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AviationOperations_IncidentId",
+                table: "AviationOperations",
                 column: "IncidentId");
 
             migrationBuilder.CreateIndex(
@@ -899,14 +1093,24 @@ namespace _211system.Migrations
                 column: "HospitalId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Incidents_LocationId",
+                name: "IX_Incidents_IncidentTypeId",
                 table: "Incidents",
-                column: "LocationId");
+                column: "IncidentTypeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Incidents_OperatorId",
                 table: "Incidents",
                 column: "OperatorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Incidents_SeverityLevelId",
+                table: "Incidents",
+                column: "SeverityLevelId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IncidentStatusHistories_IncidentId",
+                table: "IncidentStatusHistories",
+                column: "IncidentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MedicalOperations_IncidentId",
@@ -1014,6 +1218,9 @@ namespace _211system.Migrations
                 name: "Attachments");
 
             migrationBuilder.DropTable(
+                name: "AviationOperations");
+
+            migrationBuilder.DropTable(
                 name: "DispatcherComments");
 
             migrationBuilder.DropTable(
@@ -1027,6 +1234,9 @@ namespace _211system.Migrations
 
             migrationBuilder.DropTable(
                 name: "GivenMedicines");
+
+            migrationBuilder.DropTable(
+                name: "IncidentStatusHistories");
 
             migrationBuilder.DropTable(
                 name: "MedicalOperations");
@@ -1053,6 +1263,9 @@ namespace _211system.Migrations
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
+                name: "AirUnits");
+
+            migrationBuilder.DropTable(
                 name: "FireTrucks");
 
             migrationBuilder.DropTable(
@@ -1063,6 +1276,9 @@ namespace _211system.Migrations
 
             migrationBuilder.DropTable(
                 name: "Paramedics");
+
+            migrationBuilder.DropTable(
+                name: "Airbases");
 
             migrationBuilder.DropTable(
                 name: "Firemen");
@@ -1083,7 +1299,13 @@ namespace _211system.Migrations
                 name: "Hospitals");
 
             migrationBuilder.DropTable(
+                name: "IncidentTypes");
+
+            migrationBuilder.DropTable(
                 name: "Operators112");
+
+            migrationBuilder.DropTable(
+                name: "SeverityLevels");
 
             migrationBuilder.DropTable(
                 name: "PoliceDepartments");

@@ -12,8 +12,8 @@ using _211system.Data;
 namespace _211system.Migrations
 {
     [DbContext(typeof(_211DbContext))]
-    [Migration("20260519211501_AddAviationsOperations")]
-    partial class AddAviationsOperations
+    [Migration("20260527141400_Type")]
+    partial class Type
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -163,6 +163,12 @@ namespace _211system.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("WeatherCondition")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("WeatherTemperature")
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
@@ -1285,6 +1291,14 @@ namespace _211system.Migrations
                             Id = 5,
                             Name = "Zagrożenie miejscowe (drzewo/woda)",
                             RequiresFire = true,
+                            RequiresMedic = false,
+                            RequiresPolice = false
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Inne",
+                            RequiresFire = false,
                             RequiresMedic = false,
                             RequiresPolice = false
                         });
