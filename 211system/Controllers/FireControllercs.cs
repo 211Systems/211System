@@ -315,6 +315,7 @@ namespace _211system.Controllers
             dept.Name = dto.Name;
             dept.Address = dto.Address;
             dept.District = dto.District;
+            dept.HasHelipad = dto.HasHelipad;
 
             await _context.SaveChangesAsync();
             return Ok(new { message = "Zaktualizowano placówkę." });

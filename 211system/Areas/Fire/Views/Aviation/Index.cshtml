@@ -2,7 +2,7 @@
     ViewBag.ThemeColor = "danger";
     ViewBag.Icon = "fas fa-fire-extinguisher";
     ViewBag.Title = "Lotnictwo Pożarnicze";
-    ViewBag.ServiceFilter = 2; 
+    ViewBag.ServiceFilter = 2;
 }
 
 <div class="row mb-3">
@@ -27,7 +27,7 @@
 
 <div class="card shadow border-@ViewBag.ThemeColor">
     <div class="card-header border-0 bg-light d-flex justify-content-between align-items-center">
-        <h3 class="card-title m-0 font-weight-bold text-dark"><i class="fas fa-helicopter"></i> Zarejestrowane statki powietrzne</h3>
+        <h3 class="card-title m-0 font-weight-bold text-dark"><i class="@ViewBag.Icon"></i> Zarejestrowane statki powietrzne</h3>
         <button class="btn btn-sm btn-@ViewBag.ThemeColor d-none" id="btn-add-vehicle" onclick="openAddModal()"><i class="fas fa-plus"></i> Rejestruj Maszynę</button>
     </div>
     <div class="card-body p-0 table-responsive">
@@ -85,6 +85,43 @@
     </div>
 </div>
 
+<div class="modal fade" id="editVehicleModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edytuj Maszynę</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="editVehicleForm">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-veh-id">
+                    <div class="form-group">
+                        <label>Znak wywoławczy (Callsign)</label>
+                        <input type="text" id="edit-veh-callsign" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Typ Maszyny</label>
+                        <select id="edit-veh-type" class="form-control" required>
+                            <option value="0">Śmigłowiec (Helicopter)</option>
+                            <option value="1">Samolot (Airplane)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Baza Lotnicza</label>
+                        <select id="edit-veh-airbase" class="form-control" required>
+                            <option value="">Wczytywanie baz...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-warning text-dark">Zapisz Zmiany</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -94,14 +131,19 @@
         const currentServiceFilter = @ViewBag.ServiceFilter;
         const themeColorClass = "text-@ViewBag.ThemeColor";
         let isAviationManager = false;
+        let jwtToken = '';
         window.allVehicles = [];
         window.allAirbases = [];
 
         document.addEventListener("DOMContentLoaded", async function () {
-            const token = await window.ensureValidToken();
-            if (!token) { window.location.href = "/AuthView/Login"; return; }
+            jwtToken = localStorage.getItem('jwt');
+            if (!jwtToken) {
+                window.location.href = "/AuthView/Login";
+                return;
+            }
+            window.jwtToken = jwtToken;
 
-            const dec = window.parseJwt(token);
+            const dec = window.parseJwt(jwtToken);
             if (dec) {
                 let roles = dec["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || dec.role;
                 let rArr = Array.isArray(roles) ? roles : [roles];
@@ -115,7 +157,7 @@
 
         async function fetchData() {
             try {
-                const headers = { 'Authorization': 'Bearer ' + window.jwtToken };
+                const headers = { 'Authorization': 'Bearer ' + jwtToken };
                 const [vehRes, baseRes] = await Promise.all([
                     fetch('/api/Aviation/units', { headers }),
                     fetch('/api/Aviation/airbases', { headers })
@@ -128,8 +170,12 @@
                     window.allAirbases = baseData.filter(b => (b.serviceType !== undefined ? b.serviceType : b.ServiceType) === currentServiceFilter);
                     renderTable();
                     drawFleetMap();
+                } else {
+                    document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd pobierania danych.</td></tr>';
                 }
-            } catch (e) { document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd sieci.</td></tr>'; }
+            } catch (e) {
+                document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd sieci.</td></tr>';
+            }
         }
 
         function renderTable() {
@@ -154,7 +200,10 @@
                 let actions = `<button onclick="focusMap(${airbase?.latitude || airbase?.Latitude || 0}, ${airbase?.longitude || airbase?.Longitude || 0})" class="btn btn-sm btn-secondary" title="Pokaż bazę na mapie"><i class="fas fa-map-marker-alt"></i></button>`;
 
                 if (isAviationManager) {
-                    if (!isAvailable) actions += `<button onclick="forceFreeUnit('${vId}')" class="btn btn-sm btn-warning text-dark ml-1" title="Zakończ misję i zwróć maszynę"><i class="fas fa-undo"></i></button>`;
+                    if (!isAvailable) {
+                        actions += `<button onclick="forceFreeUnit('${vId}')" class="btn btn-sm btn-warning text-dark ml-1" title="Zakończ misję i zwróć maszynę"><i class="fas fa-undo"></i></button>`;
+                    }
+                    actions += `<button onclick="openEditModal('${vId}')" class="btn btn-sm btn-warning text-dark ml-1" title="Edytuj"><i class="fas fa-edit"></i></button>`;
                     actions += `<button onclick="deleteVehicle('${vId}')" class="btn btn-sm btn-danger ml-1" title="Zezłomuj"><i class="fas fa-trash"></i></button>`;
                 }
 
@@ -168,7 +217,27 @@
             window.allAirbases.forEach(b => selectBase.innerHTML += `<option value="${b.id || b.Id}">${b.name || b.Name} (${b.icaoCode || b.IcaoCode})</option>`);
             document.getElementById('addVehicleForm').reset();
             $('#addVehicleModal').modal('show');
-        }
+        };
+
+        window.openEditModal = function(id) {
+            const v = window.allVehicles.find(x => String(x.id || x.Id) === String(id));
+            if (!v) return;
+
+            document.getElementById('edit-veh-id').value = id;
+            document.getElementById('edit-veh-callsign').value = v.callsign || v.Callsign;
+
+            const typeVal = v.type !== undefined ? v.type : v.Type;
+            document.getElementById('edit-veh-type').value = String(typeVal);
+
+            const selectBase = document.getElementById('edit-veh-airbase');
+            selectBase.innerHTML = '<option value="">-- Wybierz bazę lotniczą --</option>';
+            window.allAirbases.forEach(b => {
+                selectBase.innerHTML += `<option value="${b.id || b.Id}">${b.name || b.Name} (${b.icaoCode || b.IcaoCode})</option>`;
+            });
+            selectBase.value = v.airbaseId || v.AirbaseId;
+
+            $('#editVehicleModal').modal('show');
+        };
 
         document.getElementById('addVehicleForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -178,20 +247,58 @@
                 airbaseId: document.getElementById('add-veh-airbase').value,
                 serviceType: currentServiceFilter
             };
-            const res = await fetch('/api/Aviation/units', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (res.ok) { $('#addVehicleModal').modal('hide'); await fetchData(); }
-            else { const err = await res.text(); alert("Błąd: " + err); }
+            const res = await fetch('/api/Aviation/units', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                $('#addVehicleModal').modal('hide');
+                await fetchData();
+            } else {
+                const err = await res.text();
+                alert("Błąd: " + err);
+            }
+        });
+
+        document.getElementById('editVehicleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-veh-id').value;
+            const payload = {
+                callsign: document.getElementById('edit-veh-callsign').value,
+                type: parseInt(document.getElementById('edit-veh-type').value),
+                airbaseId: document.getElementById('edit-veh-airbase').value
+            };
+            const res = await fetch(`/api/Aviation/units/${id}`, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                $('#editVehicleModal').modal('hide');
+                await fetchData();
+            } else {
+                const err = await res.text();
+                alert("Błąd: " + err);
+            }
         });
 
         window.forceFreeUnit = async function(id) {
             if (!confirm("Czy na pewno chcesz przerwać misję maszyny i zresetować jej status?")) return;
-            const res = await fetch(`/api/Aviation/units/${id}/free`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
-            if (res.ok) await fetchData(); else alert("Wystąpił błąd.");
+            const res = await fetch(`/api/Aviation/units/${id}/free`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + jwtToken }
+            });
+            if (res.ok) await fetchData();
+            else alert("Wystąpił błąd.");
         };
 
         window.deleteVehicle = async function(id) {
             if (!confirm("Wyrejestrować maszynę?")) return;
-            const res = await fetch(`/api/Aviation/units/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+            const res = await fetch(`/api/Aviation/units/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + jwtToken }
+            });
             if (res.ok) await fetchData();
         };
 
@@ -227,21 +334,22 @@
 
                     const heliIcon = L.divIcon({ html: htmlContent, className: 'custom-building-marker', iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -17] });
 
-                    L.marker([lat, lng], {icon: heliIcon})
+                    L.marker([lat, lng], { icon: heliIcon })
                         .bindPopup(`<b><i class="fas fa-helicopter ${themeColorClass}"></i> ${base.name || base.Name}</b><br>ICAO: <b>${base.icaoCode || base.IcaoCode}</b><br>Maszyny (Wolne / Wszystkie): <b>${availableUnits} / ${unitsHere.length}</b>`)
                         .addTo(fleetMarkers);
                 }
             });
-
             setTimeout(() => { fleetMap.invalidateSize(); }, 500);
-        }
+        };
 
         window.focusMap = function(lat, lng) {
             initMap();
             if (lat !== 0 && lng !== 0) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 fleetMap.flyTo([lat, lng], 13, { animate: true, duration: 1.5 });
-            } else { alert("Ta baza nie ma przypisanych współrzędnych!"); }
-        }
+            } else {
+                alert("Ta baza nie ma przypisanych współrzędnych!");
+            }
+        };
     </script>
 }

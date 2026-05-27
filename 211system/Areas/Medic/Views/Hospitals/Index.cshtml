@@ -23,10 +23,9 @@
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async function () {
-        const jwt = await window.ensureValidToken();
+            const jwt = localStorage.getItem('jwt');
             if (!jwt) {
                 sessionStorage.setItem('returnUrl', window.location.pathname);
-
                 window.location.href = "/AuthView/Login";
                 return;
             }
@@ -44,17 +43,22 @@
                     document.getElementById('btn-add-dept').classList.remove('d-none');
                 }
             }
-            setupCustomList({
+
+            await setupCustomList({
                 tableBodyId: 'hospitals-table-body',
                 colspan: 5,
                 emptyMessage: 'Brak przypisanych placówek w systemie.',
                 loadData: async () => {
-                    const response = await fetch('/api/Medical/hospitals', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                    const response = await fetch('/api/Medical/hospitals', {
+                        headers: { 'Authorization': 'Bearer ' + jwt }
+                    });
                     if (!response.ok) throw new Error("Błąd pobierania placówek");
                     let hospitals = await response.json();
 
                     if (!roles.includes("Admin") && !roles.includes("Kierownik Szpitala")) {
-                        const paramResponse = await fetch('/api/Medical/paramedics', { headers: { 'Authorization': 'Bearer ' + jwt } });
+                        const paramResponse = await fetch('/api/Medical/paramedics', {
+                            headers: { 'Authorization': 'Bearer ' + jwt }
+                        });
                         if (paramResponse.ok) {
                             const paramedics = await paramResponse.json();
                             const myRecord = paramedics.find(p => p.email === email || p.Email === email);
@@ -87,14 +91,14 @@
                             <td>${hosp.address || hosp.Address}</td>
                             <td class="text-center">${sorBadge}</td>
                             <td class="text-center">
-                                <a href="/Medic/Hospitals/Details/${hosp.id || hosp.Id}" class="btn btn-sm btn-success" title="Szczegóły">
+                                <a href="/Medic/Hospitals/Details/${hosp.id || hosp.Id}" class="btn btn-sm btn-success" title="Zarządzaj">
                                     <i class="fas fa-stethoscope"></i> Zarządzaj
                                 </a>
                             </td>
                         </tr>
                     `;
                 }
-            });
+            }, jwt);
         });
     </script>
 }

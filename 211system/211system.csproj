@@ -29,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Raporty\" />
     <Folder Include="wwwroot\dist\.astro\" />
   </ItemGroup>
 

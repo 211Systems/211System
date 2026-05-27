@@ -6,15 +6,17 @@
     } catch (e) { return null; }
 };
 
-window.setupCustomList = async function (config) {
+window.setupCustomList = async function (config, tokenOverride) {
     const tableBody = document.getElementById(config.tableBodyId);
     if (!tableBody) return;
 
-    const token = localStorage.getItem('jwt');
-    if (!token) return;
+    const token = tokenOverride || localStorage.getItem('jwt');
+    if (!token) {
+        tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-danger text-center font-weight-bold">Brak tokenu — zaloguj się ponownie.</td></tr>`;
+        return;
+    }
 
     try {
-
         const data = await config.loadData(token);
 
         if (data === null) return;
@@ -34,4 +36,4 @@ window.setupCustomList = async function (config) {
         tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-danger text-center font-weight-bold">Błąd pobierania danych.</td></tr>`;
         console.error("Błąd w setupCustomList:", error);
     }
-};
+};  
