@@ -263,11 +263,17 @@ window.startVehicleSimulation = async function (vehicleId, serviceType, startLat
                                 body: fd
                             });
                         }
-
+                        if (typeof window.refreshAll === 'function') {
+                            await window.refreshAll();
+                        }
                         await pingVehicleLocation(vehicleId, serviceType, endLat, endLng, 0);
                     }
 
-                    window.refreshMapData();
+                    if (typeof window.refreshAll === 'function') {
+                        await window.refreshAll();
+                    } else if (typeof window.refreshMapData === 'function') {
+                        window.refreshMapData();
+                    }
                     return;
                 }
 
@@ -765,7 +771,7 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append('Latitude', latVal);
         formData.append('Longitude', lngVal);
 
-        if (window.currentOperatorId) formData.append('OperatorId', window.currentOperatorId);
+        //if (window.currentOperatorId) formData.append('OperatorId', window.currentOperatorId);
 
         const fileInput = document.getElementById('incPhoto');
         if (fileInput && fileInput.files[0]) formData.append('photo', fileInput.files[0]);
@@ -797,9 +803,9 @@ document.addEventListener("DOMContentLoaded", function () {
         fd.append('NewStatus', document.getElementById('editIncidentStatus').value);
         fd.append('NewSeverityLevelId', document.getElementById('editIncidentPriority').value);
 
-        if (window.currentOperatorId) {
-            fd.append('OperatorId', window.currentOperatorId);
-        }
+        //if (window.currentOperatorId) {
+        //    fd.append('OperatorId', window.currentOperatorId);
+        //}
 
         const fi = document.getElementById('editIncPhoto');
         if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);

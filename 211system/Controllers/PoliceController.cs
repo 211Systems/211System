@@ -413,8 +413,10 @@ namespace _211system.Controllers
 
                 if (car.CurrentIncidentId.HasValue)
                 {
+                    var incidentId = car.CurrentIncidentId.Value;
+
                     var query = _context.PoliceOperations
-                        .Where(o => o.IncidentId == car.CurrentIncidentId && o.EndTime == null);
+                        .Where(o => o.IncidentId == incidentId && o.EndTime == null);
 
                     if (car.PolicemanId.HasValue)
                         query = query.Where(o => o.PolicemanId == car.PolicemanId || o.PolicemanId == null);
@@ -429,6 +431,28 @@ namespace _211system.Controllers
                     }
 
                     car.CurrentIncidentId = null;
+
+                    var incident = await _context.Incidents.FindAsync(incidentId);
+                    if (incident != null)
+                    {
+                        incident.IsPoliceActive = false;
+
+                        if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive
+                            && incident.Status != "Zakończone")
+                        {
+                            var oldStatus = incident.Status;
+                            incident.Status = "Zakończone";
+                            _context.IncidentStatusHistories.Add(new IncidentStatusHistory
+                            {
+                                IncidentId = incident.Id,
+                                OldStatus = oldStatus,
+                                NewStatus = "Zakończone",
+                                ChangedAt = DateTime.UtcNow
+                            });
+                        }
+
+                        _context.Incidents.Update(incident);
+                    }
                 }
 
                 _context.PoliceCars.Update(car);
