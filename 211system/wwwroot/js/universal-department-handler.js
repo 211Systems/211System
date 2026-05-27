@@ -109,11 +109,22 @@ async function loadDepartmentDetails() {
         const res = await fetch(apiEndpoints.department, { headers: { 'Authorization': 'Bearer ' + token } });
         if (res.ok) {
             const depts = await res.json();
-            const dept = depts.find(d => (d.id || d.Id) === departmentId || (d.pDepartmentId || d.PDepartmentId) === departmentId || (d.fDepartmentId || d.FDepartmentId) === departmentId);
+            const dept = depts.find(d =>
+                String(d.id || d.Id) === String(departmentId) ||
+                String(d.pDepartmentId || d.PDepartmentId) === String(departmentId) ||
+                String(d.fDepartmentId || d.FDepartmentId) === String(departmentId)
+            );
 
             if (dept) {
                 document.getElementById('dept-name').textContent = dept.name || dept.Name;
                 document.getElementById('dept-address').textContent = dept.address || dept.Address;
+                const helipadEl = document.getElementById('dept-helipad');
+                if (helipadEl) {
+                    const hasHelipad = dept.hasHelipad !== undefined ? dept.hasHelipad : dept.HasHelipad;
+                    helipadEl.innerHTML = hasHelipad
+                        ? '<span class="badge bg-warning text-dark"><i class="fas fa-h-square"></i> Posiada lądowisko</span>'
+                        : '<span class="badge bg-secondary"><i class="fas fa-h-square"></i> Brak lądowiska</span>';
+                }
 
                 document.getElementById('editDeptName').value = dept.name || dept.Name;
                 document.getElementById('editDeptAddress').value = dept.address || dept.Address;

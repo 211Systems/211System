@@ -29,6 +29,9 @@ namespace _211system.Services
 
             await _context.Airbases.AddAsync(airbase);
             await _context.SaveChangesAsync();
+
+            await HelipadHelper.SyncDepartmentHelipadAsync(_context, dto.ServiceType, dto.Latitude, dto.Longitude);
+
             return airbase;
         }
 
@@ -150,6 +153,31 @@ namespace _211system.Services
                 _context.AirUnits.Remove(unit);
                 await _context.SaveChangesAsync();
             }
+        }
+        public async Task<AirUnit> UpdateAirUnitAsync(Guid unitId, UpdateAirUnitDto dto)
+        {
+            var unit = await _context.AirUnits.FindAsync(unitId);
+            if (unit == null) throw new ArgumentException("Maszyna nie istnieje.");
+
+            var airbase = await _context.Airbases.FindAsync(dto.AirbaseId);
+            if (airbase == null) throw new ArgumentException("Baza lotnicza nie istnieje.");
+
+            if (airbase.ServiceType != unit.ServiceType)
+                throw new ArgumentException("Baza musi należeć do tej samej służby.");
+
+            unit.Callsign = dto.Callsign;
+            unit.Type = dto.Type;
+            unit.AirbaseId = dto.AirbaseId;
+
+            if (unit.IsAvailable)
+            {
+                unit.Latitude = airbase.Latitude;
+                unit.Longitude = airbase.Longitude;
+            }
+
+            _context.AirUnits.Update(unit);
+            await _context.SaveChangesAsync();
+            return unit;
         }
 
         public async Task UpdateUnitLocationAsync(Guid unitId, double lat, double lng, int? statusId)

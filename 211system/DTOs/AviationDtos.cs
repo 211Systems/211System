@@ -30,4 +30,10 @@ namespace _211system.Models.Dtos.Aviation
         public double Longitude { get; set; }
         public Guid AirbaseId { get; set; }
     }
+    public class UpdateAirUnitDto
+    {
+        public string Callsign { get; set; }
+        public AirUnitType Type { get; set; }
+        public Guid AirbaseId { get; set; }
+    }
 }

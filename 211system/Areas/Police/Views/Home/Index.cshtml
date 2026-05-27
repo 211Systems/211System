@@ -22,7 +22,7 @@
     <script src="~/js/api-custom-list-handler.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async function () {
-            const jwt = await window.ensureValidToken();
+            const jwt = localStorage.getItem('jwt');
             if (!jwt) {
                 window.location.href = "/AuthView/Login";
                 return;
@@ -42,17 +42,21 @@
                 }
             }
 
-            setupCustomList({
+            await setupCustomList({
                 tableBodyId: 'departments-table-body',
                 colspan: 5,
                 emptyMessage: 'Brak przypisanych komisariatów w systemie.',
-                loadData: async (jwtToken) => {
-                    const response = await fetch('/api/Police/departments', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+                loadData: async () => {
+                    const response = await fetch('/api/Police/departments', {
+                        headers: { 'Authorization': 'Bearer ' + jwt }
+                    });
                     if (!response.ok) throw new Error("Błąd pobierania placówek");
                     let depts = await response.json();
 
                     if (!roles.includes("Admin") && !roles.includes("Inspektor")) {
-                        const paramResponse = await fetch('/api/Police/policemen', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+                        const paramResponse = await fetch('/api/Police/policemen', {
+                            headers: { 'Authorization': 'Bearer ' + jwt }
+                        });
                         if (paramResponse.ok) {
                             const staff = await paramResponse.json();
                             const myRecord = staff.find(p => p.email === email || p.Email === email);
@@ -78,16 +82,16 @@
                             <td>${index + 1}</td>
                             <td><b>${dept.name || dept.Name}</b></td>
                             <td>${dept.address || dept.Address}</td>
-                            <td>${dept.region || dept.Region || "Brak danych"}</td>
+                            <td>${dept.district || dept.District || dept.region || dept.Region || "Brak danych"}</td>
                             <td class="text-center">
-                                <a href="/Police/Home/Details/${dept.id || dept.Id}" class="btn btn-sm btn-primary" title="Szczegóły">
+                                <a href="/Police/Home/Details/${dept.id || dept.Id}" class="btn btn-sm btn-primary" title="Zarządzaj">
                                     <i class="fas fa-shield-alt"></i> Zarządzaj
                                 </a>
                             </td>
                         </tr>
                     `;
                 }
-            });
+            }, jwt);
         });
     </script>
 }

@@ -7,6 +7,7 @@ namespace _211system.DTOs.Hospital
         public string Name { get; set; }
         public string Address { get; set; }
         public bool HasSOR { get; set; }
+        public bool HasHelipad { get; set; }
     }
 
 public class UpdateAmbulanceDto

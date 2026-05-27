@@ -32,7 +32,8 @@ namespace _211system.Services
                 Address = dto.Address,
                 Latitude = dto.Latitude,
                 Longitude = dto.Longitude,
-                OperatingRadiusKm = dto.OperatingRadiusKm > 0 ? dto.OperatingRadiusKm : 15.0
+                OperatingRadiusKm = dto.OperatingRadiusKm > 0 ? dto.OperatingRadiusKm : 15.0,
+                HasHelipad = dto.HasHelipad
             };
 
             await _context.Hospitals.AddAsync(hospital);
@@ -46,13 +47,18 @@ namespace _211system.Services
                 Address = hospital.Address,
                 Latitude = hospital.Latitude,
                 Longitude = hospital.Longitude,
-                OperatingRadiusKm = hospital.OperatingRadiusKm
+                OperatingRadiusKm = hospital.OperatingRadiusKm,
+                HasHelipad = hospital.HasHelipad
             };
         }
 
         public async Task<IEnumerable<HospitalDto>> GetAllHospitalsAsync()
         {
             var hospitals = await _context.Hospitals.ToListAsync();
+            var airbases = await _context.Airbases
+                .Where(a => a.ServiceType == ServiceType.Medical)
+                .ToListAsync();
+
             return hospitals.Select(h => new HospitalDto
             {
                 Id = h.Id,
@@ -61,7 +67,8 @@ namespace _211system.Services
                 Address = h.Address,
                 Latitude = h.Latitude,
                 Longitude = h.Longitude,
-                OperatingRadiusKm = h.OperatingRadiusKm
+                OperatingRadiusKm = h.OperatingRadiusKm,
+                HasHelipad = HelipadHelper.ResolveHasHelipad(h.HasHelipad, h.Latitude, h.Longitude, ServiceType.Medical, airbases)
             });
         }
 
@@ -446,6 +453,7 @@ namespace _211system.Services
             hospital.Name = dto.Name;
             hospital.Address = dto.Address;
             hospital.HasSOR = dto.HasSOR;
+            hospital.HasHelipad = dto.HasHelipad;
 
             _context.Hospitals.Update(hospital);
             await _context.SaveChangesAsync();

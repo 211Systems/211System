@@ -86,6 +86,21 @@ namespace _211system.Controllers
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
+        [HttpPut("units/{unitId}")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
+        public async Task<IActionResult> UpdateAirUnit(Guid unitId, [FromBody] UpdateAirUnitDto dto)
+        {
+            try
+            {
+                var result = await _aviationService.UpdateAirUnitAsync(unitId, dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPut("units/{unitId}/location")]
         [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
         public async Task<IActionResult> UpdateLocation(Guid unitId, [FromBody] UpdateLocationDto dto)
