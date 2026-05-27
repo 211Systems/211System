@@ -8,6 +8,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using _211system.Data;
 using CPR112.Models;
+using _211system.Models.Aviation;
 
 namespace _211system.Services;
 
@@ -39,6 +40,11 @@ public class PdfReportService : IPdfReportService
         var policeOps = await _context.PoliceOperations.Include(po => po.Policeman).Where(po => incidentIds.Contains(po.IncidentId)).ToListAsync();
         var fireOps = await _context.FireOperations.Include(fo => fo.Fireman).Where(fo => incidentIds.Contains(fo.IncidentId)).ToListAsync();
         var medicalOps = await _context.MedicalOperations.Include(mo => mo.Paramedic).Where(mo => incidentIds.Contains(mo.ReportId)).ToListAsync();
+        
+       var aviationOps = await _context.AviationOperations
+        .Include(ao => ao.AirUnit)
+        .Where(ao => ao.IncidentId.HasValue && incidentIds.Contains(ao.IncidentId.Value))
+        .ToListAsync();
 
         var policeCars = await _context.PoliceCars.ToListAsync();
         var fireTrucks = await _context.FireTrucks.ToListAsync();
@@ -51,36 +57,24 @@ public class PdfReportService : IPdfReportService
                 page.Size(PageSizes.A4.Landscape());
                 page.Margin(1.5f, Unit.Centimetre);
                 page.PageColor(Colors.White);
-                page.DefaultTextStyle(x => x.FontSize(10));
+                page.DefaultTextStyle(x => x.FontSize(9));
 
                 page.Header().Element(ComposeHeader);
                 page.Content().Element(x => ComposeContent(x));
-                page.Footer().AlignCenter().Text(x =>
-                {
-                    x.Span("Strona ");
-                    x.CurrentPageNumber();
-                    x.Span(" z ");
-                    x.TotalPages();
-                });
+                page.Footer().AlignCenter().Text(x => { x.Span("Strona "); x.CurrentPageNumber(); x.Span(" z "); x.TotalPages(); });
             });
         });
 
         byte[] pdfBytes = document.GeneratePdf();
-        string fileName = $"Raport_{from:yyyyMMdd}_{to:yyyyMMdd}_{Guid.NewGuid().ToString().Substring(0,4)}.pdf";
-        
+        string fileName = $"Raport_{from:yyyyMMdd}_{to:yyyyMMdd}_{Guid.NewGuid().ToString().Substring(0, 4)}.pdf";
+
         var reportsFolder = Path.Combine(Directory.GetCurrentDirectory(), "Raporty");
         if (!Directory.Exists(reportsFolder)) Directory.CreateDirectory(reportsFolder);
         
         var filePath = Path.Combine(reportsFolder, fileName);
         await File.WriteAllBytesAsync(filePath, pdfBytes);
 
-        var periodicReport = new PeriodicReport
-        {
-            Id = Guid.NewGuid(),
-            PathToPDF = filePath,
-            GenerationDate = DateTime.UtcNow
-        };
-        
+        var periodicReport = new PeriodicReport { Id = Guid.NewGuid(), PathToPDF = filePath, GenerationDate = DateTime.UtcNow };
         _context.PeriodicReports.Add(periodicReport);
         await _context.SaveChangesAsync();
 
@@ -93,7 +87,7 @@ public class PdfReportService : IPdfReportService
                 row.RelativeItem().Column(column =>
                 {
                     column.Item().Text("Centrum Powiadamiania Ratunkowego 112").FontSize(20).SemiBold().FontColor(Colors.Blue.Darken2);
-                    column.Item().Text("Szczegółowy Raport Zdarzeń (Wszystkie Statusy)").FontSize(14);
+                    column.Item().Text("Szczegółowy Raport Zdarzeń").FontSize(14);
                     column.Item().Text($"Za okres: {from:dd.MM.yyyy} - {to:dd.MM.yyyy}").FontSize(12).FontColor(Colors.Grey.Darken1);
                 });
             });
@@ -101,16 +95,15 @@ public class PdfReportService : IPdfReportService
 
         void ComposeContent(IContainer container)
         {
-            container.PaddingVertical(1, Unit.Centimetre).Table(table =>
+            container.PaddingVertical(10).Table(table =>
             {
                 table.ColumnsDefinition(columns =>
                 {
-                    columns.ConstantColumn(80);
-                    columns.ConstantColumn(70);
+                    columns.ConstantColumn(60);
+                    columns.ConstantColumn(60);
                     columns.RelativeColumn(2);
-                    columns.RelativeColumn(3);
-                    columns.RelativeColumn(3);
-                    columns.RelativeColumn(3);
+                    columns.RelativeColumn(5);
+                    columns.RelativeColumn(2);
                 });
 
                 table.Header(header =>
@@ -118,52 +111,60 @@ public class PdfReportService : IPdfReportService
                     header.Cell().Element(CellStyle).Text("Numer");
                     header.Cell().Element(CellStyle).Text("Data");
                     header.Cell().Element(CellStyle).Text("Typ Zdarzenia");
-                    header.Cell().Element(CellStyle).Text("Służby na Miejscu (Załoga + Pojazd)");
-                    header.Cell().Element(CellStyle).Text("Lokalizacja i Pogoda");
-                    header.Cell().Element(CellStyle).Text("Opis Zgłoszenia");
+                    header.Cell().Element(CellStyle).Text("Służby (Zastępy)");
+                    header.Cell().Element(CellStyle).Text("Lokalizacja");
 
                     static IContainer CellStyle(IContainer container) => container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
                 });
 
                 foreach (var incident in incidents)
                 {
-                    var pOp = policeOps.FirstOrDefault(po => po.IncidentId == incident.Id);
-                    var fOp = fireOps.FirstOrDefault(fo => fo.IncidentId == incident.Id);
-                    var mOp = medicalOps.FirstOrDefault(mo => mo.ReportId == incident.Id);
 
-                    string polStr = "Brak";
-                    if (pOp?.Policeman != null) {
-                        var car = policeCars.FirstOrDefault(c => c.PolicemanId == pOp.Policeman.Id);
-                        polStr = $"{pOp.Policeman.Name} {pOp.Policeman.Lastname} ({car?.LicensePlate ?? "Brak pojazdu"})";
-                    }
+                    var pOps = policeOps.Where(po => po.IncidentId == incident.Id).ToList();
+                    var fOps = fireOps.Where(fo => fo.IncidentId == incident.Id).ToList();
+                    var mOps = medicalOps.Where(mo => mo.ReportId == incident.Id).ToList();
+                    var aOps = aviationOps.Where(ao => ao.IncidentId.HasValue && ao.IncidentId.Value == incident.Id).ToList();
 
-                    string fireStr = "Brak";
-                    if (fOp?.Fireman != null) {
-                        var truck = fireTrucks.FirstOrDefault(t => t.FiremanId == fOp.Fireman.Id);
-                        fireStr = $"{fOp.Fireman.Name} {fOp.Fireman.Lastname} ({truck?.LicensePlate ?? "Brak pojazdu"})";
-                    }
 
-                    string medStr = "Brak";
-                    if (mOp?.Paramedic != null) {
-                        var amb = ambulances.FirstOrDefault(a => a.ParamedicId == mOp.Paramedic.Id);
-                        medStr = $"{mOp.Paramedic.Name} {mOp.Paramedic.LastName} ({amb?.LicensePlate ?? "Brak pojazdu"})";
-                    }
                     
-                    string servicesText = $"POL: {polStr}\nPSP: {fireStr}\nZRM: {medStr}";
 
-                    string weatherText = incident.WeatherTemperature.HasValue ? $"{incident.WeatherTemperature}°C, {incident.WeatherCondition}" : "Brak danych z radaru";
-                    string locText = $"GPS: {incident.Latitude}, {incident.Longitude}\nPogoda: {weatherText}";
+                    string polStr = pOps.Any() ? string.Join("\n", pOps.Select(po => $"POL: {po.Policeman.Name} {po.Policeman.Lastname} ({policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})")) : "POL: Brak";
+                    string fireStr = fOps.Any() ? string.Join("\n", fOps.Select(fo => $"PSP: {fo.Fireman.Name} {fo.Fireman.Lastname} ({fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})")) : "PSP: Brak";
+                    string medStr = mOps.Any() ? string.Join("\n", mOps.Select(mo => $"ZRM: {mo.Paramedic.Name} {mo.Paramedic.LastName} ({ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id)?.LicensePlate ?? "Brak"})")) : "ZRM: Brak";
+                    string airStr = aOps.Any() ? string.Join("\n", aOps.Select(ao => $"{ao.AirUnit?.Callsign ?? "Brak"} ({ao.AirUnit?.ServiceType ?? 0})")) : "Brak";
+                    string locText = $"GPS: {incident.Latitude}, {incident.Longitude}";
 
-                    table.Cell().Element(CellStyle).Text(incident.IncidentNumber ?? "Brak");
-                    table.Cell().Element(CellStyle).Text(incident.ReportDate.ToString("dd.MM.yyyy\nHH:mm"));
-                    table.Cell().Element(CellStyle).Text($"{incident.IncidentType?.Name ?? "Brak"}\n(P: {incident.SeverityLevel?.Name ?? "-"})");
-                    table.Cell().Element(CellStyle).Text(servicesText);
-                    table.Cell().Element(CellStyle).Text(locText);
-                    
-                    var desc = incident.Description?.Length > 60 ? incident.Description.Substring(0, 60) + "..." : incident.Description;
-                    table.Cell().Element(CellStyle).Text(desc ?? "");
+                    var servicesList = new List<string>();
 
-                    static IContainer CellStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
+                    if (pOps.Any())
+                    {
+                        servicesList.Add("POL: \n" + string.Join(", ", pOps.Select(po => $"{po.Policeman.Name} {po.Policeman.Lastname} (Radiowóz: {policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})\n")));
+                    }
+
+
+                    if (fOps.Any())
+                    {
+                        servicesList.Add("PSP: \n" + string.Join(", ", fOps.Select(fo => $"{fo.Fireman.Name} {fo.Fireman.Lastname} (Wóz Strażacki: {fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})\n")));
+                    }
+
+                    if (mOps.Any())
+                    {
+                        servicesList.Add("ZRM: \n" + string.Join(", ", mOps.Select(mo => $"{mo.Paramedic.Name} {mo.Paramedic.LastName} (Ambulans: {ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id)?.LicensePlate ?? "Brak"})\n")));
+                    }
+
+                    if (aOps.Any())
+                    {
+                        servicesList.Add("LOT: \n" + string.Join(", ", aOps.Select(ao => $"{ao.AirUnit?.Callsign ?? "Brak"} ({ao.AirUnit?.ServiceType})\n")));
+                    }
+
+                    string servicesText = servicesList.Any() ? string.Join("\n", servicesList) : "Brak zadysponowanych służb";
+
+                    table.Cell().Element(CellContentStyle).Text(incident.IncidentNumber);
+                    table.Cell().Element(CellContentStyle).Text(incident.ReportDate.ToString("dd.MM\nHH:mm"));
+                    table.Cell().Element(CellContentStyle).Text($"{incident.IncidentType?.Name}\n(P: {incident.SeverityLevel?.Name})");
+                    table.Cell().Element(CellContentStyle).Text(servicesText);
+                    table.Cell().Element(CellContentStyle).Text($"GPS: {incident.Latitude}, {incident.Longitude}");
+                    static IContainer CellContentStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
                 }
             });
         }

@@ -62,4 +62,50 @@ window.setupDepartmentDetails = async function (config) {
             }
         } catch (error) { console.error("Błąd pobierania personelu:", error); }
     }
+
+    const addStaffForm = document.getElementById('addStaffForm');
+    if (addStaffForm && config.endpoints.addStaff && config.buildStaffPayload) {
+        addStaffForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit-staff');
+            const successAlert = document.getElementById('generated-password-alert');
+            
+            if (btnSubmit) btnSubmit.disabled = true;
+
+            const payload = config.buildStaffPayload();
+
+            try {
+                const response = await fetch(config.endpoints.addStaff, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const generatedAuthToken = data.temporaryPassword || data.password || "Auto-Generowane!";
+                    
+                    const passDisplay = document.getElementById('temp-password-display');
+                    if (passDisplay) passDisplay.textContent = generatedAuthToken;
+
+                    if (successAlert) successAlert.classList.remove('d-none');
+                    if (btnSubmit) btnSubmit.classList.add('d-none');
+                    
+                    await loadStaff();
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.message || "Błąd rejestracji – sprawdź poprawność danych.";
+                    alert("Błąd: " + errorMessage);
+                    
+                    if (btnSubmit) btnSubmit.disabled = false;
+                }
+            } catch (error) {
+                alert("Błąd sieci: " + error.message);
+                if (btnSubmit) btnSubmit.disabled = false;
+            }
+        });
+    }
 };

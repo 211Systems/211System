@@ -11,7 +11,7 @@ $(document).ready(function () {
     document.getElementById('dateTo').valueAsDate = today;
     document.getElementById('dateFrom').valueAsDate = lastWeek;
 
-const dataTable = $('#reportsTable').DataTable({
+/*const dataTable = $('#reportsTable').DataTable({
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pl.json'
         },
@@ -68,7 +68,7 @@ const dataTable = $('#reportsTable').DataTable({
             }
         ],
         order: [[1, 'desc']]
-    });
+    });*/
 
     $('#btnLoadData').on('click', async function() {
         const from = $('#dateFrom').val();

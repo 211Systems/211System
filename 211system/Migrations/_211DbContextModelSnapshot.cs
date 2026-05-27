@@ -1290,6 +1290,14 @@ namespace _211system.Migrations
                             RequiresFire = true,
                             RequiresMedic = false,
                             RequiresPolice = false
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Inne",
+                            RequiresFire = false,
+                            RequiresMedic = false,
+                            RequiresPolice = false
                         });
                 });
 
