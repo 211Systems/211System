@@ -420,8 +420,15 @@
             }
 
             try {
-                const decoded = window.parseJwt(window.jwtToken);
-                if (decoded) {
+                if (typeof window.parseJwt === 'function') {
+                    const decoded = window.parseJwt(window.jwtToken);
+                    if (decoded) {
+                        window.currentOperatorId = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || decoded.sub;
+                    }
+                } else {
+                    const base64Url = window.jwtToken.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const decoded = JSON.parse(window.atob(base64));
                     window.currentOperatorId = decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || decoded.sub;
                 }
             } catch (e) {
@@ -650,6 +657,24 @@
                 else if (type === 'Police') url = '/api/Police/departments';
                 else if (type === 'Fire') url = '/api/Fire/departments';
                 else url = '/api/Enc';
+            }
+
+            try {
+                const response = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(dto) });
+                if (response.ok) {
+                    alert("Placówka dodana do systemu.");
+                    document.getElementById('createCenterForm').reset();
+                    if (typeof window.loadCenters === 'function') window.loadCenters();
+                } else { alert(`Błąd serwera. Sprawdź konsole.`); }
+            } catch (e) { alert("Błąd krytyczny komunikacji z serwerem."); }
+        };
+
+        window.autoDispatchAI = async function() {
+            const btn = document.querySelector('button[onclick="window.autoDispatchAI()"]');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI Analizuje...';
+            btn.disabled = true;
+
             try {
                 const response = await fetch('/api/Ai/auto-dispatch', {
                     method: 'POST',
@@ -711,15 +736,11 @@
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
             }
+        };
 
+        window.confirmAiDispatch = async function() {
+            if (!confirm("Potwierdzasz zadysponowanie tych jednostek?")) return;
             try {
-                const response = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(dto) });
-                if (response.ok) {
-                    alert("Placówka dodana do systemu.");
-                    document.getElementById('createCenterForm').reset();
-                    if (typeof window.loadCenters === 'function') window.loadCenters();
-                } else { alert(`Błąd serwera. Sprawdź konsole.`); }
-            } catch (e) { alert("Błąd krytyczny komunikacji z serwerem."); }
                 const response = await fetch('/api/Ai/confirm-dispatch', {
                     method: 'POST',
                     headers: {
