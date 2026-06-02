@@ -1,12 +1,13 @@
-﻿using System.Text;
-using System.Text.Json;
-using _211system.Data;
+﻿using _211system.Data;
 using _211system.DTOs.Hospital;
 using _211system.Models;
 using _211system.Models.Hospital;
 using _211system.Models.Interfaces;
 using CPR112.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Runtime.ConstrainedExecution;
+using System.Text;
+using System.Text.Json;
 
 namespace _211system.Services
 {
@@ -389,28 +390,19 @@ namespace _211system.Services
         public async Task DeleteParamedicAsync(Guid id)
         {
             var paramedic = await _context.Paramedics.FindAsync(id);
-            if (paramedic != null)
-            {
-                var operations = await _context.MedicalOperations.Where(o => o.ParamedicId == id).ToListAsync();
-                if (operations.Any())
-                {
-                    _context.MedicalOperations.RemoveRange(operations);
-                }
+            if (paramedic == null)
+                return;
 
-                var ambulances = await _context.Ambulances.Where(a => a.ParamedicId == id).ToListAsync();
-                foreach (var amb in ambulances)
-                {
-                    amb.ParamedicId = null;
-                    if (amb.CurrentIncidentId.HasValue)
-                    {
-                        amb.IsAvailable = true;
-                        amb.CurrentIncidentId = null;
-                    }
-                }
+            if (await _context.Ambulances.AnyAsync(a => a.ParamedicId == id))
+                throw new InvalidOperationException(
+                    "Nie można zwolnić medyka — jest przypisany jako kierowca karetki. Najpierw usuń karetkę lub edytuj karetkę i odłącz kierowcę.");
 
-                _context.Paramedics.Remove(paramedic);
-                await _context.SaveChangesAsync();
-            }
+            var operations = await _context.MedicalOperations.Where(o => o.ParamedicId == id).ToListAsync();
+            if (operations.Any())
+                _context.MedicalOperations.RemoveRange(operations);
+
+            _context.Paramedics.Remove(paramedic);
+            await _context.SaveChangesAsync();
         }
 
         public async Task UpdateAmbulanceAsync(Guid id, UpdateAmbulanceDto dto)
@@ -462,6 +454,10 @@ namespace _211system.Services
         public async Task DeleteAmbulanceAsync(Guid id)
         {
             var ambulance = await _context.Ambulances.FindAsync(id);
+            if (ambulance == null) return;
+
+            if (!ambulance.IsAvailable || ambulance.CurrentIncidentId.HasValue)
+                throw new InvalidOperationException("Nie można wyrejestrować pojazdu — jest w akcji. Najpierw zakończ operację lub zwolnij pojazd z zgłoszenia.");
             if (ambulance != null)
             {
                 if (ambulance.CurrentIncidentId.HasValue && ambulance.ParamedicId.HasValue)

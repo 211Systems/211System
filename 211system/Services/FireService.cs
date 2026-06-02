@@ -1,17 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using _211system.Data;
+﻿using _211system.Data;
 using _211system.Models;
 using _211system.Models.Dtos.Fire;
 using _211system.Models.Interfaces;
 using _211system.Services;
 using FireDepartment;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Runtime.ConstrainedExecution;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace _211system.Models.Services
 {
@@ -78,28 +79,19 @@ namespace _211system.Models.Services
         public async Task DeleteFiremanAsync(Guid id)
         {
             var fireman = await _context.Firemen.FindAsync(id);
-            if (fireman != null)
-            {
-                var operations = await _context.FireOperations.Where(o => o.FiremanId == id).ToListAsync();
-                if (operations.Any())
-                {
-                    _context.FireOperations.RemoveRange(operations);
-                }
+            if (fireman == null)
+                return;
 
-                var trucks = await _context.FireTrucks.Where(t => t.FiremanId == id).ToListAsync();
-                foreach (var truck in trucks)
-                {
-                    truck.FiremanId = null;
-                    if (truck.CurrentIncidentId.HasValue)
-                    {
-                        truck.IsAvailable = true;
-                        truck.CurrentIncidentId = null;
-                    }
-                }
+            if (await _context.FireTrucks.AnyAsync(t => t.FiremanId == id))
+                throw new InvalidOperationException(
+                    "Nie można zwolnić strażaka - jest przypisany jako kierowca wozu strażackiego. Najpierw usuń wóz lub edytuj wóz i odłącz kierowcę.");
 
-                _context.Firemen.Remove(fireman);
-                await _context.SaveChangesAsync();
-            }
+            var operations = await _context.FireOperations.Where(o => o.FiremanId == id).ToListAsync();
+            if (operations.Any())
+                _context.FireOperations.RemoveRange(operations);
+
+            _context.Firemen.Remove(fireman);
+            await _context.SaveChangesAsync();
         }
 
         public async Task<FireTruck> CreateFireTruckAsync(CreateFireTruckDto dto)
@@ -291,6 +283,10 @@ namespace _211system.Models.Services
         public async Task DeleteFireTruckAsync(Guid id)
         {
             var truck = await _context.FireTrucks.FindAsync(id);
+            if (truck == null) return;
+
+            if (!truck.IsAvailable || truck.CurrentIncidentId.HasValue)
+                throw new InvalidOperationException("Nie można wyrejestrować pojazdu - jest w akcji. Najpierw zakończ operację lub zwolnij pojazd z zgłoszenia.");
             if (truck != null)
             {
                 if (truck.CurrentIncidentId.HasValue && truck.FiremanId.HasValue)

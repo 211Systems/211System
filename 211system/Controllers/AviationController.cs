@@ -2,6 +2,7 @@
 using _211system.Models;
 using _211system.Models.Dtos.Aviation;
 using _211system.Models.Interfaces;
+using _211system.Models.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -81,9 +82,12 @@ namespace _211system.Controllers
             try
             {
                 await _aviationService.DeleteAirUnitAsync(unitId);
-                return Ok();
+                return Ok(new { message = "Usunięto wóz strażacki." });
             }
-            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("units/{unitId}")]

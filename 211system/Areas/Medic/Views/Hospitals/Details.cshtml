@@ -253,8 +253,26 @@
 
         window.deleteParamedic = async (id) => {
             if (!confirm("Zwolnić?")) return;
-            const res = await fetch(`/api/Medical/paramedics/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
-            if (res.ok) window.location.reload();
+            const blockedMsg = "Nie można zwolnić pracownika - jest przypisany jako kierowca karetki. Najpierw usuń karetkę lub edytuj karetkę i odłącz kierowcę.";
+            try {
+                const ambRes = await fetch('/api/Medical/ambulances', { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                if (ambRes.ok) {
+                    const ambulances = await ambRes.json();
+                    const isDriver = Array.isArray(ambulances) && ambulances.some(a => String(a.paramedicId ?? a.ParamedicId) === String(id));
+                    if (isDriver) {
+                        alert(blockedMsg);
+                        return;
+                    }
+                }
+                const res = await fetch(`/api/Medical/paramedics/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+                if (res.ok) window.location.reload();
+                else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.message || "Błąd usuwania.");
+                }
+            } catch (e) {
+                alert("Błąd sieci.");
+            }
         };
 
         window.openEditEmpModal = (id, n, ln, l, r) => {

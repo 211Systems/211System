@@ -97,7 +97,7 @@ window.setupDepartmentDetails = async function (config) {
                     await loadStaff();
                 } else {
                     const errorData = await response.json().catch(() => ({}));
-                    const errorMessage = errorData.message || "Błąd rejestracji – sprawdź poprawność danych.";
+                    const errorMessage = errorData.message || "Błąd rejestracji - sprawdź poprawność danych.";
                     alert("Błąd: " + errorMessage);
                     
                     if (btnSubmit) btnSubmit.disabled = false;

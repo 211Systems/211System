@@ -148,6 +148,10 @@ namespace _211system.Services
         public async Task DeleteAirUnitAsync(Guid unitId)
         {
             var unit = await _context.AirUnits.FindAsync(unitId);
+            if (unit == null) return;
+
+            if (!unit.IsAvailable || unit.CurrentIncidentId.HasValue)
+                throw new InvalidOperationException("Nie można wyrejestrować maszyny - jest w misji. Najpierw zakończ misję lub użyj „zwróć maszynę”.");
             if (unit != null)
             {
                 _context.AirUnits.Remove(unit);

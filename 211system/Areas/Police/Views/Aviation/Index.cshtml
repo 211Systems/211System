@@ -294,12 +294,30 @@
         };
 
         window.deleteVehicle = async function(id) {
+            const v = window.allVehicles.find(x => String(x.id || x.Id) === String(id));
+            if (v) {
+                const inAction = (v.isAvailable === false || v.IsAvailable === false) ||
+                    (v.currentIncidentId || v.CurrentIncidentId);
+                if (inAction) {
+                    alert("Nie można wyrejestrować - maszyna jest w misji.");
+                    return;
+                }
+            }
             if (!confirm("Wyrejestrować maszynę?")) return;
-            const res = await fetch(`/api/Aviation/units/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + jwtToken }
-            });
-            if (res.ok) await fetchData();
+            try {
+                const res = await fetch(`/api/Aviation/units/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + jwtToken }
+                });
+                if (res.ok) {
+                    await fetchData();
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.message || "Nie można wyrejestrować maszyny.");
+                }
+            } catch (e) {
+                alert("Błąd sieci.");
+            }
         };
 
         let fleetMap = null;

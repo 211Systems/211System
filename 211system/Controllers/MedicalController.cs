@@ -126,8 +126,15 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
         public async Task<IActionResult> DeleteParamedic(Guid id)
         {
-            await _medicalService.DeleteParamedicAsync(id);
-            return Ok(new { message = "Zwolniono pracownika." });
+            try
+            {
+                await _medicalService.DeleteParamedicAsync(id);
+                return Ok(new { message = "Zwolniono pracownika." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("operations/start")]
@@ -266,8 +273,15 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala")]
         public async Task<IActionResult> DeleteAmbulance(Guid id)
         {
-            await _medicalService.DeleteAmbulanceAsync(id);
-            return Ok(new { message = "Usunięto karetkę." });
+            try
+            {
+                await _medicalService.DeleteAmbulanceAsync(id);
+                return Ok(new { message = "Usunięto ambulans." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("ambulances/available")]
