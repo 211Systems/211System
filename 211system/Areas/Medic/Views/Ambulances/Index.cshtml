@@ -159,6 +159,7 @@
         window.myHospitalId = null;
         window.paramedicsList = [];
         window.allHospitals = [];
+        window.allAmbulances = [];
 
         if (token) {
             try {
@@ -229,6 +230,7 @@
                 if (!ambRes.ok) throw new Error("Błąd pobierania karetek");
 
                 const ambulances = await ambRes.json();
+                window.allAmbulances = ambulances;
 
                 return ambulances.map(amb => {
                     const hId = amb.hospitalId || amb.HospitalId;
@@ -333,15 +335,30 @@
         });
 
         window.deleteAmbulance = async function(id) {
+            const v = (window.allAmbulances || []).find(x => String(x.id || x.Id) === String(id));
+            if (v) {
+                const inAction = (v.isAvailable === false || v.IsAvailable === false) ||
+                    (v.currentIncidentId || v.CurrentIncidentId);
+                if (inAction) {
+                    alert("Nie można wyrejestrować - karetka jest w akcji.");
+                    return;
+                }
+            }
             if (!confirm("Czy na pewno chcesz wyrejestrować tę karetkę?")) return;
             try {
                 const res = await fetch(`/api/Medical/ambulances/${id}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
-                if (res.ok) window.location.reload();
-                else alert("Błąd podczas usuwania karetki.");
-            } catch (e) { alert("Błąd sieci."); }
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.message || "Nie można wyrejestrować karetki.");
+                }
+            } catch (e) {
+                alert("Błąd sieci.");
+            }
         }
 
         window.openEditModal = function(id, plate, type, paramedicId, hospitalId) {

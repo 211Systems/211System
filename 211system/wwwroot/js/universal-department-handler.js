@@ -6,13 +6,13 @@ let apiEndpoints = {};
 let moduleConfig = {};
 
 if (currentPath.includes('/medic/')) {
-    apiEndpoints = { department: '/api/Medical/hospitals', personnel: '/api/Medical/paramedics' };
+    apiEndpoints = { department: '/api/Medical/hospitals', personnel: '/api/Medical/paramedics', vehicles: '/api/Medical/ambulances', driverKey: 'paramedicId' };
     moduleConfig = { roleKey: "rank", foreignKeyDept: "hospitalId", licenseLabel: "licenseNumber", lastNameKey: "lastName", accountIdKey: "paraAccountId", badgeColor: "badge-success", hierarchy: { "Admin": 100, "Kierownik Szpitala": 3, "Lekarz": 2, "Medyk": 1 }, hasRegion: false };
 } else if (currentPath.includes('/police/')) {
-    apiEndpoints = { department: '/api/Police/departments', personnel: '/api/Police/policemen' };
+    apiEndpoints = { department: '/api/Police/departments', personnel: '/api/Police/policemen', vehicles: '/api/Police/cars', driverKey: 'policemanId' };
     moduleConfig = { roleKey: "rank", foreignKeyDept: "pDepartmentId", licenseLabel: "badgeNumber", lastNameKey: "lastname", accountIdKey: "policeAccountId", badgeColor: "badge-primary", hierarchy: { "Admin": 100, "Inspektor": 3, "Komendant": 2, "Policjant": 1 }, hasRegion: true };
 } else if (currentPath.includes('/fire/')) {
-    apiEndpoints = { department: '/api/Fire/departments', personnel: '/api/Fire/firemen' };
+    apiEndpoints = { department: '/api/Fire/departments', personnel: '/api/Fire/firemen', vehicles: '/api/Fire/firetrucks', driverKey: 'firemanId' };
     moduleConfig = { roleKey: "rank", foreignKeyDept: "fDepartmentId", licenseLabel: "badgeNumber", lastNameKey: "lastname", accountIdKey: "fireAccountId", badgeColor: "badge-danger", hierarchy: { "Admin": 100, "Naczelnik": 3, "Kapitan": 2, "Strazak": 1 }, hasRegion: true };
 }
 
@@ -321,7 +321,7 @@ document.getElementById('addPersonnelForm')?.addEventListener('submit', async fu
             await loadPersonnel();
         } else {
             const errorData = await res.json().catch(() => ({}));
-            const errorMessage = errorData.message || "Błąd rejestracji – sprawdź poprawność danych (email, imię, nazwisko).";
+            const errorMessage = errorData.message || "Błąd rejestracji - sprawdź poprawność danych (email, imię, nazwisko).";
             alert("Błąd: " + errorMessage);
             
             if (btnSubmit) btnSubmit.disabled = false;
@@ -332,12 +332,34 @@ document.getElementById('addPersonnelForm')?.addEventListener('submit', async fu
     }
 });
 
+function getVehicleDriverId(vehicle, driverKey) {
+    if (!vehicle || !driverKey) return null;
+    const pascalKey = driverKey.charAt(0).toUpperCase() + driverKey.slice(1);
+    return vehicle[driverKey] ?? vehicle[pascalKey] ?? null;
+}
+
 globalThis.deletePersonnel = async function (id) {
     if (!confirm("Czy na pewno chcesz zwolnić tego pracownika? Zostanie on usunięty z systemu.")) return;
+    const blockedMsg = "Nie można zwolnić pracownika - jest przypisany jako kierowca pojazdu. Najpierw usuń pojazd lub edytuj pojazd i odłącz kierowcę.";
     try {
+        if (apiEndpoints.vehicles && apiEndpoints.driverKey) {
+            const vehRes = await fetch(apiEndpoints.vehicles, { headers: { 'Authorization': 'Bearer ' + token } });
+            if (vehRes.ok) {
+                const vehicles = await vehRes.json();
+                const isDriver = Array.isArray(vehicles) && vehicles.some(v => String(getVehicleDriverId(v, apiEndpoints.driverKey)) === String(id));
+                if (isDriver) {
+                    alert(blockedMsg);
+                    return;
+                }
+            }
+        }
         const res = await fetch(`${apiEndpoints.personnel}/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
-        if (res.ok) await loadPersonnel();
-        else alert("Błąd usuwania.");
+        if (res.ok) {
+            await loadPersonnel();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert(err.message || "Błąd usuwania.");
+        }
     } catch (e) {
         alert("Błąd sieci.");
     }

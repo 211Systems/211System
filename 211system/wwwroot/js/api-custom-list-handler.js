@@ -12,7 +12,7 @@ window.setupCustomList = async function (config, tokenOverride) {
 
     const token = tokenOverride || localStorage.getItem('jwt');
     if (!token) {
-        tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-danger text-center font-weight-bold">Brak tokenu — zaloguj się ponownie.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="${config.colspan || 5}" class="text-danger text-center font-weight-bold">Brak tokenu - zaloguj się ponownie.</td></tr>`;
         return;
     }
 

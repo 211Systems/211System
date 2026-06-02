@@ -79,8 +79,15 @@ namespace _211system.Controllers
         [HttpDelete("firemen/{id}")]
         public async Task<IActionResult> DeleteFireman(Guid id)
         {
-            await _fireService.DeleteFiremanAsync(id);
-            return Ok(new { message = "Zwolniono strażaka." });
+            try
+            {
+                await _fireService.DeleteFiremanAsync(id);
+                return Ok(new { message = "Zwolniono strażaka." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [Authorize(Roles = "Kapitan, Admin")]
@@ -133,8 +140,15 @@ namespace _211system.Controllers
         [HttpDelete("firetrucks/{id}")]
         public async Task<IActionResult> DeleteFireTruck(Guid id)
         {
-            await _fireService.DeleteFireTruckAsync(id);
-            return Ok(new { message = "Usunięto wóz strażacki." });
+            try
+            {
+                await _fireService.DeleteFireTruckAsync(id);
+                return Ok(new { message = "Usunięto wóz strażacki." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPut("firetrucks/{truckId}/assign/{incidentId}")]

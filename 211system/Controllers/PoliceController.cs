@@ -76,8 +76,15 @@ namespace _211system.Controllers
         [HttpDelete("policemen/{id}")]
         public async Task<IActionResult> DeletePoliceman(Guid id)
         {
-            await _policeService.DeletePolicemanAsync(id);
-            return Ok(new { message = "Zwolniono policjanta." });
+            try
+            {
+                await _policeService.DeletePolicemanAsync(id);
+                return Ok(new { message = "Zwolniono policjanta." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [Authorize(Roles = "Komendant, Admin")]
@@ -145,11 +152,15 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Komendant, Inspektor")]
         public async Task<IActionResult> DeleteCar(Guid id)
         {
-            var car = await _context.PoliceCars.FindAsync(id);
-            if (car == null) return NotFound();
-            _context.PoliceCars.Remove(car);
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Usunięto radiowóz." });
+            try
+            {
+                await _policeService.DeletePoliceCarAsync(id);
+                return Ok(new { message = "Usunięto radiowóz." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
         [HttpGet("operations")]
         [Authorize(Roles = "Admin, Komendant, Inspektor, Policjant, Admin112, Dyspozytor112")]

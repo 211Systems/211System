@@ -78,28 +78,19 @@ namespace _211system.Models.Services
         public async Task DeletePolicemanAsync(Guid id)
         {
             var policeman = await _context.Policemen.FindAsync(id);
-            if (policeman != null)
-            {
-                var operations = await _context.PoliceOperations.Where(o => o.PolicemanId == id).ToListAsync();
-                if (operations.Any())
-                {
-                    _context.PoliceOperations.RemoveRange(operations);
-                }
+            if (policeman == null)
+                return;
 
-                var cars = await _context.PoliceCars.Where(c => c.PolicemanId == id).ToListAsync();
-                foreach (var car in cars)
-                {
-                    car.PolicemanId = null;
-                    if (car.CurrentIncidentId.HasValue)
-                    {
-                        car.IsAvailable = true;
-                        car.CurrentIncidentId = null;
-                    }
-                }
+            if (await _context.PoliceCars.AnyAsync(c => c.PolicemanId == id))
+                throw new InvalidOperationException(
+                    "Nie można zwolnić policjanta - jest przypisany jako kierowca radiowozu. Najpierw usuń radiowóz lub edytuj radiowóz i odłącz kierowcę.");
 
-                _context.Policemen.Remove(policeman);
-                await _context.SaveChangesAsync();
-            }
+            var operations = await _context.PoliceOperations.Where(o => o.PolicemanId == id).ToListAsync();
+            if (operations.Any())
+                _context.PoliceOperations.RemoveRange(operations);
+
+            _context.Policemen.Remove(policeman);
+            await _context.SaveChangesAsync();
         }
 
         public async Task<PoliceCar> CreatePoliceCarAsync(CreatePoliceCarDto dto)
@@ -300,6 +291,10 @@ namespace _211system.Models.Services
         public async Task DeletePoliceCarAsync(Guid id)
         {
             var car = await _context.PoliceCars.FindAsync(id);
+            if (car == null) return;
+
+            if (!car.IsAvailable || car.CurrentIncidentId.HasValue)
+                throw new InvalidOperationException("Nie można wyrejestrować pojazdu - jest w akcji. Najpierw zakończ operację lub zwolnij pojazd z zgłoszenia.");
             if (car != null)
             {
                 if (car.CurrentIncidentId.HasValue && car.PolicemanId.HasValue)
