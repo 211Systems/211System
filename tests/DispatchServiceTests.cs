@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Xunit;
 using _211system.Data;
 using _211system.DTOs;
+using _211system.Models;
 using _211system.Services;
 using Police;
 using FireDepartment;
@@ -19,7 +20,6 @@ namespace _211system.Tests
                 .Options;
             return new _211DbContext(options);
         }
-
 
         [Fact]
         public async Task StartPolice_WhenUnitIsAvailable_ShouldCreateOperation()
@@ -88,7 +88,6 @@ namespace _211system.Tests
             Assert.Equal("Ta operacja już się zakończyła.", exception.Message);
         }
 
-
         [Fact]
         public async Task StartFire_WhenUnitIsAvailable_ShouldCreateOperation()
         {
@@ -152,6 +151,72 @@ namespace _211system.Tests
 
             var exception = await Assert.ThrowsAsync<Exception>(() => service.EndFireOperationAsync(operationId));
             Assert.Equal("Ta operacja już się zakończyła.", exception.Message);
+        }
+
+        [Fact]
+        public async Task StartPoliceOperationAsync_WhenCarHasNoPoliceman_StillWorks()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new DispatchService(context);
+
+            var deptId = Guid.NewGuid();
+            var incidentId = Guid.NewGuid();
+
+            context.PoliceDepartments.Add(new PDepartment
+            {
+                PDepartmentId = deptId,
+                Name = "KPP",
+                Address = "Adres",
+                District = "Centrum"
+            });
+
+            context.PoliceCars.Add(new PoliceCar
+            {
+                Id = Guid.NewGuid(),
+                LicensePlate = "WA AI",
+                PDepartmentId = deptId,
+                PolicemanId = null,
+                PoliceEquipmentId = Guid.NewGuid(),
+                IsAvailable = false,
+                CurrentIncidentId = incidentId,
+                Latitude = 52.0,
+                Longitude = 21.0
+            });
+            await context.SaveChangesAsync();
+
+            var opId = await service.StartPoliceOperationAsync(new StartPoliceOperationDto
+            {
+                PDepartmentId = deptId,
+                IncidentId = incidentId
+            });
+
+            var operation = await context.PoliceOperations.FindAsync(opId);
+            Assert.NotNull(operation);
+            Assert.Null(operation.PolicemanId);
+            Assert.Equal(incidentId, operation.IncidentId);
+            Assert.Null(operation.EndTime);
+        }
+
+        [Fact]
+        public async Task EndPoliceOperationAsync_WhenAlreadyEnded_IdempotentOrThrows()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new DispatchService(context);
+            var operationId = Guid.NewGuid();
+
+            context.PoliceOperations.Add(new PoliceOperation
+            {
+                Id = operationId,
+                PDepartmentId = Guid.NewGuid(),
+                IncidentId = Guid.NewGuid(),
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                EndTime = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+
+            var ex = await Assert.ThrowsAsync<Exception>(() => service.EndPoliceOperationAsync(operationId));
+
+            Assert.Equal("Ta operacja już się zakończyła.", ex.Message);
         }
     }
 }

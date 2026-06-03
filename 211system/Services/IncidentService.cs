@@ -19,6 +19,8 @@ namespace _211system.Services
         public async Task<IncidentDto> CreateIncidentAsync(CreateIncidentDto dto)
         {
             var now = DateTime.UtcNow;
+            if (!await _context.IncidentTypes.AnyAsync(t => t.Id == dto.IncidentTypeId))
+                throw new ArgumentException("Nieprawidłowy typ zgłoszenia.");
 
             var todayIncidentsCount = await _context.Incidents
                 .Where(i => i.ReportDate.Date == now.Date)
