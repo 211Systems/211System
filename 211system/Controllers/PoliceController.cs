@@ -313,21 +313,24 @@ namespace _211system.Controllers
             var dept = await _context.PoliceDepartments.FindAsync(id);
             if (dept == null) return NotFound(new { message = "Nie znaleziono placówki." });
 
+            var hasDependencies = await _context.Policemen.AnyAsync(p => p.PDepartmentId == id)
+                || await _context.PoliceCars.AnyAsync(c => c.PDepartmentId == id);
+
+            if (hasDependencies)
+            {
+                return BadRequest(new { message = "Nie można usunąć placówki. Najpierw usuń lub przenieś przypisanych do niej funkcjonariuszy oraz sprzęt (radiowozy)." });
+            }
+
             try
             {
                 _context.PoliceDepartments.Remove(dept);
                 await _context.SaveChangesAsync();
-                
+
                 return Ok(new { message = "Usunięto placówkę pomyślnie." });
             }
             catch (DbUpdateException)
             {
-
                 return BadRequest(new { message = "Nie można usunąć placówki. Najpierw usuń lub przenieś przypisanych do niej funkcjonariuszy oraz sprzęt (radiowozy)." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
             }
         }
 

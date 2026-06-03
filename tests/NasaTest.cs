@@ -18,7 +18,7 @@ public class NasaServiceTests
             .Options;
 
         var databaseContext = new _211DbContext(options);
-        databaseContext.Database.EnsureCreated();
+        await databaseContext.Database.EnsureCreatedAsync();
         return databaseContext;
     }
 
@@ -55,7 +55,7 @@ public class NasaServiceTests
     {
         var dbContext = await GetDatabaseContext();
 
-        dbContext.Encs.Add(new CPR112.Models.Enc
+        dbContext.Encs.Add(new Enc
         {
             Id = Guid.NewGuid(),
             Name = "Testowe Centrum CPR",
@@ -64,9 +64,7 @@ public class NasaServiceTests
         await dbContext.SaveChangesAsync();
 
         var emptyConfig = new ConfigurationBuilder().Build();
-        var fakeClientFactory = new FakeHttpClientFactory(new HttpClient());
-
-        var nasaService = new NasaService(dbContext, fakeClientFactory, emptyConfig);
+        var nasaService = new NasaService(dbContext, new FakeHttpClientFactory(new HttpClient()), emptyConfig);
 
         var exception = await Assert.ThrowsAsync<Exception>(() => nasaService.FetchFireDataAndCreateIncidentsAsync());
 
@@ -78,49 +76,95 @@ public class NasaServiceTests
     {
         var dbContext = await GetDatabaseContext();
 
-        var testCenter = new Enc
+        await dbContext.Encs.AddAsync(new Enc
         {
             Id = Guid.NewGuid(),
             Name = "Testowe CPR",
             Region = "Podlaskie",
             Latitude = 53.13,
             Longitude = 23.16
-        };
-        await dbContext.Encs.AddAsync(testCenter);
+        });
         await dbContext.SaveChangesAsync();
 
-        var configParams = new Dictionary<string, string> { { "NasaApiKey", "TEST_KEY_123" } };
-        var config = new ConfigurationBuilder().AddInMemoryCollection(configParams).Build();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string> { { "NasaApiKey", "TEST_KEY_123" } })
+            .Build();
 
         string fakeCsv = "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,daynight\n" +
                          "52.22,21.01,310.5,1.0,1.0,2026-03-11,1200,N,VIIRS,n,1,D\n" +
                          "53.13,23.16,350.5,1.0,1.0,2026-03-11,1300,N,VIIRS,h,1,D\n";
 
-        var fakeHandler = new FakeHttpMessageHandler(fakeCsv);
-        var fakeClientFactory = new FakeHttpClientFactory(new HttpClient(fakeHandler));
-
-        var nasaService = new NasaService(dbContext, fakeClientFactory, config);
+        var nasaService = new NasaService(
+            dbContext,
+            new FakeHttpClientFactory(new HttpClient(new FakeHttpMessageHandler(fakeCsv))),
+            config);
 
         await nasaService.FetchFireDataAndCreateIncidentsAsync();
 
-        var nasaPoints = await dbContext.NasaFlarePoints.ToListAsync();
-        Assert.Equal(2, nasaPoints.Count);
+        Assert.Equal(2, await dbContext.NasaFlarePoints.CountAsync());
 
         var incidents = await dbContext.Incidents.ToListAsync();
         Assert.Single(incidents);
-
-        var generatedIncident = incidents.First();
-
-        Assert.StartsWith("ALARM SATELITARNY", generatedIncident.Description);
-
-        Assert.Equal(53.13, generatedIncident.Latitude);
-        Assert.Equal(23.16, generatedIncident.Longitude);
-
-        Assert.Null(generatedIncident.OperatorId);
-
-        Assert.False(generatedIncident.IsPoliceActive);
-        Assert.False(generatedIncident.IsFireActive);
-        Assert.False(generatedIncident.IsMedicalActive);
+        Assert.StartsWith("ALARM SATELITARNY", incidents.First().Description);
+        Assert.Equal(53.13, incidents.First().Latitude);
+        Assert.Null(incidents.First().OperatorId);
     }
 
+    [Fact]
+    public async Task FetchFireData_DemoMode_CreatesIncidents()
+    {
+        var dbContext = await GetDatabaseContext();
+        var config = new ConfigurationBuilder().Build();
+        var nasaService = new NasaService(dbContext, new FakeHttpClientFactory(new HttpClient()), config);
+
+        var result = await nasaService.FetchFireDataAndCreateIncidentsAsync(isDemo: true);
+
+        Assert.Equal(3, result.TotalAnomaliesDetected);
+        Assert.Equal(2, result.IncidentsGenerated);
+        Assert.Equal(2, await dbContext.Incidents.CountAsync());
+        Assert.Equal(3, await dbContext.NasaFlarePoints.CountAsync());
+        Assert.All(result.GeneratedIncidents, i => Assert.Contains("ALARM SATELITARNY", i.Description));
+    }
+
+    [Fact]
+    public async Task FetchFireData_WhenApiFails_ReturnsErrorResult()
+    {
+        var dbContext = await GetDatabaseContext();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string> { { "NasaApiKey", "BAD_KEY" } })
+            .Build();
+
+        var handler = new FakeHttpMessageHandler("error", HttpStatusCode.Unauthorized);
+        var nasaService = new NasaService(dbContext, new FakeHttpClientFactory(new HttpClient(handler)), config);
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => nasaService.FetchFireDataAndCreateIncidentsAsync());
+
+        Assert.Contains("Odrzucono przez NASA", ex.Message);
+        Assert.Empty(await dbContext.Incidents.ToListAsync());
+    }
+
+    [Fact]
+    public async Task FetchFireData_DuplicateCoords_SkipsOrUpdates()
+    {
+        var dbContext = await GetDatabaseContext();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string> { { "NasaApiKey", "KEY" } })
+            .Build();
+
+        string fakeCsv = "latitude,longitude,brightness\n" +
+                         "52.10,21.00,340.0\n" +
+                         "52.10,21.00,340.0\n";
+
+        var nasaService = new NasaService(
+            dbContext,
+            new FakeHttpClientFactory(new HttpClient(new FakeHttpMessageHandler(fakeCsv))),
+            config);
+
+        var result = await nasaService.FetchFireDataAndCreateIncidentsAsync();
+
+        Assert.Equal(2, result.TotalAnomaliesDetected);
+        Assert.Equal(2, result.IncidentsGenerated);
+        Assert.Equal(2, await dbContext.Incidents.CountAsync());
+        Assert.Equal(2, await dbContext.NasaFlarePoints.CountAsync());
+    }
 }

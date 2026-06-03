@@ -21,7 +21,6 @@ namespace _211system.Tests
 
             var context = new _211DbContext(options);
 
-            // Wypełnienie słowników dla bazy InMemory, żeby relacje zadziałały
             if (!context.SeverityLevels.Any())
             {
                 context.SeverityLevels.AddRange(
@@ -113,7 +112,6 @@ namespace _211system.Tests
             var dto = new ChangeIncidentStatusDto
             {
                 NewStatus = "W toku",
-
                 NewSeverityLevelId = 3
             };
 
@@ -191,6 +189,99 @@ namespace _211system.Tests
             Assert.Null(exception);
             var updated = await context.Incidents.FindAsync(incidentId);
             Assert.Equal("http://azure.com/newphoto.jpg", updated.PhotoUrl);
+        }
+
+        [Fact]
+        public async Task CreateIncidentAsync_InvalidIncidentType_Throws()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new IncidentService(context);
+            var dto = new CreateIncidentDto
+            {
+                Description = "Test",
+                SeverityLevelId = 1,
+                IncidentTypeId = 999,
+                Latitude = "52.0",
+                Longitude = "21.0"
+            };
+
+            await Assert.ThrowsAsync<ArgumentException>(() => service.CreateIncidentAsync(dto));
+        }
+
+        [Fact]
+        public async Task GetIncidentByIdAsync_NotFound_Throws()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new IncidentService(context);
+
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                service.GetIncidentByIdAsync(Guid.NewGuid()));
+        }
+
+        [Fact]
+        public async Task ChangeIncidentStatusAsync_WritesStatusHistory()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new IncidentService(context);
+            var incidentId = Guid.NewGuid();
+            var operatorId = Guid.NewGuid();
+
+            context.Incidents.Add(new Incident
+            {
+                Id = incidentId,
+                IncidentNumber = "112/1",
+                Description = "Historia",
+                Status = "Nowe",
+                SeverityLevelId = 1,
+                IncidentTypeId = 1,
+                ReportDate = DateTime.UtcNow,
+                Latitude = 52.0,
+                Longitude = 21.0
+            });
+            await context.SaveChangesAsync();
+
+            await service.ChangeIncidentStatusAsync(incidentId, operatorId, new ChangeIncidentStatusDto
+            {
+                NewStatus = "W toku",
+                NewSeverityLevelId = 2
+            });
+
+            var history = await context.IncidentStatusHistories.FirstAsync(h => h.IncidentId == incidentId);
+            Assert.Equal("Nowe", history.OldStatus);
+            Assert.Equal("W toku", history.NewStatus);
+            Assert.Equal(operatorId, history.OperatorId);
+        }
+
+        [Fact]
+        public async Task ChangeIncidentStatusAsync_ToClosed_UpdatesIncident()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new IncidentService(context);
+            var incidentId = Guid.NewGuid();
+
+            context.Incidents.Add(new Incident
+            {
+                Id = incidentId,
+                IncidentNumber = "112/2",
+                Description = "Zamkniecie",
+                Status = "W toku",
+                SeverityLevelId = 2,
+                IncidentTypeId = 1,
+                ReportDate = DateTime.UtcNow,
+                Latitude = 52.0,
+                Longitude = 21.0
+            });
+            await context.SaveChangesAsync();
+
+            await service.ChangeIncidentStatusAsync(incidentId, Guid.NewGuid(), new ChangeIncidentStatusDto
+            {
+                NewStatus = "Zakończone",
+                NewSeverityLevelId = 1
+            });
+
+            var updated = await context.Incidents.FindAsync(incidentId);
+            Assert.Equal("Zakończone", updated.Status);
+            Assert.Equal(1, updated.SeverityLevelId);
         }
     }
 }
