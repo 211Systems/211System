@@ -850,6 +850,12 @@ namespace _211system.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("double precision");
 
+                    b.Property<Guid?>("PilotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PilotName")
+                        .HasColumnType("text");
+
                     b.Property<int>("ServiceType")
                         .HasColumnType("integer");
 

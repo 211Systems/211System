@@ -1,12 +1,9 @@
 ﻿let currentRouteLayer = null;
 window.activeSimulations = {};
 window.vehicleMarkers = {};
-// Mapa: id pojazdu -> id zgłoszenia (do obsługi decyzji na miejscu w bieżącej sesji)
 window.vehicleIncidentMap = window.vehicleIncidentMap || {};
-// Cache danych operacyjnych (placówki + pojazdy) wykorzystywany przez logikę transportu
 window.dispatchData = window.dispatchData || { hospitals: [], polDepts: [], fireDepts: [], airbases: [], vehicles: {} };
 
-// Numeryczne kody statusu zgodne z enumem VehicleOperationalStatus na backendzie
 window.VEH_STATUS = {
     InBase: 0,
     EnRoute: 1,
@@ -320,12 +317,6 @@ window.startVehicleSimulation = async function (vehicleId, serviceType, startLat
     } catch (e) { console.error("Błąd OSRM:", e); }
 };
 
-// ============================================================================
-//  SILNIK PRZEJAZDÓW WIELOETAPOWYCH (dojazd -> transport -> powrót)
-// ============================================================================
-
-// Buduje listę punktów [lat,lng] trasy. Dla lotnictwa - linia prosta,
-// dla pojazdów - trasa drogowa z OSRM (z awaryjnym fallbackiem do linii prostej).
 window.buildRoutePath = async function (serviceType, sLat, sLng, eLat, eLng) {
     const straightLine = (steps) => {
         const arr = [];
@@ -349,11 +340,9 @@ window.buildRoutePath = async function (serviceType, sLat, sLng, eLat, eLng) {
     } catch (e) {
         console.warn("OSRM niedostępny - przejazd po linii prostej:", e);
     }
-    // Fallback: jednostka i tak dojedzie (brak zawieszenia symulacji).
     return straightLine(20);
 };
 
-// Animuje marker pojazdu wzdłuż gotowej trasy. Zwraca Promise rozwiązany po dojeździe.
 window.animateUnitAlongPath = function (vehicleId, serviceType, coords, statusCode, color) {
     return new Promise((resolve) => {
         if (!coords || coords.length === 0) { resolve(null); return; }
@@ -395,13 +384,11 @@ window.animateUnitAlongPath = function (vehicleId, serviceType, coords, statusCo
     });
 };
 
-// Pojedynczy etap przejazdu (zbudowanie trasy + animacja).
 window.simulateLeg = async function (vehicleId, serviceType, sLat, sLng, eLat, eLng, statusCode, color) {
     const coords = await window.buildRoutePath(serviceType, sLat, sLng, eLat, eLng);
     return await window.animateUnitAlongPath(vehicleId, serviceType, coords, statusCode, color);
 };
 
-// Zwalnia jednostkę na backendzie (to automatycznie zamyka zgłoszenie, jeśli żadna inna służba nie jest aktywna).
 window.freeUnit = async function (vehicleId, serviceType) {
     let url = '';
     if (serviceType === 'medic') url = `/api/Medical/ambulances/${vehicleId}/free`;
@@ -416,7 +403,6 @@ window.freeUnit = async function (vehicleId, serviceType) {
     }
 };
 
-// Ustala współrzędne bazy macierzystej pojazdu (szpital / komenda / remiza / baza lotnicza).
 window.getUnitBase = function (serviceType, vehicleId) {
     const data = window.dispatchData || {};
     const v = (data.vehicles || {})[vehicleId];
@@ -444,7 +430,6 @@ window.getUnitBase = function (serviceType, vehicleId) {
     };
 };
 
-// Finalizuje interwencję: zwalnia jednostkę (zamyka zgłoszenie), ustawia status "w bazie" i odświeża widok.
 window.completeReturn = async function (vehicleId, serviceType, baseLat, baseLng) {
     await window.freeUnit(vehicleId, serviceType);
     if (baseLat && baseLng) {
@@ -455,9 +440,6 @@ window.completeReturn = async function (vehicleId, serviceType, baseLat, baseLng
     if (typeof window.refreshAll === 'function') await window.refreshAll();
 };
 
-// ----------------------------------------------------------------------------
-//  OKNO DECYZJI NA MIEJSCU ZDARZENIA
-// ----------------------------------------------------------------------------
 
 window.ensureOnSceneModal = function () {
     if (document.getElementById('onSceneModal')) return;
@@ -483,8 +465,6 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
     window._onSceneCtx = { vehicleId, serviceType, incidentId, atLat, atLng };
     window._onSceneActionTaken = false;
 
-    // Zamknięcie okna bez decyzji (Anuluj/X) zwalnia blokadę, by marker znów
-    // pokazał przycisk "Działania na miejscu" i dyspozytor mógł wrócić do decyzji.
     $('#onSceneModal').off('hidden.bs.modal.onscene').on('hidden.bs.modal.onscene', function () {
         if (!window._onSceneActionTaken) {
             delete window.activeSimulations[vehicleId];
@@ -492,7 +472,6 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
         }
     });
 
-    // Upewnij się, że mamy listy placówek (gdyby updateCounters jeszcze nie wypełnił cache).
     if (!window.dispatchData || (window.dispatchData.hospitals || []).length === 0) {
         if (typeof window.updateCounters === 'function') {
             try { await window.updateCounters(); } catch (e) { }
@@ -505,8 +484,20 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
     const footerEl = document.getElementById('onScene-footer');
     const cancelBtn = `<button type="button" class="btn btn-link text-muted" data-dismiss="modal">Anuluj</button>`;
 
-    if (serviceType === 'medic' || serviceType === 'aviation') {
-        titleEl.innerHTML = '<i class="fas fa-ambulance mr-2"></i> Jednostka na miejscu — decyzja';
+    let airSvc = null;
+    if (serviceType === 'aviation') {
+        const unit = (data.vehicles || {})[vehicleId] || {};
+        airSvc = (unit.airServiceType !== undefined && unit.airServiceType !== null) ? Number(unit.airServiceType) : null;
+    }
+
+    const isMedicalDecision = (serviceType === 'medic') || (serviceType === 'aviation' && airSvc === 0);
+    const isPoliceGroundDecision = (serviceType === 'police');
+
+    if (isMedicalDecision) {
+        const isAir = serviceType === 'aviation';
+        titleEl.innerHTML = isAir
+            ? '<i class="fas fa-helicopter mr-2"></i> Śmigłowiec HEMS na miejscu — decyzja'
+            : '<i class="fas fa-ambulance mr-2"></i> Jednostka na miejscu — decyzja';
         const list = (data.hospitals || []);
         const opts = list.map(h => `<option value="${h.id || h.Id}">${h.name || h.Name}</option>`).join('');
         bodyEl.innerHTML = `
@@ -519,7 +510,7 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
             <button type="button" class="btn btn-success font-weight-bold" onclick="window.confirmTransport()"><i class="fas fa-hospital"></i> Transport do szpitala</button>
             <button type="button" class="btn btn-secondary" onclick="window.finishOnScene()">Zakończ bez transportu</button>
             ${cancelBtn}`;
-    } else if (serviceType === 'police') {
+    } else if (isPoliceGroundDecision) {
         titleEl.innerHTML = '<i class="fas fa-car-side mr-2"></i> Radiowóz na miejscu — decyzja';
         const list = (data.polDepts || []);
         const opts = list.map(d => `<option value="${d.id || d.Id}">${d.name || d.Name}</option>`).join('');
@@ -534,9 +525,16 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
             <button type="button" class="btn btn-secondary" onclick="window.finishOnScene()">Zakończ bez przewozu</button>
             ${cancelBtn}`;
     } else {
-        // Straż pożarna — bez transportu osób.
-        titleEl.innerHTML = '<i class="fas fa-fire-extinguisher mr-2"></i> Zastęp na miejscu';
-        bodyEl.innerHTML = `<p>Zastęp PSP zakończył działania na miejscu zdarzenia. Straż nie realizuje transportu osób.</p>`;
+        if (serviceType === 'aviation' && airSvc === 1) {
+            titleEl.innerHTML = '<i class="fas fa-helicopter mr-2"></i> Śmigłowiec policyjny na miejscu';
+            bodyEl.innerHTML = `<p>Załoga zakończyła działania w powietrzu nad miejscem zdarzenia. Lotnictwo policyjne nie realizuje transportu osób — maszyna wraca do bazy.</p>`;
+        } else if (serviceType === 'aviation') {
+            titleEl.innerHTML = '<i class="fas fa-helicopter mr-2"></i> Statek powietrzny na miejscu';
+            bodyEl.innerHTML = `<p>Załoga zakończyła działania nad miejscem zdarzenia. Ta maszyna nie realizuje transportu osób — wraca do bazy.</p>`;
+        } else {
+            titleEl.innerHTML = '<i class="fas fa-fire-extinguisher mr-2"></i> Zastęp na miejscu';
+            bodyEl.innerHTML = `<p>Zastęp PSP zakończył działania na miejscu zdarzenia. Straż nie realizuje transportu osób.</p>`;
+        }
         footerEl.innerHTML = `
             <button type="button" class="btn btn-danger font-weight-bold" onclick="window.finishOnScene()"><i class="fas fa-undo"></i> Zakończ i wróć do bazy</button>
             ${cancelBtn}`;
@@ -545,7 +543,6 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
     $('#onSceneModal').modal('show');
 };
 
-// Transport pacjenta/osoby do wybranej placówki, a następnie powrót do bazy i zamknięcie zgłoszenia.
 window.confirmTransport = async function () {
     const ctx = window._onSceneCtx;
     if (!ctx) return;
@@ -574,23 +571,18 @@ window.confirmTransport = async function () {
     const bLat = base ? base.lat : tLat;
     const bLng = base ? base.lng : tLng;
 
-    // Blokada na cały przejazd, żeby updateCounters nie ingerował w marker.
     window.activeSimulations[vehicleId] = true;
 
     const transportStatus = serviceType === 'police' ? window.VEH_STATUS.Transporting : window.VEH_STATUS.TransportingToHospital;
 
-    // Etap 1: miejsce zdarzenia -> placówka docelowa (transport).
     await window.simulateLeg(vehicleId, serviceType, cur.lat, cur.lng, tLat, tLng, transportStatus, '#f39c12');
     await pingVehicleLocation(vehicleId, serviceType, tLat, tLng, transportStatus);
 
-    // Etap 2: placówka -> baza macierzysta (powrót).
     await window.simulateLeg(vehicleId, serviceType, tLat, tLng, bLat, bLng, window.VEH_STATUS.Returning, '#17a2b8');
 
-    // Powrót do bazy => automatyczne zakończenie interwencji.
     await window.completeReturn(vehicleId, serviceType, bLat, bLng);
 };
 
-// Zakończenie działań bez transportu: powrót do bazy i zamknięcie zgłoszenia.
 window.finishOnScene = async function () {
     const ctx = window._onSceneCtx;
     if (!ctx) return;
@@ -652,10 +644,9 @@ window.updateCounters = async function () {
             ...p.map(v => ({ ...v, serviceType: 'police' })),
             ...f.map(v => ({ ...v, serviceType: 'fire' })),
             ...m.map(v => ({ ...v, serviceType: 'medic' })),
-            ...air.map(v => ({ ...v, serviceType: 'aviation' }))
+            ...air.map(v => ({ ...v, airServiceType: (v.serviceType !== undefined ? v.serviceType : v.ServiceType), serviceType: 'aviation' }))
         ];
 
-        // Cache danych operacyjnych dla logiki transportu / powrotu do bazy.
         window.dispatchData = { hospitals, polDepts, fireDepts, airbases, vehicles: {} };
         allVehicles.forEach(v => {
             const vid = v.id || v.Id;
@@ -677,7 +668,6 @@ window.updateCounters = async function () {
                     const plate = v.licensePlate || v.LicensePlate || v.callsign || v.Callsign;
 
                     let popupHtml = `<b>${plate}</b><br>Status: ${statusText}`;
-                    // Jednostka dotarła na miejsce (OnScene) i czeka na decyzję dyspozytora.
                     if (!isAvail && currentStatus === window.VEH_STATUS.OnScene) {
                         const incId = window.vehicleIncidentMap[id] || '';
                         popupHtml += `<br><button class="btn btn-sm btn-warning mt-2" onclick="window.openOnSceneModal('${id}','${v.serviceType}','${incId}', ${lat}, ${lng})"><i class="fas fa-hand-paper"></i> Działania na miejscu</button>`;
@@ -1120,7 +1110,7 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append('Latitude', latVal);
         formData.append('Longitude', lngVal);
 
-        if (window.currentOperatorId) formData.append('OperatorId', window.currentOperatorId);
+        //if (window.currentOperatorId) formData.append('OperatorId', window.currentOperatorId);
 
         const fileInput = document.getElementById('incPhoto');
         if (fileInput && fileInput.files[0]) formData.append('photo', fileInput.files[0]);
@@ -1152,9 +1142,9 @@ document.addEventListener("DOMContentLoaded", function () {
         fd.append('NewStatus', document.getElementById('editIncidentStatus').value);
         fd.append('NewSeverityLevelId', document.getElementById('editIncidentPriority').value);
 
-        if (window.currentOperatorId) {
-            fd.append('OperatorId', window.currentOperatorId);
-        }
+        //if (window.currentOperatorId) {
+        //    fd.append('OperatorId', window.currentOperatorId);
+        //}
 
         const fi = document.getElementById('editIncPhoto');
         if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);

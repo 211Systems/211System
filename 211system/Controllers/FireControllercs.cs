@@ -35,7 +35,7 @@ namespace _211system.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Kapitan, Naczelnik, strazak, Admin")]
+        [Authorize(Roles = "Kapitan, Naczelnik, Strazak, Admin")]
         [HttpGet("departments")]
         public async Task<IActionResult> GetAllDepartments()
         {
@@ -67,7 +67,7 @@ namespace _211system.Controllers
             }
         }
 
-        [Authorize(Roles = "Kapitan, Naczelnik, strazak, Admin")]
+        [Authorize(Roles = "Kapitan, Naczelnik, Strazak, Admin")]
         [HttpGet("firemen")]
         public async Task<IActionResult> GetAllFiremen()
         {
@@ -109,7 +109,7 @@ namespace _211system.Controllers
             }
         }
 
-        [Authorize(Roles = "Kapitan, Naczelnik, strazak, Admin, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Kapitan, Naczelnik, Strazak, Admin, Admin112, Dyspozytor112")]
         [HttpGet("firetrucks")]
         public async Task<IActionResult> GetAllFireTrucks()
         {
@@ -311,6 +311,8 @@ namespace _211system.Controllers
                     incidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
                     status = i.Status,
                     address = i.Latitude != 0 && i.Longitude != 0 ? $"GPS: {i.Latitude}, {i.Longitude}" : "Nieznana",
+                    latitude = i.Latitude,
+                    longitude = i.Longitude,
                     reportDate = i.ReportDate
                 })
                 .FirstOrDefaultAsync();
@@ -346,7 +348,7 @@ namespace _211system.Controllers
             {
                 _context.FireDepartments.Remove(dept);
                 await _context.SaveChangesAsync();
-                
+
                 return Ok(new { message = "Usunięto remizę strażacką." });
             }
             catch (DbUpdateException)
@@ -402,7 +404,7 @@ namespace _211system.Controllers
         }
 
         [HttpPut("firetrucks/{id}/location")]
-        [Authorize(Roles = "Admin, Komendant, Inspektor, Strazak, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Naczelnik, Kapitan, Strazak, Admin112, Dyspozytor112")]
         public async Task<IActionResult> UpdateFireTruckLocation(Guid id, [FromBody] UpdateLocationDto dto)
         {
             try

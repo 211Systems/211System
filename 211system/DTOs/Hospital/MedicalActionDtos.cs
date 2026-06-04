@@ -10,7 +10,7 @@ namespace _211system.DTOs.Hospital
         public bool HasHelipad { get; set; }
     }
 
-public class UpdateAmbulanceDto
+    public class UpdateAmbulanceDto
     {
         public string LicensePlate { get; set; }
         public AmbulanceType Type { get; set; }
@@ -55,5 +55,7 @@ public class UpdateAmbulanceDto
         public DateTime ReportDate { get; set; }
         public string Address { get; set; }
         public string IncidentType { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
     }
 }

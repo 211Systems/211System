@@ -12,6 +12,7 @@ namespace _211system.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Admin, Admin112, Dyspozytor112, Naczelnik, Kapitan, Komendant, Inspektor, Kierownik Szpitala")]
 public class ReportsController : Controller
 {
     private readonly IPdfReportService _pdfReportService;
@@ -63,7 +64,7 @@ public class ReportsController : Controller
             var policeOps = await _context.PoliceOperations.Include(po => po.Policeman).Where(po => incidentIds.Contains(po.IncidentId)).ToListAsync();
             var fireOps = await _context.FireOperations.Include(fo => fo.Fireman).Where(fo => incidentIds.Contains(fo.IncidentId)).ToListAsync();
             var medicalOps = await _context.MedicalOperations.Include(mo => mo.Paramedic).Where(mo => incidentIds.Contains(mo.ReportId)).ToListAsync();
-            
+
             var aviationOps = await _context.AviationOperations
                 .Include(ao => ao.AirUnit)
                 .Where(ao => ao.IncidentId.HasValue && incidentIds.Contains(ao.IncidentId.Value))
@@ -83,19 +84,20 @@ public class ReportsController : Controller
 
                 if (pOps.Any())
                     servicesList.Add("<b>POL:</b> " + string.Join(", ", pOps.Select(po => $"{po.Policeman.Name} {po.Policeman.Lastname} (Radiowóz: {policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})")));
-                
+
                 if (fOps.Any())
                     servicesList.Add("<b>PSP:</b> " + string.Join(", ", fOps.Select(fo => $"{fo.Fireman.Name} {fo.Fireman.Lastname} (Wóz: {fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})")));
-                
+
                 if (mOps.Any())
                     servicesList.Add("<b>ZRM:</b> " + string.Join(", ", mOps.Select(mo => $"{mo.Paramedic.Name} {mo.Paramedic.LastName} (Karetka: {ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id)?.LicensePlate ?? "Brak"})")));
-                
+
                 if (aOps.Any())
                     servicesList.Add("<b>LOT:</b> " + string.Join(", ", aOps.Select(ao => $"{ao.AirUnit?.Callsign ?? "Brak"} ({ao.AirUnit?.ServiceType})")));
 
                 string servicesText = servicesList.Any() ? string.Join("<br>", servicesList) : "Brak służb";
 
-                return new {
+                return new
+                {
                     incidentNumber = i.IncidentNumber,
                     date = i.ReportDate.ToString("yyyy-MM-dd HH:mm"),
                     type = i.IncidentType?.Name ?? "Brak",

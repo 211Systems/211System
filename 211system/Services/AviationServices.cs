@@ -76,8 +76,23 @@ namespace _211system.Services
                 Status = (int)u.Status,
                 Latitude = u.Latitude,
                 Longitude = u.Longitude,
-                AirbaseId = u.AirbaseId
+                AirbaseId = u.AirbaseId,
+                CurrentIncidentId = u.CurrentIncidentId,
+                PilotId = u.PilotId,
+                PilotName = u.PilotName
             });
+        }
+
+        public async Task AssignPilotAsync(Guid unitId, Guid? pilotId, string pilotName)
+        {
+            var unit = await _context.AirUnits.FindAsync(unitId);
+            if (unit == null) throw new ArgumentException("Maszyna nie istnieje.");
+
+            unit.PilotId = pilotId;
+            unit.PilotName = pilotId.HasValue ? pilotName : null;
+
+            _context.AirUnits.Update(unit);
+            await _context.SaveChangesAsync();
         }
 
         public async Task AssignAirUnitToIncidentAsync(Guid unitId, Guid incidentId)
@@ -97,7 +112,7 @@ namespace _211system.Services
             }
 
             _context.AirUnits.Update(unit);
- 
+
             var operation = new AviationOperation
             {
                 AirUnitId = unit.Id,

@@ -13,6 +13,7 @@ namespace _211system.Models.Interfaces
         Task AssignAirUnitToIncidentAsync(Guid unitId, Guid incidentId);
         Task FreeUnitAsync(Guid unitId);
         Task DeleteAirUnitAsync(Guid unitId);
+        Task AssignPilotAsync(Guid unitId, Guid? pilotId, string pilotName);
         Task<AirUnit> UpdateAirUnitAsync(Guid unitId, UpdateAirUnitDto dto);
         Task UpdateUnitLocationAsync(Guid unitId, double lat, double lng, int? statusId);
 

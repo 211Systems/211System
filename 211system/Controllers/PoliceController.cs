@@ -168,7 +168,7 @@ namespace _211system.Controllers
         {
             var operations = await _context.PoliceOperations
                 .Include(o => o.Policeman)
-                .Select(o => new 
+                .Select(o => new
                 {
                     Id = o.Id,
                     StartTime = o.StartTime,
@@ -178,7 +178,7 @@ namespace _211system.Controllers
                     PolicemanName = o.Policeman != null ? (o.Policeman.Name + " " + o.Policeman.Lastname) : "Brak Danych"
                 })
                 .ToListAsync();
-                
+
             return Ok(operations);
         }
 
@@ -284,6 +284,8 @@ namespace _211system.Controllers
                     incidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
                     status = i.Status,
                     Address = $"GPS: {i.Latitude}, {i.Longitude}",
+                    latitude = i.Latitude,
+                    longitude = i.Longitude,
                     reportDate = i.ReportDate
                 })
                 .FirstOrDefaultAsync();
@@ -317,7 +319,7 @@ namespace _211system.Controllers
             {
                 _context.PoliceDepartments.Remove(dept);
                 await _context.SaveChangesAsync();
-                
+
                 return Ok(new { message = "Usunięto placówkę pomyślnie." });
             }
             catch (DbUpdateException)

@@ -29,11 +29,20 @@ namespace _211system.Models.Dtos.Aviation
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public Guid AirbaseId { get; set; }
+        public Guid? CurrentIncidentId { get; set; }
+        public Guid? PilotId { get; set; }
+        public string PilotName { get; set; }
     }
     public class UpdateAirUnitDto
     {
         public string Callsign { get; set; }
         public AirUnitType Type { get; set; }
         public Guid AirbaseId { get; set; }
+    }
+
+    public class AssignPilotDto
+    {
+        public Guid? PilotId { get; set; }
+        public string PilotName { get; set; }
     }
 }
