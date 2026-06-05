@@ -850,6 +850,12 @@ namespace _211system.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("double precision");
 
+                    b.Property<Guid?>("PilotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PilotName")
+                        .HasColumnType("text");
+
                     b.Property<int>("ServiceType")
                         .HasColumnType("integer");
 
@@ -1346,6 +1352,33 @@ namespace _211system.Migrations
                             ColorCode = "dark",
                             Name = "Krytyczny"
                         });
+                });
+
+            modelBuilder.Entity("_211system.Models.VehicleCrew", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MemberName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("VehicleType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VehicleCrews");
                 });
 
             modelBuilder.Entity("CPR112.Models.Attachment", b =>

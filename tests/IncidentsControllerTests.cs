@@ -4,12 +4,16 @@ using _211system.DTOs.CPR112;
 using _211system.Models;
 using _211system.Models.Hospital;
 using _211system.Models.Interfaces;
+using _211system.Models.Services;
 using _211system.Services;
 using CPR112.Models;
+using tests;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using System.Collections.Generic;
+using System.Linq;
 using System;
 using System.Linq;
 using System.Security.Claims;
@@ -25,7 +29,9 @@ namespace _211system.Tests
             var options = new DbContextOptionsBuilder<_211DbContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
-            return new _211DbContext(options);
+            var context = new _211DbContext(options);
+            context.Database.EnsureCreated();
+            return context;
         }
 
         private void SeedBaseData(_211DbContext context)
@@ -54,11 +60,13 @@ namespace _211system.Tests
             _211DbContext context,
             Mock<IIncidentService>? serviceMock = null,
             Mock<IBlobStorageService>? blobMock = null,
-            Mock<IWeatherService>? weatherMock = null)
+            Mock<IWeatherService>? weatherMock = null,
+            Mock<IAttachmentService>? attachmentMock = null)
         {
             serviceMock ??= new Mock<IIncidentService>();
             blobMock ??= new Mock<IBlobStorageService>();
             weatherMock ??= new Mock<IWeatherService>();
+            attachmentMock ??= TestServiceMocks.CreateAttachmentService();
 
             blobMock
                 .Setup(b => b.GetSecureFileUrl(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
@@ -68,7 +76,8 @@ namespace _211system.Tests
                 serviceMock.Object,
                 context,
                 blobMock.Object,
-                weatherMock.Object);
+                weatherMock.Object,
+                attachmentMock.Object);
         }
 
         private void SetupControllerUser(IncidentsController controller, string identityId, string role = "Dyspozytor112")
@@ -115,9 +124,139 @@ namespace _211system.Tests
                 .Setup(s => s.CreateIncidentAsync(It.IsAny<CreateIncidentDto>()))
                 .ReturnsAsync(new IncidentDto { Id = Guid.NewGuid(), Description = "Test" });
 
-            var result = await controller.CreateIncident(dto, null);
+            var result = await controller.CreateIncident(dto, null, null);
 
             Assert.IsType<OkObjectResult>(result.Result);
+        }
+
+        [Fact]
+        public async Task CreateIncident_WithTooManyPhotos_ShouldReturnBadRequest()
+        {
+            var context = GetInMemoryDbContext();
+            var controller = CreateController(context);
+            SetupControllerUser(controller, "test-user-id");
+
+            var dto = new CreateIncidentDto
+            {
+                Description = "Test",
+                SeverityLevelId = 3,
+                IncidentTypeId = 1
+            };
+
+            var files = Enumerable.Range(0, 11)
+                .Select(_ => CreateMockFormFile("f.jpg"))
+                .ToList();
+
+            var result = await controller.CreateIncident(dto, null, files);
+
+            Assert.IsType<BadRequestObjectResult>(result.Result);
+        }
+
+        [Fact]
+        public async Task CreateIncident_WithAttachments_ShouldUploadAndSetPhotoUrl()
+        {
+            var context = GetInMemoryDbContext();
+            var incidentId = Guid.NewGuid();
+            var serviceMock = new Mock<IIncidentService>();
+            var attachmentMock = TestServiceMocks.CreateAttachmentService();
+            var blobMock = new Mock<IBlobStorageService>();
+            blobMock.Setup(b => b.GetSecureFileUrl(It.IsAny<string>(), "incidents", It.IsAny<int>()))
+                .Returns("https://secure.test/photo.jpg");
+
+            var controller = CreateController(context, serviceMock, blobMock, null, attachmentMock);
+            SetupControllerUser(controller, "test-user-id");
+
+            serviceMock
+                .Setup(s => s.CreateIncidentAsync(It.IsAny<CreateIncidentDto>()))
+                .ReturnsAsync(new IncidentDto { Id = incidentId, Description = "Z foto" });
+
+            context.Incidents.Add(new Incident
+            {
+                Id = incidentId,
+                IncidentNumber = "ZGL/1",
+                Description = "Z foto",
+                SeverityLevelId = 1,
+                IncidentTypeId = 1,
+                ReportDate = DateTime.UtcNow,
+                Status = "Nowe"
+            });
+            await context.SaveChangesAsync();
+
+            var dto = new CreateIncidentDto
+            {
+                Description = "Z foto",
+                SeverityLevelId = 3,
+                IncidentTypeId = 1
+            };
+
+            var result = await controller.CreateIncident(dto, null, new List<IFormFile> { CreateMockFormFile("zdjecie.jpg") });
+
+            Assert.IsType<OkObjectResult>(result.Result);
+            attachmentMock.Verify(a => a.UploadFileAsync(It.IsAny<IFormFile>(), incidentId), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAllIncidents_ShouldIncludeAttachmentCount()
+        {
+            var context = GetInMemoryDbContext();
+            var incidentId = Guid.NewGuid();
+            context.Incidents.Add(new Incident
+            {
+                Id = incidentId,
+                IncidentNumber = "ZGL/2",
+                Description = "Test",
+                SeverityLevelId = 1,
+                IncidentTypeId = 1,
+                ReportDate = DateTime.UtcNow,
+                Status = "Nowe",
+                Latitude = 52.0,
+                Longitude = 21.0
+            });
+            context.Attachments.Add(new Attachment
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                PathToFile = "https://blob.test/a.jpg",
+                FileName = "a.jpg",
+                ContentType = "image/jpeg",
+                FileSizeBytes = 100,
+                UploadedAt = DateTime.UtcNow
+            });
+            context.Attachments.Add(new Attachment
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                PathToFile = "https://blob.test/b.jpg",
+                FileName = "b.jpg",
+                ContentType = "image/jpeg",
+                FileSizeBytes = 200,
+                UploadedAt = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+            Assert.Equal(1, await context.Incidents.CountAsync());
+            Assert.Equal(2, await context.Attachments.CountAsync());
+
+            var blobMock = new Mock<IBlobStorageService>();
+            blobMock.Setup(b => b.GetSecureFileUrl(It.IsAny<string>(), "incidents", It.IsAny<int>()))
+                .Returns("https://secure.test/file.jpg");
+            var controller = CreateController(context, blobMock: blobMock);
+            SetupControllerUser(controller, "test-user-id");
+
+            var result = await controller.GetAllIncidents();
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var list = Assert.IsAssignableFrom<List<IncidentDto>>(ok.Value);
+            var inc = Assert.Single(list);
+            Assert.Equal(2, inc.AttachmentCount);
+        }
+
+        private static IFormFile CreateMockFormFile(string fileName)
+        {
+            var mock = new Mock<IFormFile>();
+            mock.Setup(f => f.FileName).Returns(fileName);
+            mock.Setup(f => f.Length).Returns(1024);
+            mock.Setup(f => f.ContentType).Returns("image/jpeg");
+            return mock.Object;
         }
 
         [Fact]
@@ -356,7 +495,9 @@ namespace _211system.Tests
 
             var ok = Assert.IsType<OkObjectResult>(result);
             var list = Assert.IsAssignableFrom<System.Collections.IEnumerable>(ok.Value);
-            Assert.Equal(2, list.Cast<object>().Count());
+            // EnsureCreated ładuje 6 typów z HasData w DbContext.
+            Assert.Equal(await context.IncidentTypes.CountAsync(), list.Cast<object>().Count());
+            Assert.True(list.Cast<object>().Count() >= 2);
         }
 
         [Fact]

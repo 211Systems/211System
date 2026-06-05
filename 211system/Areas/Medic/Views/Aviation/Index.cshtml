@@ -37,13 +37,14 @@
                     <th style="width: 5%">#</th>
                     <th style="width: 15%">Callsign (Znak)</th>
                     <th style="width: 15%">Typ Maszyny</th>
-                    <th style="width: 25%">Baza Lotnicza (ICAO)</th>
-                    <th style="width: 15%">Status</th>
-                    <th style="width: 25%" class="text-right">Akcje</th>
+                    <th style="width: 20%">Baza Lotnicza (ICAO)</th>
+                    <th style="width: 10%">Status</th>
+                    <th style="width: 15%">Pilot / Załoga</th>
+                    <th style="width: 20%" class="text-right">Akcje</th>
                 </tr>
             </thead>
             <tbody id="vehicles-table-body">
-                <tr><td colspan="6" class="text-center p-4">Ładowanie danych...</td></tr>
+                <tr><td colspan="7" class="text-center p-4">Ładowanie danych...</td></tr>
             </tbody>
         </table>
     </div>
@@ -122,13 +123,55 @@
     </div>
 </div>
 
+<div class="modal fade" id="assignPilotModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content dark-mode">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-user-tie"></i> Przypisz pilota / dowódcę załogi</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="assignPilotForm">
+                <div class="modal-body">
+                    <input type="hidden" id="assign-unit-id">
+                    <div class="form-group">
+                        <label>Pracownik (załoga)</label>
+                        <select id="assign-pilot-select" class="form-control" required>
+                            <option value="">Wczytywanie listy...</option>
+                        </select>
+                    </div>
+                    <small class="text-muted">Przypisany pracownik loguje się na swoje konto i z poziomu „Akcje / Interwencje” kończy misję lotniczą tej maszyny.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-info text-white">Przypisz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="~/js/auth-handler.js" asp-append-version="true"></script>
+    <script src="~/js/aviation-pilots.js" asp-append-version="true"></script>
+    <script src="~/js/vehicle-crew.js" asp-append-version="true"></script>
 
     <script>
         const currentServiceFilter = @ViewBag.ServiceFilter;
+
+        window.openAirCrewModal = async function (unitId, commanderId) {
+            try {
+                const people = await window.AviationPilots.loadCandidates(currentServiceFilter, jwtToken);
+                const candidates = people.map(p => ({ id: window.AviationPilots.personId(p), name: window.AviationPilots.personLabel(p) }));
+                const commander = candidates.find(c => String(c.id) === String(commanderId));
+                window.VehicleCrew.open({
+                    type: 'air', vehicleId: unitId, candidates,
+                    commanderId, commanderName: commander ? commander.name : null,
+                    onSaved: () => { alert('Obsada maszyny zapisana.'); fetchData(); }
+                });
+            } catch (e) { alert('Nie udało się wczytać listy załogi.'); }
+        };
         const themeColorClass = "text-@ViewBag.ThemeColor";
         let isAviationManager = false;
         let jwtToken = '';
@@ -171,10 +214,10 @@
                     renderTable();
                     drawFleetMap();
                 } else {
-                    document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd pobierania danych.</td></tr>';
+                    document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="7" class="text-danger text-center">Błąd pobierania danych.</td></tr>';
                 }
             } catch (e) {
-                document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="6" class="text-danger text-center">Błąd sieci.</td></tr>';
+                document.getElementById('vehicles-table-body').innerHTML = '<tr><td colspan="7" class="text-danger text-center">Błąd sieci.</td></tr>';
             }
         }
 
@@ -182,7 +225,7 @@
             const tbody = document.getElementById('vehicles-table-body');
             tbody.innerHTML = '';
             if (window.allVehicles.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">Brak maszyn w systemie dla tej służby.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">Brak maszyn w systemie dla tej służby.</td></tr>';
                 return;
             }
 
@@ -197,6 +240,19 @@
                 const isAvailable = (v.isAvailable !== undefined ? v.isAvailable : v.IsAvailable);
                 const statusBadge = isAvailable ? '<span class="badge badge-success">W Bazie</span>' : '<span class="badge badge-warning text-dark">W misji</span>';
 
+                const pilotName = v.pilotName || v.PilotName;
+                const pilotId = v.pilotId || v.PilotId;
+                let pilotCell = pilotName
+                    ? `<span class="badge badge-info"><i class="fas fa-user-tie"></i> ${pilotName}</span>`
+                    : '<span class="text-muted small">Brak pilota</span>';
+                if (isAviationManager) {
+                    pilotCell += `<br><button onclick="openAssignPilotModal('${vId}')" class="btn btn-sm btn-link p-0 ${themeColorClass}" title="Przypisz/zmień pilota"><i class="fas fa-user-plus"></i> ${pilotId ? 'Zmień' : 'Przypisz'}</button>`;
+                    if (pilotId) {
+                        pilotCell += ` <button onclick="unassignPilot('${vId}')" class="btn btn-sm btn-link p-0 text-danger ml-1" title="Odepnij pilota"><i class="fas fa-user-minus"></i></button>`;
+                    }
+                    pilotCell += `<br><button onclick="openAirCrewModal('${vId}','${pilotId || ''}')" class="btn btn-sm btn-link p-0 text-dark" title="Obsada (załoga)"><i class="fas fa-users"></i> Załoga</button>`;
+                }
+
                 let actions = `<button onclick="focusMap(${airbase?.latitude || airbase?.Latitude || 0}, ${airbase?.longitude || airbase?.Longitude || 0})" class="btn btn-sm btn-secondary" title="Pokaż bazę na mapie"><i class="fas fa-map-marker-alt"></i></button>`;
 
                 if (isAviationManager) {
@@ -207,7 +263,7 @@
                     actions += `<button onclick="deleteVehicle('${vId}')" class="btn btn-sm btn-danger ml-1" title="Zezłomuj"><i class="fas fa-trash"></i></button>`;
                 }
 
-                tbody.insertAdjacentHTML('beforeend', `<tr><td>${index + 1}</td><td class="${themeColorClass}"><b>${callsign}</b></td><td>${uType}</td><td>${baseName}</td><td>${statusBadge}</td><td class="text-right" style="white-space:nowrap;">${actions}</td></tr>`);
+                tbody.insertAdjacentHTML('beforeend', `<tr><td>${index + 1}</td><td class="${themeColorClass}"><b>${callsign}</b></td><td>${uType}</td><td>${baseName}</td><td>${statusBadge}</td><td>${pilotCell}</td><td class="text-right" style="white-space:nowrap;">${actions}</td></tr>`);
             });
         }
 
@@ -292,6 +348,44 @@
             if (res.ok) await fetchData();
             else alert("Wystąpił błąd.");
         };
+
+        window.openAssignPilotModal = async function(unitId) {
+            document.getElementById('assign-unit-id').value = unitId;
+            const select = document.getElementById('assign-pilot-select');
+            select.innerHTML = '<option value="">Wczytywanie listy...</option>';
+            $('#assignPilotModal').modal('show');
+            try {
+                const people = await window.AviationPilots.loadCandidates(currentServiceFilter, jwtToken);
+                if (!people.length) {
+                    select.innerHTML = `<option value="">Brak pracowników (${window.AviationPilots.label(currentServiceFilter)})</option>`;
+                    return;
+                }
+                select.innerHTML = '<option value="">-- Wybierz załogę --</option>';
+                people.forEach(p => {
+                    const id = window.AviationPilots.personId(p);
+                    const label = window.AviationPilots.personLabel(p);
+                    select.innerHTML += `<option value="${id}" data-name="${label}">${label}</option>`;
+                });
+            } catch (e) { select.innerHTML = '<option value="">Błąd ładowania</option>'; }
+        };
+
+        window.unassignPilot = async function(unitId) {
+            if (!confirm("Odpiąć pilota od tej maszyny?")) return;
+            const res = await window.AviationPilots.assign(unitId, null, null, jwtToken);
+            if (res.ok) await fetchData(); else alert("Nie udało się odpiąć pilota.");
+        };
+
+        document.getElementById('assignPilotForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const unitId = document.getElementById('assign-unit-id').value;
+            const select = document.getElementById('assign-pilot-select');
+            const pilotId = select.value;
+            if (!pilotId) { alert("Wybierz pracownika."); return; }
+            const pilotName = select.options[select.selectedIndex].getAttribute('data-name');
+            const res = await window.AviationPilots.assign(unitId, pilotId, pilotName, jwtToken);
+            if (res.ok) { $('#assignPilotModal').modal('hide'); await fetchData(); }
+            else { const err = await res.text(); alert("Błąd: " + err); }
+        });
 
         window.deleteVehicle = async function(id) {
             const v = window.allVehicles.find(x => String(x.id || x.Id) === String(id));

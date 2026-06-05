@@ -53,7 +53,7 @@ namespace _211system.Controllers
             try
             {
                 await _medicalService.UpdateHospitalAsync(id, dto);
-                return Ok(new { message = "Zaktualizowano szpital." }); 
+                return Ok(new { message = "Zaktualizowano szpital." });
             }
             catch (Exception ex)
             {
@@ -344,7 +344,9 @@ namespace _211system.Controllers
                     IncidentType = i.IncidentType != null ? i.IncidentType.Name : "Brak Typu",
                     Status = i.Status,
                     ReportDate = i.ReportDate,
-                    Address = i.Latitude != 0 && i.Longitude != 0 ? $"GPS: {i.Latitude}, {i.Longitude}" : "Brak dokładnej lokalizacji"
+                    Address = i.Latitude != 0 && i.Longitude != 0 ? $"GPS: {i.Latitude}, {i.Longitude}" : "Brak dokładnej lokalizacji",
+                    Latitude = i.Latitude,
+                    Longitude = i.Longitude
                 })
                 .FirstOrDefaultAsync();
 
@@ -354,7 +356,7 @@ namespace _211system.Controllers
         }
 
         [HttpPut("ambulances/{id}/location")]
-        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> UpdateAmbulanceLocation(Guid id, [FromBody] UpdateLocationDto dto)
         {
             try
@@ -382,7 +384,7 @@ namespace _211system.Controllers
         }
 
         [HttpPost("operations/{id}/transport")]
-        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> TransportToHospital(Guid id, [FromBody] Guid targetHospitalId)
         {
             try
@@ -397,7 +399,7 @@ namespace _211system.Controllers
         }
 
         [HttpPost("operations/{id}/return")]
-        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> ReturnToBase(Guid id)
         {
             try
@@ -412,7 +414,7 @@ namespace _211system.Controllers
         }
 
         [HttpPost("ambulances/{id}/free")]
-        [Authorize(Roles = "Admin, Inspektor, Komendant, Ratownik, Admin112, Dyspozytor112")]
+        [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz, Medyk, Admin112, Dyspozytor112")]
         public async Task<IActionResult> FreeAmbulance(Guid id)
         {
             try

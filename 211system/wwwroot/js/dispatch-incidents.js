@@ -38,7 +38,14 @@ window.loadIncidents = async function () {
 
             tableBody.innerHTML = incidents.map(inc => {
                 let bc = inc.severity === 'Wysoki' ? 'danger' : (inc.severity === 'Średni' ? 'warning' : 'info');
-                const pi = inc.photoUrl ? `<a href="${inc.photoUrl}" target="_blank" class="incident-photo-link ml-2"><i class="fas fa-image fa-lg"></i></a>` : "";
+                const attCount = inc.attachmentCount || 0;
+                let pi = '';
+                if (attCount > 0) {
+                    const icon = attCount > 1 ? 'fa-paperclip' : 'fa-image';
+                    const label = attCount > 1 ? ` ${attCount}` : '';
+                    const href = inc.photoUrl || '#';
+                    pi = `<a href="${href}" target="_blank" class="incident-photo-link ml-2" title="${attCount} załącznik(ów)"><i class="fas ${icon} fa-lg"></i>${label}</a>`;
+                }
                 return `
                 <tr>
                     <td class="align-middle font-weight-bold text-primary">${inc.incidentNumber || inc.id.substring(0, 8)}</td>
@@ -145,6 +152,15 @@ window.deleteIncident = async function (id) {
 };
 
 document.addEventListener("DOMContentLoaded", function () {
+    const incPhotoInput = document.getElementById('incPhoto');
+    if (incPhotoInput) {
+        incPhotoInput.addEventListener('change', function () {
+            const label = document.getElementById('incPhotoLabel');
+            const n = this.files?.length || 0;
+            if (label) label.textContent = n === 0 ? 'Wybierz pliki...' : (n === 1 ? this.files[0].name : `${n} plików wybrano`);
+        });
+    }
+
     document.getElementById('createIncidentForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-incident');
@@ -177,8 +193,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const fileInput = document.getElementById('incPhoto');
-        if (fileInput && fileInput.files[0]) {
-            formData.append('photo', fileInput.files[0]);
+        const MAX_ATTACHMENTS = 10;
+        if (fileInput && fileInput.files.length > 0) {
+            if (fileInput.files.length > MAX_ATTACHMENTS) {
+                alert(`Maksymalnie ${MAX_ATTACHMENTS} załączników na zgłoszenie.`);
+                btn.disabled = false;
+                return;
+            }
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('photos', fileInput.files[i]);
+            }
         }
 
         try {
@@ -195,7 +219,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById('incLat').value = '';
                 document.getElementById('incLng').value = '';
                 if (fileInput) fileInput.value = '';
-                document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
+                document.getElementById('incPhotoLabel').innerText = "Wybierz pliki...";
                 window.refreshAll();
             } else {
                 const errData = await response.json();

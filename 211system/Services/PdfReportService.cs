@@ -40,15 +40,28 @@ public class PdfReportService : IPdfReportService
         var policeOps = await _context.PoliceOperations.Include(po => po.Policeman).Where(po => incidentIds.Contains(po.IncidentId)).ToListAsync();
         var fireOps = await _context.FireOperations.Include(fo => fo.Fireman).Where(fo => incidentIds.Contains(fo.IncidentId)).ToListAsync();
         var medicalOps = await _context.MedicalOperations.Include(mo => mo.Paramedic).Where(mo => incidentIds.Contains(mo.ReportId)).ToListAsync();
-        
-       var aviationOps = await _context.AviationOperations
-        .Include(ao => ao.AirUnit)
-        .Where(ao => ao.IncidentId.HasValue && incidentIds.Contains(ao.IncidentId.Value))
-        .ToListAsync();
+
+        var aviationOps = await _context.AviationOperations
+         .Include(ao => ao.AirUnit)
+         .Where(ao => ao.IncidentId.HasValue && incidentIds.Contains(ao.IncidentId.Value))
+         .ToListAsync();
 
         var policeCars = await _context.PoliceCars.ToListAsync();
         var fireTrucks = await _context.FireTrucks.ToListAsync();
         var ambulances = await _context.Ambulances.ToListAsync();
+        var crews = await _context.VehicleCrews.ToListAsync();
+        var transports = await _context.TransportRecords
+            .Where(t => incidentIds.Contains(t.IncidentId))
+            .OrderBy(t => t.TransportedAt)
+            .ToListAsync();
+
+        string CrewSuffix(string vehicleType, Guid? vehicleId)
+        {
+            if (vehicleId == null) return "";
+            var members = crews.Where(c => c.VehicleType == vehicleType && c.VehicleId == vehicleId.Value)
+                               .Select(c => c.MemberName).ToList();
+            return members.Any() ? " + obsada: " + string.Join(", ", members) : "";
+        }
 
         var document = Document.Create(container =>
         {
@@ -70,7 +83,7 @@ public class PdfReportService : IPdfReportService
 
         var reportsFolder = Path.Combine(Directory.GetCurrentDirectory(), "Raporty");
         if (!Directory.Exists(reportsFolder)) Directory.CreateDirectory(reportsFolder);
-        
+
         var filePath = Path.Combine(reportsFolder, fileName);
         await File.WriteAllBytesAsync(filePath, pdfBytes);
 
@@ -126,7 +139,7 @@ public class PdfReportService : IPdfReportService
                     var aOps = aviationOps.Where(ao => ao.IncidentId.HasValue && ao.IncidentId.Value == incident.Id).ToList();
 
 
-                    
+
 
                     string polStr = pOps.Any() ? string.Join("\n", pOps.Select(po => $"POL: {po.Policeman.Name} {po.Policeman.Lastname} ({policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})")) : "POL: Brak";
                     string fireStr = fOps.Any() ? string.Join("\n", fOps.Select(fo => $"PSP: {fo.Fireman.Name} {fo.Fireman.Lastname} ({fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})")) : "PSP: Brak";
@@ -138,26 +151,45 @@ public class PdfReportService : IPdfReportService
 
                     if (pOps.Any())
                     {
-                        servicesList.Add("POL: \n" + string.Join(", ", pOps.Select(po => $"{po.Policeman.Name} {po.Policeman.Lastname} (Radiowóz: {policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})\n")));
+                        servicesList.Add("POL: \n" + string.Join(", ", pOps.Select(po => {
+                            var car = policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id);
+                            return $"{po.Policeman.Name} {po.Policeman.Lastname} (Radiowóz: {car?.LicensePlate ?? "Brak"}){CrewSuffix("police", car?.Id)}\n";
+                        })));
                     }
 
 
                     if (fOps.Any())
                     {
-                        servicesList.Add("PSP: \n" + string.Join(", ", fOps.Select(fo => $"{fo.Fireman.Name} {fo.Fireman.Lastname} (Wóz Strażacki: {fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})\n")));
+                        servicesList.Add("PSP: \n" + string.Join(", ", fOps.Select(fo => {
+                            var truck = fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id);
+                            return $"{fo.Fireman.Name} {fo.Fireman.Lastname} (Wóz Strażacki: {truck?.LicensePlate ?? "Brak"}){CrewSuffix("fire", truck?.Id)}\n";
+                        })));
                     }
 
                     if (mOps.Any())
                     {
-                        servicesList.Add("ZRM: \n" + string.Join(", ", mOps.Select(mo => $"{mo.Paramedic.Name} {mo.Paramedic.LastName} (Ambulans: {ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id)?.LicensePlate ?? "Brak"})\n")));
+                        servicesList.Add("ZRM: \n" + string.Join(", ", mOps.Select(mo => {
+                            var amb = ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id);
+                            return $"{mo.Paramedic.Name} {mo.Paramedic.LastName} (Ambulans: {amb?.LicensePlate ?? "Brak"}){CrewSuffix("ambulance", amb?.Id)}\n";
+                        })));
                     }
 
                     if (aOps.Any())
                     {
-                        servicesList.Add("LOT: \n" + string.Join(", ", aOps.Select(ao => $"{ao.AirUnit?.Callsign ?? "Brak"} ({ao.AirUnit?.ServiceType})\n")));
+                        servicesList.Add("LOT: \n" + string.Join(", ", aOps.Select(ao => {
+                            var pilot = string.IsNullOrEmpty(ao.AirUnit?.PilotName) ? "brak pilota" : ao.AirUnit.PilotName;
+                            return $"{ao.AirUnit?.Callsign ?? "Brak"} [{ao.AirUnit?.ServiceType}] (pilot: {pilot}){CrewSuffix("air", ao.AirUnit?.Id)}\n";
+                        })));
                     }
 
                     string servicesText = servicesList.Any() ? string.Join("\n", servicesList) : "Brak zadysponowanych służb";
+
+                    var transportRecs = transports.Where(t => t.IncidentId == incident.Id).ToList();
+                    if (transportRecs.Any())
+                    {
+                        servicesText += "\n\nTransport:\n" + string.Join("\n", transportRecs.Select(t =>
+                            $"→ {t.DestinationName} ({t.VehicleLabel}, {t.TransportedAt:dd.MM HH:mm})"));
+                    }
 
                     table.Cell().Element(CellContentStyle).Text(incident.IncidentNumber);
                     table.Cell().Element(CellContentStyle).Text(incident.ReportDate.ToString("dd.MM\nHH:mm"));

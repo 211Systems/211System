@@ -18,5 +18,8 @@ namespace _211system.Models.Aviation
         public double Longitude { get; set; }
 
         public Guid? CurrentIncidentId { get; set; }
+
+        public Guid? PilotId { get; set; }
+        public string? PilotName { get; set; }
     }
 }

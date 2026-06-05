@@ -2,86 +2,218 @@
     ViewData["Title"] = "Panel Głównego Administratora";
 }
 
-<div class="row align-items-center mb-4 mt-2">
+<div class="adm-panel sys-page-header row align-items-center mt-2 mb-3">
     <div class="col-auto">
-        <img src="~/logo.png" alt="Logo System 211" style="height: 80px; width: auto; border-radius: 8px;" class="elevation-2">
+        <img src="~/logo.png" alt="Logo System 211" class="sys-page-logo elevation-2">
     </div>
     <div class="col">
-        <h2 class="m-0 font-weight-bold">Zarządzanie Jednostkami Systemu 211</h2>
-        <p class="text-muted m-0">Główny Panel Administracyjny</p>
+        <h2 class="sys-page-title m-0">Centrum Dowodzenia 211 — Administrator</h2>
+        <p class="sys-page-subtitle m-0">Statystyki, podgląd na żywo i diagnostyka systemu. <span id="adm-refresh" class="badge badge-secondary"></span></p>
+    </div>
+    <div class="col-auto d-flex align-items-center">
+        <span class="badge badge-dark p-2 live-clock mr-2" style="font-size: 1rem;">00:00:00</span>
+        <button class="btn btn-outline-secondary" onclick="loadAll()"><i class="fas fa-sync"></i> Odśwież</button>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-primary">
-            <div class="inner">
-                <h3>Policja</h3>
-                <p>Komendy i Kadra</p>
+<ul class="nav nav-tabs mb-3" id="admTabs">
+    <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-stats"><i class="fas fa-chart-bar"></i> Statystyki</a></li>
+    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-live"><i class="fas fa-broadcast-tower"></i> Na żywo</a></li>
+    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-diag"><i class="fas fa-stethoscope"></i> Diagnostyka</a></li>
+    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-manage"><i class="fas fa-cogs"></i> Zarządzanie</a></li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tab-stats">
+        <div class="row">
+            <div class="col-lg-3 col-6"><div class="small-box bg-info"><div class="inner"><h3 id="st-inc-total">-</h3><p>Zgłoszenia łącznie</p></div><div class="icon"><i class="fas fa-bell"></i></div><span class="small-box-footer">Dziś: <b id="st-inc-today">-</b></span></div></div>
+            <div class="col-lg-3 col-6"><div class="small-box bg-warning"><div class="inner"><h3 id="st-inc-open">-</h3><p>W toku</p></div><div class="icon"><i class="fas fa-hourglass-half"></i></div><span class="small-box-footer">Nowe: <b id="st-inc-new">-</b></span></div></div>
+            <div class="col-lg-3 col-6"><div class="small-box bg-success"><div class="inner"><h3 id="st-inc-done">-</h3><p>Zakończone</p></div><div class="icon"><i class="fas fa-check-circle"></i></div><span class="small-box-footer">Fałszywe: <b id="st-inc-false">-</b></span></div></div>
+            <div class="col-lg-3 col-6"><div class="small-box bg-secondary"><div class="inner"><h3 id="st-ops">-</h3><p>Aktywne operacje</p></div><div class="icon"><i class="fas fa-running"></i></div><span class="small-box-footer">POL/PSP/ZRM/LOT</span></div></div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card card-outline card-primary">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-truck"></i> Dostępność flot (wolne / wszystkie)</h3></div>
+                    <div class="card-body" id="fleet-bars">Ładowanie...</div>
+                </div>
             </div>
-            <div class="icon">
-                <i class="fas fa-building-shield"></i>
+            <div class="col-md-4">
+                <div class="card card-outline card-dark">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-users"></i> Kadra i placówki</h3></div>
+                    <div class="card-body" id="people-box">Ładowanie...</div>
+                </div>
             </div>
-            <a href="/Admin/PoliceStations" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+
+        <div class="card card-outline card-info">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-list-ol"></i> Zgłoszenia wg typu</h3></div>
+            <div class="card-body" id="by-type">Ładowanie...</div>
         </div>
     </div>
 
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-success">
-            <div class="inner">
-                <h3>Medyczne</h3>
-                <p>Szpitale i Dyspozytornie</p>
+    <div class="tab-pane fade" id="tab-live">
+        <div class="card card-outline card-warning">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-broadcast-tower text-warning"></i> Aktywne zdarzenia i zaangażowane jednostki</h3></div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-striped table-sm m-0">
+                    <thead><tr><th>Numer</th><th>Typ</th><th>Priorytet</th><th>Status</th><th>POL</th><th>PSP</th><th>ZRM</th><th>LOT</th></tr></thead>
+                    <tbody id="live-incidents"><tr><td colspan="8" class="text-center">Ładowanie...</td></tr></tbody>
+                </table>
             </div>
-            <div class="icon">
-                <i class="fas fa-hospital-alt"></i>
+        </div>
+        <div class="card card-outline card-dark">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-helicopter"></i> Misje lotnicze w toku</h3></div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-sm m-0">
+                    <thead><tr><th>Maszyna</th><th>Służba</th><th>Pilot/Dowódca</th></tr></thead>
+                    <tbody id="live-air"><tr><td colspan="3" class="text-center">Ładowanie...</td></tr></tbody>
+                </table>
             </div>
-            <a href="/Admin/Hospitals" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
 
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-danger">
-            <div class="inner">
-                <h3>Straż</h3>
-                <p>Remizy i Sprzęt</p>
+    <div class="tab-pane fade" id="tab-diag">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card card-outline card-success">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-database"></i> Stan systemu</h3></div>
+                    <div class="card-body" id="diag-system">Ładowanie...</div>
+                </div>
             </div>
-            <div class="icon">
-                <i class="fas fa-fire-extinguisher"></i>
+            <div class="col-md-6">
+                <div class="card card-outline card-danger">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-exclamation-triangle"></i> Ostrzeżenia / spójność danych</h3></div>
+                    <div class="card-body" id="diag-warn">Ładowanie...</div>
+                </div>
             </div>
-            <a href="/Admin/FireStations" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+        <div class="card card-outline card-secondary">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-user-shield"></i> Użytkownicy wg ról</h3></div>
+            <div class="card-body" id="diag-roles">Ładowanie...</div>
         </div>
     </div>
 
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-warning">
-            <div class="inner">
-                <h3>CPR 112</h3>
-                <p>Centra Powiadamiania</p>
-            </div>
-            <div class="icon">
-                <i class="fas fa-headset"></i>
-            </div>
-            <a href="/Admin/CprCenters" class="small-box-footer">Przejdź do zarządzania <i class="fas fa-arrow-circle-right"></i></a>
+    <div class="tab-pane fade" id="tab-manage">
+        <div class="row">
+            <div class="col-lg-3 col-6"><div class="small-box bg-primary"><div class="inner"><h3>Policja</h3><p>Komendy i Kadra</p></div><div class="icon"><i class="fas fa-building-shield"></i></div><a href="/Admin/PoliceStations" class="small-box-footer">Zarządzaj <i class="fas fa-arrow-circle-right"></i></a></div></div>
+            <div class="col-lg-3 col-6"><div class="small-box bg-success"><div class="inner"><h3>Medyczne</h3><p>Szpitale</p></div><div class="icon"><i class="fas fa-hospital-alt"></i></div><a href="/Admin/Hospitals" class="small-box-footer">Zarządzaj <i class="fas fa-arrow-circle-right"></i></a></div></div>
+            <div class="col-lg-3 col-6"><div class="small-box bg-danger"><div class="inner"><h3>Straż</h3><p>Remizy</p></div><div class="icon"><i class="fas fa-fire-extinguisher"></i></div><a href="/Admin/FireStations" class="small-box-footer">Zarządzaj <i class="fas fa-arrow-circle-right"></i></a></div></div>
+            <div class="col-lg-3 col-6"><div class="small-box bg-warning"><div class="inner"><h3>CPR 112</h3><p>Centra</p></div><div class="icon"><i class="fas fa-headset"></i></div><a href="/Admin/CprCenters" class="small-box-footer">Zarządzaj <i class="fas fa-arrow-circle-right"></i></a></div></div>
         </div>
+        <a href="/Dispatch/Home/Report" class="btn btn-warning btn-lg shadow-sm font-weight-bold"><i class="fas fa-chart-pie mr-2"></i> Generator Raportów</a>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card card-dark">
-            <div class="card-header">
-                <h3 class="card-title">Główne Centrum Dowodzenia</h3>
-            </div>
-            <div class="card-body">
-    <p>Wybierz jedną ze służb powyżej, aby zarządzać jej strukturami terytorialnymi (komendy, szpitale) oraz kadrą kierowniczą wyższego szczebla.</p>
-    
-            <div class="mt-4 border-top pt-3">
-                <h5 class="text-bold mb-3"><i class="fas fa-file-invoice mr-2 text-warning"></i> Analityka Systemu</h5>
-                <a href="/Dispatch/Home/Report" class="btn btn-warning btn-lg shadow-sm font-weight-bold">
-                    <i class="fas fa-chart-pie mr-2"></i> Przejdź do Generatora Raportów
-                </a>
-            </div>
-        </div>
-        </div>
-    </div>
-</div>
+@section Scripts {
+    <script>
+        const admToken = localStorage.getItem('jwt');
+        const H = { headers: { 'Authorization': 'Bearer ' + admToken } };
+
+        function bar(label, avail, total, color) {
+            const pct = total > 0 ? Math.round((avail / total) * 100) : 0;
+            return `<div class="mb-2"><div class="d-flex justify-content-between"><span><b>${label}</b></span><span>${avail} / ${total} wolnych</span></div>
+                <div class="progress" style="height:18px;"><div class="progress-bar bg-${color}" style="width:${pct}%">${pct}%</div></div></div>`;
+        }
+
+        async function loadStats() {
+            try {
+                const r = await fetch('/api/Admin/stats', H);
+                if (!r.ok) return;
+                const s = await r.json();
+                document.getElementById('st-inc-total').textContent = s.incidents.total;
+                document.getElementById('st-inc-today').textContent = s.incidents.dzis;
+                document.getElementById('st-inc-open').textContent = s.incidents.wToku;
+                document.getElementById('st-inc-new').textContent = s.incidents.nowe;
+                document.getElementById('st-inc-done').textContent = s.incidents.zakonczone;
+                document.getElementById('st-inc-false').textContent = s.incidents.falszywy;
+                document.getElementById('st-ops').textContent = s.activeOperations.police + s.activeOperations.fire + s.activeOperations.medical + s.activeOperations.aviation;
+
+                const v = s.vehicles;
+                document.getElementById('fleet-bars').innerHTML =
+                    bar('Karetki (ZRM)', v.ambulances.available, v.ambulances.total, 'success') +
+                    bar('Radiowozy', v.policeCars.available, v.policeCars.total, 'primary') +
+                    bar('Wozy bojowe (PSP)', v.fireTrucks.available, v.fireTrucks.total, 'danger') +
+                    bar('Lotnictwo', v.airUnits.available, v.airUnits.total, 'dark');
+
+                const p = s.personnel, f = s.facilities;
+                document.getElementById('people-box').innerHTML = `
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="fas fa-user-md text-success"></i> Ratownicy: <b>${p.paramedics}</b></li>
+                        <li><i class="fas fa-user-shield text-primary"></i> Policjanci: <b>${p.policemen}</b></li>
+                        <li><i class="fas fa-fire text-danger"></i> Strażacy: <b>${p.firemen}</b></li>
+                        <li><i class="fas fa-headset text-warning"></i> Operatorzy 112: <b>${p.operators}</b></li>
+                        <hr class="my-2">
+                        <li>Szpitale: <b>${f.hospitals}</b> | Komendy: <b>${f.policeDepartments}</b></li>
+                        <li>Remizy: <b>${f.fireDepartments}</b> | Bazy lotn.: <b>${f.airbases}</b> | CPR: <b>${f.cprCenters}</b></li>
+                    </ul>`;
+
+                const bt = s.incidents.byType || [];
+                document.getElementById('by-type').innerHTML = bt.length
+                    ? bt.map(t => `<span class="badge badge-info p-2 m-1">${t.type}: <b>${t.count}</b></span>`).join('')
+                    : '<span class="text-muted">Brak danych.</span>';
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadLive() {
+            try {
+                const r = await fetch('/api/Admin/live', H);
+                if (!r.ok) return;
+                const d = await r.json();
+                const tb = document.getElementById('live-incidents');
+                tb.innerHTML = d.incidents.length
+                    ? d.incidents.map(i => `<tr>
+                        <td><b>${i.incidentNumber || i.id.substring(0,8)}</b></td>
+                        <td>${i.type}</td><td>${i.severity}</td>
+                        <td><span class="badge badge-warning text-dark">${i.status}</span></td>
+                        <td>${i.police ? '<span class="badge badge-primary">'+i.police+'</span>' : '-'}</td>
+                        <td>${i.fire ? '<span class="badge badge-danger">'+i.fire+'</span>' : '-'}</td>
+                        <td>${i.medical ? '<span class="badge badge-success">'+i.medical+'</span>' : '-'}</td>
+                        <td>${i.aviation ? '<span class="badge badge-dark">'+i.aviation+'</span>' : '-'}</td>
+                       </tr>`).join('')
+                    : '<tr><td colspan="8" class="text-center text-muted">Brak aktywnych zdarzeń.</td></tr>';
+
+                const ta = document.getElementById('live-air');
+                ta.innerHTML = d.busyAir.length
+                    ? d.busyAir.map(a => `<tr><td><b>${a.callsign||'-'}</b></td><td>${a.service}</td><td>${a.pilot}</td></tr>`).join('')
+                    : '<tr><td colspan="3" class="text-center text-muted">Brak misji lotniczych w toku.</td></tr>';
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadDiag() {
+            try {
+                const r = await fetch('/api/Admin/diagnostics', H);
+                if (!r.ok) return;
+                const d = await r.json();
+                document.getElementById('diag-system').innerHTML = `
+                    <p>Baza danych: <span class="badge badge-${d.database === 'OK' ? 'success' : 'danger'}">${d.database}</span></p>
+                    <p>Czas systemowy: <span class="badge badge-dark p-2 live-clock" style="font-size:1rem;">00:00:00</span></p>
+                    <p>Użytkownicy łącznie: <b>${d.totalUsers}</b></p>`;
+
+                const sv = d.stuckVehicles;
+                const totalStuck = sv.ambulances + sv.policeCars + sv.fireTrucks + sv.airUnits;
+                document.getElementById('diag-warn').innerHTML = `
+                    <p>Pojazdy „w akcji" bez zgłoszenia: <span class="badge badge-${totalStuck ? 'danger':'success'}">${totalStuck}</span></p>
+                    <ul class="small mb-2"><li>Karetki: ${sv.ambulances}, Radiowozy: ${sv.policeCars}, Wozy: ${sv.fireTrucks}, Lotnictwo: ${sv.airUnits}</li></ul>
+                    <p>Zgłoszenia „W toku" bez aktywnej operacji: <span class="badge badge-${d.orphanInProgressIncidents ? 'warning text-dark':'success'}">${d.orphanInProgressIncidents}</span></p>`;
+
+                document.getElementById('diag-roles').innerHTML = (d.roles || [])
+                    .map(rr => `<span class="badge badge-secondary p-2 m-1">${rr.role}: <b>${rr.users}</b></span>`).join('');
+
+                const now = new Date().toLocaleTimeString('pl-PL');
+                document.querySelectorAll('.live-clock').forEach(el => { el.textContent = now; });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadAll() {
+            await Promise.all([loadStats(), loadLive(), loadDiag()]);
+            document.getElementById('adm-refresh').textContent = 'Aktualizacja: ' + new Date().toLocaleTimeString('pl-PL');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadAll();
+            setInterval(loadAll, 15000);
+        });
+    </script>
+}

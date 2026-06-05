@@ -41,7 +41,7 @@ namespace _211system.Services
             var uploadOptions = new BlobUploadOptions
             {
                 HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType },
-                AccessTier = containerName.ToLower() == "avatars" ? AccessTier.Hot : AccessTier.Cool
+                AccessTier = AccessTier.Cool
             };
 
             await blobClient.UploadAsync(stream, uploadOptions);
@@ -81,7 +81,7 @@ namespace _211system.Services
                 {
                     BlobContainerName = containerName,
                     BlobName = blobName,
-                    Resource = "b", 
+                    Resource = "b",
                     ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(expireMinutes)
                 };
                 sasBuilder.SetPermissions(BlobSasPermissions.Read);

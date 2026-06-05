@@ -51,7 +51,16 @@
             window.location.href = '/';
             return;
         }
-        if (currentPath.includes('/dispatch') && !roles.some(r => ["Admin", "Admin112", "Dyspozytor112"].includes(r))) {
+        const reportRoles = ["Admin", "Admin112", "Dyspozytor112", "Naczelnik", "Kapitan", "Komendant", "Inspektor", "Kierownik Szpitala"];
+        const isReportPage = currentPath.includes('/report');
+
+        if (isReportPage) {
+            if (!roles.some(r => reportRoles.includes(r))) {
+                alert("Brak uprawnień do modułu raportów.");
+                window.location.href = '/';
+                return;
+            }
+        } else if (currentPath.includes('/dispatch') && !roles.some(r => ["Admin", "Admin112", "Dyspozytor112"].includes(r))) {
             alert("Brak uprawnień do tego obszaru.");
             window.location.href = '/';
             return;
@@ -65,8 +74,14 @@
             'menu-admin', 'menu-dispatch',
             'menu-medic-manager', 'menu-medic-worker', 'link-hospitals', 'link-ambulances', 'link-operations',
             'menu-police-manager', 'menu-police-worker', 'link-police-depts', 'link-police-cars', 'link-police-operations',
-            'menu-fire-manager', 'menu-fire-worker', 'link-fire-depts', 'link-fire-trucks', 'link-fire-operations'
+            'menu-fire-manager', 'menu-fire-worker', 'link-fire-depts', 'link-fire-trucks', 'link-fire-operations',
+            'menu-reports'
         ];
+
+        const showReports = () => {
+            const el = document.getElementById('menu-reports');
+            if (el) el.classList.remove('d-none');
+        };
 
         if (roles.includes("Admin")) {
             allMenus.forEach(id => {
@@ -80,6 +95,7 @@
             ['menu-medic-manager', 'menu-medic-worker', 'link-hospitals', 'link-ambulances', 'link-operations'].forEach(id => {
                 if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
             });
+            showReports();
             if (homeLink) homeLink.href = '/Medic/Hospitals';
             if (shouldRedirectToDashboard) window.location.href = '/Medic/Hospitals';
         }
@@ -101,6 +117,7 @@
             ['menu-police-manager', 'menu-police-worker', 'link-police-depts', 'link-police-cars', 'link-police-operations'].forEach(id => {
                 if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
             });
+            showReports();
             if (homeLink) homeLink.href = '/Police/Home';
             if (shouldRedirectToDashboard) window.location.href = '/Police/Home';
         }
@@ -115,6 +132,7 @@
             ['menu-fire-manager', 'menu-fire-worker', 'link-fire-depts', 'link-fire-trucks', 'link-fire-operations'].forEach(id => {
                 if (document.getElementById(id)) document.getElementById(id).classList.remove('d-none');
             });
+            showReports();
             if (homeLink) homeLink.href = '/Fire/Home';
             if (shouldRedirectToDashboard) window.location.href = '/Fire/Home';
         }
@@ -127,6 +145,7 @@
         }
         else if (roles.includes("Admin112") || roles.includes("Dyspozytor112")) {
             if (document.getElementById('menu-dispatch')) document.getElementById('menu-dispatch').classList.remove('d-none');
+            showReports();
             if (homeLink) homeLink.href = '/Dispatch/Home/Index';
             if (shouldRedirectToDashboard) window.location.href = '/Dispatch/Home/Index';
         }

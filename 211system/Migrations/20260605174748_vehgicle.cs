@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class Type : Migration
+    public partial class vehgicle : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -215,6 +215,21 @@ namespace _211system.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "VehicleCrews",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    VehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    VehicleType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    MemberId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MemberName = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VehicleCrews", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "AirUnits",
                 columns: table => new
                 {
@@ -227,7 +242,9 @@ namespace _211system.Migrations
                     Status = table.Column<int>(type: "integer", nullable: false),
                     Latitude = table.Column<double>(type: "double precision", nullable: false),
                     Longitude = table.Column<double>(type: "double precision", nullable: false),
-                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true)
+                    CurrentIncidentId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PilotId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PilotName = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -1255,6 +1272,9 @@ namespace _211system.Migrations
 
             migrationBuilder.DropTable(
                 name: "StatusHistories");
+
+            migrationBuilder.DropTable(
+                name: "VehicleCrews");
 
             migrationBuilder.DropTable(
                 name: "Ambulances");

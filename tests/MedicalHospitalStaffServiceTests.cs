@@ -9,6 +9,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using tests;
 using Xunit;
 
 namespace _211system.Tests
@@ -29,7 +30,7 @@ namespace _211system.Tests
             authMock.Setup(a => a.CreateTemporaryAccountAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(("med-acc-1", "TempMed99"));
             var httpMock = new Mock<IHttpClientFactory>();
-            return new MedicalService(context, authMock.Object, httpMock.Object);
+            return new MedicalService(context, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
         }
 
         [Fact]
@@ -106,7 +107,7 @@ namespace _211system.Tests
                 .ReturnsAsync(("acc-med", "Temp555"));
 
             var httpMock = new Mock<IHttpClientFactory>();
-            var service = new MedicalService(context, authMock.Object, httpMock.Object);
+            var service = new MedicalService(context, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
 
             var hospitalId = Guid.NewGuid();
             context.Hospitals.Add(new Hospital { Id = hospitalId, Name = "S", Address = "A", HasSOR = true });

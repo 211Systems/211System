@@ -44,11 +44,23 @@ namespace _211system.Controllers
         }
 
         [HttpGet("units")]
-        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
         public async Task<IActionResult> GetAirUnits()
         {
             var result = await _aviationService.GetAllAirUnitsAsync();
             return Ok(result);
+        }
+
+        [HttpPut("units/{unitId}/pilot")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan")]
+        public async Task<IActionResult> AssignPilot(Guid unitId, [FromBody] AssignPilotDto dto)
+        {
+            try
+            {
+                await _aviationService.AssignPilotAsync(unitId, dto.PilotId, dto.PilotName);
+                return Ok(new { message = dto.PilotId.HasValue ? "Przypisano pilota do maszyny." : "Odpięto pilota od maszyny." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         [HttpPut("units/{unitId}/assign/{incidentId}")]
@@ -64,7 +76,7 @@ namespace _211system.Controllers
         }
 
         [HttpPost("units/{unitId}/free")]
-        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala")]
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
         public async Task<IActionResult> FreeAirUnit(Guid unitId)
         {
             try
@@ -121,12 +133,39 @@ namespace _211system.Controllers
         public async Task<IActionResult> GetActiveOperations() => Ok(await _aviationService.GetActiveOperationsAsync());
 
         [HttpPost("operations/{operationId}/transport")]
-        public async Task<IActionResult> TransportPatient(Guid operationId, [FromBody] Guid hospitalId) => Ok();
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
+        public async Task<IActionResult> TransportPatient(Guid operationId, [FromBody] Guid hospitalId)
+        {
+            try
+            {
+                await _aviationService.TransportPatientAsync(operationId, hospitalId);
+                return Ok(new { message = "Maszyna realizuje transport." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
 
         [HttpPost("operations/{operationId}/return")]
-        public async Task<IActionResult> ReturnToBase(Guid operationId) => Ok();
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
+        public async Task<IActionResult> ReturnToBase(Guid operationId)
+        {
+            try
+            {
+                await _aviationService.ReturnToBaseAsync(operationId);
+                return Ok(new { message = "Maszyna wraca do bazy." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
 
         [HttpPut("operations/{operationId}/end")]
-        public async Task<IActionResult> EndOperation(Guid operationId) => Ok();
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
+        public async Task<IActionResult> EndOperation(Guid operationId)
+        {
+            try
+            {
+                await _aviationService.EndOperationAsync(operationId);
+                return Ok(new { message = "Misja lotnicza zakończona." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
     }
 }

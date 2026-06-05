@@ -11,6 +11,8 @@
 }
 @await Html.PartialAsync("~/Views/Shared/_OperationListPartial.cshtml")
 
+<div id="my-air-missions" class="mb-3 mt-3"></div>
+
 <div class="modal fade" id="startOperationModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content dark-mode">
@@ -65,9 +67,13 @@
                     </li>
                 </ul>
                 <div class="alert alert-secondary text-dark">
-                    <strong>Opis zdarzenia:</strong><br/>
+                    <strong>Opis zdarzenia:</strong><br />
                     <span id="det-desc">...</span>
                 </div>
+                <div id="det-map" style="height: 260px; border-radius: 6px; display:none;" class="border"></div>
+                <a id="det-nav-link" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-success btn-block mt-2 d-none">
+                    <i class="fas fa-route"></i> Otwórz nawigację (Google Maps)
+                </a>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
@@ -77,9 +83,13 @@
 </div>
 
 @section Scripts {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="~/js/incident-detail-map.js" asp-append-version="true"></script>
+    <script src="~/js/aviation-pilots.js" asp-append-version="true"></script>
     <script>
         const token = localStorage.getItem('jwt');
-        
+
         function parseJwt(token) {
             try {
                 const base64Url = token.split('.')[1];
@@ -115,7 +125,37 @@
             } catch (error) { console.error("Błąd uwierzytelniania pracownika:", error); }
 
             await loadOperations();
+            await loadMyAirMissions();
         });
+
+        async function loadMyAirMissions() {
+            const box = document.getElementById('my-air-missions');
+            if (!box || !window.AviationPilots) return;
+            const missions = await window.AviationPilots.myActiveMissions(myFiremanId, token);
+            if (!missions.length) { box.innerHTML = ''; return; }
+            let html = '<div class="card border-danger shadow-sm dark-mode"><div class="card-header bg-danger text-white"><i class="fas fa-helicopter"></i> Twoje aktywne misje lotnicze</div><div class="card-body p-2">';
+            missions.forEach(u => {
+                const id = u.id || u.Id;
+                const cs = u.callsign || u.Callsign;
+                html += `<div class="d-flex justify-content-between align-items-center border-bottom py-2 flex-wrap">
+                    <span><b>${cs}</b> <span class="badge bg-warning text-dark">W misji (lotnictwo gaśnicze)</span></span>
+                    <span class="btn-group">
+                        <button class="btn btn-sm btn-danger" onclick="endMyAirMission('${id}','Gaszenie pożaru z powietrza (zrzut wody)')"><i class="fas fa-fire"></i> Gaszenie z powietrza i powrót</button>
+                        <button class="btn btn-sm btn-secondary" onclick="endMyAirMission('${id}','Rozpoznanie pożarowe z powietrza')"><i class="fas fa-undo"></i> Rozpoznanie i powrót</button>
+                    </span>
+                </div>`;
+            });
+            html += '</div></div>';
+            box.innerHTML = html;
+        }
+
+        window.endMyAirMission = async function(unitId, actionLabel) {
+            const label = actionLabel || 'Zakończenie misji';
+            if (!confirm(`Realizujesz: "${label}". Maszyna wróci do bazy, a zgłoszenie zostanie domknięte (jeśli żadna inna służba nie działa). Kontynuować?`)) return;
+            const res = await window.AviationPilots.endMission(unitId, token);
+            if (res.ok) { alert("Misja lotnicza zakończona. Maszyna wraca do bazy."); await loadMyAirMissions(); }
+            else alert("Nie udało się zakończyć misji (brak uprawnień lub błąd serwera).");
+        };
 
         async function loadOperations() {
              const tableBody = document.getElementById('operations-table-body');
@@ -201,7 +241,7 @@
                 const response = await fetch(`/api/Fire/incidents/${incidentId}`, {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     document.getElementById('det-number').textContent = data.incidentNumber;
@@ -212,11 +252,20 @@
 
                     const severityEl = document.getElementById('det-severity');
                     severityEl.textContent = data.severity;
-                    severityEl.className = "float-right badge " + 
-                        (data.severity === 'Wysoki' ? 'bg-danger' : 
+                    severityEl.className = "float-right badge " +
+                        (data.severity === 'Wysoki' ? 'bg-danger' :
                         (data.severity === 'Średni' ? 'bg-warning' : 'bg-info'));
 
                     $('#incidentDetailsModal').modal('show');
+
+                    window.renderIncidentDetailMap({
+                        lat: data.latitude,
+                        lng: data.longitude,
+                        vehiclesUrl: '/api/Fire/firetrucks',
+                        myId: myFiremanId,
+                        idField: 'firemanId',
+                        routeColor: '#dc3545'
+                    });
                 } else {
                     alert("Brak dostępu lub zgłoszenie zostało usunięte.");
                 }
@@ -225,7 +274,7 @@
 
         document.getElementById('startOperationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             if (!myFiremanId) {
                 alert("Błąd: Nie odnaleziono Twojego profilu w systemie. Zgłoś to administratorowi.");
                 return;
@@ -278,9 +327,16 @@
             else alert("Błąd połączenia podczas zmiany statusu.");
         };
     </script>
-    
+
     <style>
-        .blink_me { animation: blinker 1.5s linear infinite; }
-        @@keyframes blinker { 50% { opacity: 0.3; } }
+        .blink_me {
+            animation: blinker 1.5s linear infinite;
+        }
+
+        @@keyframes blinker {
+            50% {
+                opacity: 0.3;
+            }
+        }
     </style>
 }

@@ -1,22 +1,24 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using _211system.Data;
+using _211system.Models.Interfaces;
 using _211system.Models.Services;
+using _211system.Services;
 using CPR112.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
-namespace _211system.Tests
-{
+namespace tests;
+
     public class AttachmentServiceTests
     {
-        private _211DbContext GetInMemoryDbContext()
+    private _211DbContext GetContext()
         {
             var options = new DbContextOptionsBuilder<_211DbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -24,52 +26,102 @@ namespace _211system.Tests
             return new _211DbContext(options);
         }
 
-        private static void EnsureAttachmentsFolder()
+    private static Mock<IFormFile> CreateFile(string name, long size = 1024)
         {
-            var dir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "attachments");
-            Directory.CreateDirectory(dir);
+        var mock = new Mock<IFormFile>();
+        mock.Setup(f => f.FileName).Returns(name);
+        mock.Setup(f => f.Length).Returns(size);
+        mock.Setup(f => f.ContentType).Returns("image/jpeg");
+        mock.Setup(f => f.OpenReadStream()).Returns(new MemoryStream(new byte[] { 1, 2, 3 }));
+        return mock;
         }
 
-        private static IFormFile CreateFormFile(string fileName, byte[] content)
+    [Fact]
+    public async Task UploadFileAsync_Should_Save_Attachment_To_Database()
         {
-            var mock = new Mock<IFormFile>();
-            mock.Setup(f => f.FileName).Returns(fileName);
-            mock.Setup(f => f.Length).Returns((long)content.Length);
-            mock.Setup(f => f.ContentType).Returns("image/jpeg");
-            mock.Setup(f => f.OpenReadStream()).Returns(() => new MemoryStream(content));
-            mock.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
-                .Returns<Stream, CancellationToken>((target, ct) =>
+        var context = GetContext();
+        var blobMock = new Mock<IBlobStorageService>();
+        blobMock.Setup(b => b.UploadAsync(It.IsAny<IFormFile>(), "incidents"))
+            .ReturnsAsync("https://blob.test/incidents/abc.jpg");
+
+        var service = new AttachmentService(context, blobMock.Object);
+        var incidentId = Guid.NewGuid();
+
+        var result = await service.UploadFileAsync(CreateFile("test.jpg").Object, incidentId);
+
+        Assert.Equal("test.jpg", result.FileName);
+        Assert.Equal(incidentId, result.IncidentId);
+        Assert.Equal(1, await context.Attachments.CountAsync());
+    }
+
+    [Fact]
+    public async Task UploadFileAsync_WhenLimitExceeded_ShouldThrow()
                 {
-                    target.Write(content, 0, content.Length);
-                    return Task.CompletedTask;
+        var context = GetContext();
+        var incidentId = Guid.NewGuid();
+        for (int i = 0; i < AttachmentService.MaxAttachmentsPerIncident; i++)
+        {
+            context.Attachments.Add(new Attachment
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                PathToFile = $"https://blob.test/{i}.jpg",
+                FileName = $"{i}.jpg",
+                ContentType = "image/jpeg",
+                FileSizeBytes = 100,
+                UploadedAt = DateTime.UtcNow
                 });
-            return mock.Object;
+        }
+        await context.SaveChangesAsync();
+
+        var blobMock = new Mock<IBlobStorageService>();
+        var service = new AttachmentService(context, blobMock.Object);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.UploadFileAsync(CreateFile("extra.jpg").Object, incidentId));
         }
 
         [Fact]
-        public async Task UploadFileAsync_LinksToIncident()
+    public async Task GetByIncidentAsync_Should_Return_All_Attachments()
         {
-            EnsureAttachmentsFolder();
-            var context = GetInMemoryDbContext();
-            var service = new AttachmentService(context);
+        var context = GetContext();
             var incidentId = Guid.NewGuid();
-            var file = CreateFormFile("zdjecie.jpg", Encoding.UTF8.GetBytes("test"));
+        context.Attachments.AddRange(
+            new Attachment { Id = Guid.NewGuid(), IncidentId = incidentId, PathToFile = "a", FileName = "a.jpg", ContentType = "image/jpeg", FileSizeBytes = 1, UploadedAt = DateTime.UtcNow },
+            new Attachment { Id = Guid.NewGuid(), IncidentId = incidentId, PathToFile = "b", FileName = "b.jpg", ContentType = "image/jpeg", FileSizeBytes = 2, UploadedAt = DateTime.UtcNow }
+        );
+        await context.SaveChangesAsync();
 
-            var result = await service.UploadFileAsync(file, incidentId);
+        var service = new AttachmentService(context, new Mock<IBlobStorageService>().Object);
+        var list = await service.GetByIncidentAsync(incidentId);
 
-            Assert.Equal(incidentId, result.IncidentId);
-            Assert.StartsWith("/attachments/", result.PathToFile);
-            Assert.Single(context.Attachments.Where(a => a.IncidentId == incidentId));
+        Assert.Equal(2, list.Count);
         }
 
         [Fact]
-        public async Task UploadFileAsync_NullFile_Throws()
+    public async Task DeleteAsync_Should_Remove_Attachment()
+    {
+        var context = GetContext();
+        var attId = Guid.NewGuid();
+        context.Attachments.Add(new Attachment
         {
-            var context = GetInMemoryDbContext();
-            var service = new AttachmentService(context);
+            Id = attId,
+            IncidentId = Guid.NewGuid(),
+            PathToFile = "https://blob.test/x.jpg",
+            FileName = "x.jpg",
+            ContentType = "image/jpeg",
+            FileSizeBytes = 1,
+            UploadedAt = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
 
-            await Assert.ThrowsAsync<ArgumentException>(() =>
-                service.UploadFileAsync(null!, Guid.NewGuid()));
-        }
+        var blobMock = new Mock<IBlobStorageService>();
+        blobMock.Setup(b => b.DeleteAsync(It.IsAny<string>(), "incidents")).ReturnsAsync(true);
+
+        var service = new AttachmentService(context, blobMock.Object);
+        var deleted = await service.DeleteAsync(attId);
+
+        Assert.True(deleted);
+        Assert.Equal(0, await context.Attachments.CountAsync());
     }
 }

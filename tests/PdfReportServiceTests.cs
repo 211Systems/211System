@@ -187,5 +187,54 @@ namespace _211system.Tests
             var saved = await context.PeriodicReports.FirstOrDefaultAsync();
             CleanupReportFile(saved?.PathToPDF);
         }
+
+        [Fact]
+        public async Task GenerateIncidentsReportAsync_WithTransportRecords_ShouldGeneratePdf()
+        {
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+            var context = GetInMemoryDbContext();
+            var service = new PdfReportService(context);
+
+            var incidentId = Guid.NewGuid();
+            context.Incidents.Add(new Incident
+            {
+                Id = incidentId,
+                IncidentNumber = "ZGL/2024/100",
+                Description = "Transport pacjenta",
+                SeverityLevelId = 3,
+                IncidentTypeId = 1,
+                ReportDate = new DateTime(2024, 8, 1),
+                Status = "Zakończone",
+                Latitude = 52.1,
+                Longitude = 21.0
+            });
+            context.TransportRecords.Add(new TransportRecord
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                VehicleId = Guid.NewGuid(),
+                VehicleType = "medic",
+                VehicleLabel = "WA 55555",
+                DestinationId = Guid.NewGuid(),
+                DestinationName = "Szpital Centralny",
+                DestinationType = "hospital",
+                TransportedAt = new DateTime(2024, 8, 1, 14, 30, 0, DateTimeKind.Utc)
+            });
+            await context.SaveChangesAsync();
+
+            var result = await service.GenerateIncidentsReportAsync(
+                new DateTime(2024, 1, 1),
+                new DateTime(2024, 12, 31));
+
+            Assert.NotNull(result.FileBytes);
+            Assert.True(result.FileBytes.Length > 0);
+
+            var savedReport = await context.PeriodicReports.FirstOrDefaultAsync();
+            if (savedReport != null && File.Exists(savedReport.PathToPDF))
+            {
+                File.Delete(savedReport.PathToPDF);
+            }
+        }
     }
 }

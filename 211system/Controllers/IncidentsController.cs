@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using _211system.Data;
 using _211system.DTOs.CPR112;
+using _211system.Models.Services;
 using _211system.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,22 +20,31 @@ namespace _211system.Controllers
         private readonly _211DbContext _context;
         private readonly IBlobStorageService _blobStorageService;
         private readonly IWeatherService _weatherService;
+        private readonly IAttachmentService _attachmentService;
 
-        public IncidentsController(IIncidentService incidentService, _211DbContext context, IBlobStorageService blobStorageService, IWeatherService weatherService)
+        public IncidentsController(IIncidentService incidentService, _211DbContext context, IBlobStorageService blobStorageService, IWeatherService weatherService, IAttachmentService attachmentService)
         {
             _incidentService = incidentService;
             _context = context;
             _blobStorageService = blobStorageService;
-            _weatherService = weatherService; 
+            _weatherService = weatherService;
+            _attachmentService = attachmentService;
         }
 
         [HttpPost]
-        public async Task<ActionResult<IncidentDto>> CreateIncident([FromForm] CreateIncidentDto dto, IFormFile? photo)
+        public async Task<ActionResult<IncidentDto>> CreateIncident([FromForm] CreateIncidentDto dto, IFormFile? photo, [FromForm] List<IFormFile>? photos)
         {
             Console.WriteLine($"Otrzymano: Desc={dto.Description}, SeverityId={dto.SeverityLevelId}");
 
-            if (dto.SeverityLevelId == 0) 
+            if (dto.SeverityLevelId == 0)
                 return BadRequest("Niepoprawny priorytet (ID=0)");
+
+            var allPhotos = new List<IFormFile>();
+            if (photos != null) allPhotos.AddRange(photos.Where(p => p != null && p.Length > 0));
+            if (photo != null && photo.Length > 0) allPhotos.Add(photo);
+            if (allPhotos.Count > AttachmentService.MaxAttachmentsPerIncident)
+                return BadRequest(new { message = $"Maksymalnie {AttachmentService.MaxAttachmentsPerIncident} załączników na zgłoszenie." });
+
             try
             {
                 var applicationUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -50,28 +60,40 @@ namespace _211system.Controllers
                     dto.OperatorId = null;
                 }
 
-                if (photo != null && photo.Length > 0)
-                {
-                    var photoUrl = await _blobStorageService.UploadAsync(photo, "incidents");
-                    dto.PhotoUrl = photoUrl;
-                }
-
                 var result = await _incidentService.CreateIncidentAsync(dto);
+
+                if (allPhotos.Count > 0)
+                {
+                    var incidentEntity = await _context.Incidents.FindAsync(result.Id);
+                    foreach (var file in allPhotos)
+                    {
+                        var att = await _attachmentService.UploadFileAsync(file, result.Id);
+                        if (incidentEntity != null && string.IsNullOrEmpty(incidentEntity.PhotoUrl))
+                        {
+                            incidentEntity.PhotoUrl = att.PathToFile;
+                        }
+                    }
+                    if (incidentEntity != null) await _context.SaveChangesAsync();
+                    result.PhotoUrl = incidentEntity?.PhotoUrl != null
+                        ? _blobStorageService.GetSecureFileUrl(incidentEntity.PhotoUrl, "incidents")
+                        : null;
+                    result.AttachmentCount = allPhotos.Count;
+                }
 
                 try
                 {
                     var incidentEntity = await _context.Incidents.FindAsync(result.Id);
-                    
+
                     if (incidentEntity != null)
                     {
                         double.TryParse(dto.Latitude?.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLat);
                         double.TryParse(dto.Longitude?.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLng);
 
                         var weather = await _weatherService.GetGroundConditionsAsync(parsedLat, parsedLng);
-                        
+
                         incidentEntity.WeatherTemperature = weather.Temperature;
                         incidentEntity.WeatherCondition = weather.Description;
-                        
+
                         await _context.SaveChangesAsync();
                     }
                 }
@@ -99,6 +121,11 @@ namespace _211system.Controllers
                 .OrderByDescending(i => i.ReportDate)
                 .ToListAsync();
 
+            var attachmentCounts = await _context.Attachments
+                .GroupBy(a => a.IncidentId)
+                .Select(g => new { IncidentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.IncidentId, x => x.Count);
+
             var dtos = incidents.Select(inc => new IncidentDto
             {
                 Id = inc.Id,
@@ -113,7 +140,8 @@ namespace _211system.Controllers
                 OperatorId = inc.OperatorId,
                 PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl)
                     ? null
-                    : _blobStorageService.GetSecureFileUrl(inc.PhotoUrl, "incidents")
+                    : _blobStorageService.GetSecureFileUrl(inc.PhotoUrl, "incidents"),
+                AttachmentCount = attachmentCounts.TryGetValue(inc.Id, out var cnt) ? cnt : 0
             }).ToList();
 
             return Ok(dtos);
@@ -125,7 +153,7 @@ namespace _211system.Controllers
             try
             {
                 var result = await _incidentService.GetIncidentByIdAsync(id);
-            
+
                 if (!string.IsNullOrEmpty(result.PhotoUrl))
                 {
                     result.PhotoUrl = _blobStorageService.GetSecureFileUrl(result.PhotoUrl, "incidents");
@@ -186,7 +214,7 @@ namespace _211system.Controllers
             try
             {
                 var incident = await _context.Incidents.FindAsync(id);
-                if (incident == null) 
+                if (incident == null)
                     return NotFound(new { message = "Nie znaleziono zgłoszenia." });
 
                 var medOps = await _context.MedicalOperations.Where(o => o.ReportId == id).ToListAsync();
@@ -267,5 +295,87 @@ namespace _211system.Controllers
 
             return Ok(history);
         }
-    } 
+
+        [HttpGet("{id}/units")]
+        public async Task<IActionResult> GetIncidentUnits(Guid id)
+        {
+            var transports = await _context.TransportRecords
+                .Where(t => t.IncidentId == id)
+                .OrderBy(t => t.TransportedAt)
+                .Select(t => new { t.VehicleLabel, t.DestinationName, t.TransportedAt })
+                .ToListAsync();
+
+            var crews = await _context.VehicleCrews.ToListAsync();
+            List<string> CrewOf(string type, Guid vehicleId) =>
+                crews.Where(c => c.VehicleType == type && c.VehicleId == vehicleId).Select(c => c.MemberName).ToList();
+
+            var result = new List<object>();
+
+            var policeOps = await _context.PoliceOperations.Include(o => o.Policeman).Where(o => o.IncidentId == id).ToListAsync();
+            var policeCars = await _context.PoliceCars.ToListAsync();
+            foreach (var o in policeOps)
+            {
+                var car = policeCars.FirstOrDefault(c => c.PolicemanId == o.PolicemanId);
+                result.Add(new
+                {
+                    service = "Policja",
+                    vehicle = car?.LicensePlate ?? "Brak",
+                    commander = o.Policeman != null ? $"{o.Policeman.Name} {o.Policeman.Lastname}" : "Brak",
+                    crew = car != null ? CrewOf("police", car.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = car != null ? (int)car.Status : 0
+                });
+            }
+
+            var fireOps = await _context.FireOperations.Include(o => o.Fireman).Where(o => o.IncidentId == id).ToListAsync();
+            var fireTrucks = await _context.FireTrucks.ToListAsync();
+            foreach (var o in fireOps)
+            {
+                var truck = fireTrucks.FirstOrDefault(t => t.FiremanId == o.FiremanId);
+                result.Add(new
+                {
+                    service = "Straż",
+                    vehicle = truck?.LicensePlate ?? "Brak",
+                    commander = o.Fireman != null ? $"{o.Fireman.Name} {o.Fireman.Lastname}" : "Brak",
+                    crew = truck != null ? CrewOf("fire", truck.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = truck != null ? (int)truck.Status : 0
+                });
+            }
+
+            var medOps = await _context.MedicalOperations.Include(o => o.Paramedic).Where(o => o.ReportId == id).ToListAsync();
+            var ambulances = await _context.Ambulances.ToListAsync();
+            foreach (var o in medOps)
+            {
+                var amb = ambulances.FirstOrDefault(a => a.ParamedicId == o.ParamedicId);
+                result.Add(new
+                {
+                    service = "ZRM (Medyczne)",
+                    vehicle = amb?.LicensePlate ?? "Brak",
+                    commander = o.Paramedic != null ? $"{o.Paramedic.Name} {o.Paramedic.LastName}" : "Brak",
+                    crew = amb != null ? CrewOf("ambulance", amb.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = amb != null ? (int)amb.Status : 0
+                });
+            }
+
+            var airOps = await _context.AviationOperations.Include(o => o.AirUnit)
+                .Where(o => o.IncidentId.HasValue && o.IncidentId.Value == id).ToListAsync();
+            foreach (var o in airOps)
+            {
+                var svc = o.AirUnit != null ? o.AirUnit.ServiceType.ToString() : "";
+                result.Add(new
+                {
+                    service = $"Lotnictwo ({svc})",
+                    vehicle = o.AirUnit?.Callsign ?? "Brak",
+                    commander = string.IsNullOrEmpty(o.AirUnit?.PilotName) ? "brak pilota" : o.AirUnit.PilotName,
+                    crew = o.AirUnit != null ? CrewOf("air", o.AirUnit.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = o.AirUnit != null ? (int)o.AirUnit.Status : 0
+                });
+            }
+
+            return Ok(new { units = result, transports });
+        }
+    }
 }
