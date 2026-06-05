@@ -27,6 +27,7 @@ namespace _211system.DTOs.CPR112
         public double Longitude { get; set; }
         public Guid? OperatorId { get; set; }
         public string? PhotoUrl { get; set; }
+        public int AttachmentCount { get; set; }
     }
 
     public class ChangeIncidentStatusDto

@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using _211system.Data;
+using _211system.DTOs;
 using _211system.Models;
 using _211system.Models.Dtos.Police;
 using _211system.Models.Interfaces;
@@ -20,12 +21,14 @@ namespace _211system.Models.Services
         private readonly _211DbContext _context;
         private readonly IAuthService _authService;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ITransportService _transportService;
 
-        public PoliceService(_211DbContext context, IAuthService authService, IHttpClientFactory httpClientFactory)
+        public PoliceService(_211DbContext context, IAuthService authService, IHttpClientFactory httpClientFactory, ITransportService transportService)
         {
             _context = context;
             _authService = authService;
             _httpClientFactory = httpClientFactory;
+            _transportService = transportService;
         }
 
         public async Task<PDepartment> CreateDepartmentAsync(CreatePDepartmentDto dto)
@@ -324,12 +327,24 @@ namespace _211system.Models.Services
             var operation = await _context.PoliceOperations.FindAsync(operationId);
             if (operation == null) throw new ArgumentException("Operacja nie istnieje.");
 
+            var dept = await _context.PoliceDepartments.FindAsync(departmentId);
             var car = await _context.PoliceCars.FirstOrDefaultAsync(c => c.CurrentIncidentId == operation.IncidentId && c.PolicemanId == operation.PolicemanId);
             if (car != null)
             {
                 car.Status = VehicleOperationalStatus.Transporting;
                 _context.PoliceCars.Update(car);
                 await _context.SaveChangesAsync();
+
+                await _transportService.RecordAsync(new RecordTransportDto
+                {
+                    IncidentId = operation.IncidentId,
+                    VehicleId = car.Id,
+                    VehicleType = "police",
+                    VehicleLabel = car.LicensePlate,
+                    DestinationId = departmentId,
+                    DestinationName = dept?.Name ?? "Nieznana komenda",
+                    DestinationType = "police_station"
+                });
             }
         }
 

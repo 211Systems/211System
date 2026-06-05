@@ -554,10 +554,16 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
     $('#onSceneModal').modal('show');
 };
 
+window.getVehicleLabel = function (vehicleId, serviceType) {
+    const v = (window.dispatchData?.vehicles || {})[vehicleId];
+    if (v) return v.licensePlate || v.LicensePlate || v.callsign || v.Callsign || vehicleId;
+    return vehicleId;
+};
+
 window.confirmTransport = async function () {
     const ctx = window._onSceneCtx;
     if (!ctx) return;
-    const { vehicleId, serviceType } = ctx;
+    const { vehicleId, serviceType, incidentId } = ctx;
 
     const sel = document.getElementById('onScene-target');
     const targetId = sel ? sel.value : null;
@@ -571,6 +577,27 @@ window.confirmTransport = async function () {
         target = (data.hospitals || []).find(h => (h.id || h.Id) === targetId);
     }
     if (!target) { alert("Nie znaleziono wybranej placówki."); return; }
+
+    if (incidentId) {
+        try {
+            await fetch('/api/Transport/record', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + window.jwtToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    incidentId: incidentId,
+                    vehicleId: vehicleId,
+                    vehicleType: serviceType,
+                    vehicleLabel: window.getVehicleLabel(vehicleId, serviceType),
+                    destinationId: targetId,
+                    destinationName: target.name || target.Name,
+                    destinationType: serviceType === 'police' ? 'police_station' : 'hospital'
+                })
+            });
+        } catch (e) { console.warn('[Transport] Nie udało się zapisać celu transportu:', e); }
+    }
 
     window._onSceneActionTaken = true;
     $('#onSceneModal').modal('hide');
@@ -1328,9 +1355,11 @@ window.showIncidentUnits = async function (incidentId, incidentNumber) {
     try {
         const res = await fetch(`/api/CPR112/Incidents/${incidentId}/units`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
         if (!res.ok) { body.innerHTML = '<p class="text-danger">Brak dostępu lub błąd serwera.</p>'; return; }
-        const units = await res.json();
+        const data = await res.json();
+        const units = Array.isArray(data) ? data : (data.units || []);
+        const transports = Array.isArray(data) ? [] : (data.transports || []);
         if (!units.length) { body.innerHTML = '<p class="text-muted">Do tego zgłoszenia nie przypisano jeszcze żadnych jednostek.</p>'; return; }
-        body.innerHTML = `
+        let html = `
             <table class="table table-sm table-striped">
                 <thead><tr><th>Służba</th><th>Jednostka</th><th>Dowódca/Kierowca</th><th>Obsada</th><th>Status</th></tr></thead>
                 <tbody>
@@ -1344,6 +1373,12 @@ window.showIncidentUnits = async function (incidentId, incidentNumber) {
                     </tr>`).join('')}
                 </tbody>
             </table>`;
+        if (transports.length) {
+            html += `<h6 class="mt-3"><i class="fas fa-hospital"></i> Transporty</h6><ul class="mb-0">` +
+                transports.map(t => `<li><b>${t.destinationName}</b> — ${t.vehicleLabel} (${new Date(t.transportedAt).toLocaleString('pl-PL')})</li>`).join('') +
+                `</ul>`;
+        }
+        body.innerHTML = html;
     } catch (e) { body.innerHTML = '<p class="text-danger">Błąd połączenia.</p>'; }
 };
 

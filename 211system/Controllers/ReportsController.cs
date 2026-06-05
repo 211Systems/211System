@@ -74,6 +74,18 @@ public class ReportsController : Controller
             var fireTrucks = await _context.FireTrucks.ToListAsync();
             var ambulances = await _context.Ambulances.ToListAsync();
             var crews = await _context.VehicleCrews.ToListAsync();
+            var transports = await _context.TransportRecords
+                .Where(t => incidentIds.Contains(t.IncidentId))
+                .OrderBy(t => t.TransportedAt)
+                .ToListAsync();
+
+            string FormatTransports(Guid incidentId)
+            {
+                var recs = transports.Where(t => t.IncidentId == incidentId).ToList();
+                if (!recs.Any()) return "";
+                return string.Join("<br>", recs.Select(t =>
+                    $"→ <b>{t.DestinationName}</b> ({t.VehicleLabel}, {t.TransportedAt:dd.MM HH:mm})"));
+            }
 
             string CrewSuffix(string vehicleType, Guid? vehicleId)
             {
@@ -116,6 +128,9 @@ public class ReportsController : Controller
                     })));
 
                 string servicesText = servicesList.Any() ? string.Join("<br>", servicesList) : "Brak służb";
+                var transportText = FormatTransports(i.Id);
+                if (!string.IsNullOrEmpty(transportText))
+                    servicesText += "<br><br><b>Transport:</b><br>" + transportText;
 
                 return new
                 {
@@ -127,7 +142,8 @@ public class ReportsController : Controller
                     description = i.Description,
                     address = (i.Latitude != 0 && i.Longitude != 0) ? $"GPS: {i.Latitude}, {i.Longitude}" : "Brak",
                     weather = i.WeatherTemperature.HasValue ? $"{i.WeatherTemperature}°C, {i.WeatherCondition}" : "Brak danych",
-                    services = servicesText
+                    services = servicesText,
+                    transports = transportText
                 };
             }).ToList();
 

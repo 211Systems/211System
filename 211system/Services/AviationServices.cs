@@ -1,4 +1,5 @@
 ﻿using _211system.Data;
+using _211system.DTOs;
 using _211system.Models;
 using _211system.Models.Aviation;
 using _211system.Models.Dtos.Aviation;
@@ -10,10 +11,12 @@ namespace _211system.Services
     public class AviationService : IAviationService
     {
         private readonly _211DbContext _context;
+        private readonly ITransportService _transportService;
 
-        public AviationService(_211DbContext context)
+        public AviationService(_211DbContext context, ITransportService transportService)
         {
             _context = context;
+            _transportService = transportService;
         }
 
         public async Task<Airbase> CreateAirbaseAsync(CreateAirbaseDto dto)
@@ -297,9 +300,25 @@ namespace _211system.Services
 
             if (operation != null && operation.AirUnit != null)
             {
+                var hospital = await _context.Hospitals.FindAsync(hospitalId);
+
                 operation.AirUnit.Status = VehicleOperationalStatus.Transporting;
                 _context.AirUnits.Update(operation.AirUnit);
                 await _context.SaveChangesAsync();
+
+                if (operation.IncidentId.HasValue)
+                {
+                    await _transportService.RecordAsync(new RecordTransportDto
+                    {
+                        IncidentId = operation.IncidentId.Value,
+                        VehicleId = operation.AirUnit.Id,
+                        VehicleType = "aviation",
+                        VehicleLabel = operation.AirUnit.Callsign,
+                        DestinationId = hospitalId,
+                        DestinationName = hospital?.Name ?? "Nieznany szpital",
+                        DestinationType = "hospital"
+                    });
+                }
             }
         }
 

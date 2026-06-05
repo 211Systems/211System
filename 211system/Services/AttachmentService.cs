@@ -1,51 +1,98 @@
 ﻿using _211system.Data;
 using _211system.Models.Interfaces;
 using CPR112.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Models.Services
 {
     public class AttachmentService : IAttachmentService
     {
-        private readonly _211DbContext _context;
-        private readonly string path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "attachments");
+        public const int MaxAttachmentsPerIncident = 10;
+        public const long MaxFileSizeBytes = 5 * 1024 * 1024;
 
-        public AttachmentService(_211DbContext context)
+        private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".pdf", ".docx", ".webp" };
+
+        private readonly _211DbContext _context;
+        private readonly IBlobStorageService _blobStorage;
+
+        public AttachmentService(_211DbContext context, IBlobStorageService blobStorage)
         {
             _context = context;
+            _blobStorage = blobStorage;
         }
 
-        public Task<Attachment> UploadFileAsync(IFormFile file, Guid incidentId)
+        public async Task<Attachment> UploadFileAsync(IFormFile file, Guid incidentId)
         {
-            if (file == null || file.Length == 0)
-                throw new ArgumentException("File is empty.");
+            ValidateFile(file);
 
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".docx" };
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var count = await CountByIncidentAsync(incidentId);
+            if (count >= MaxAttachmentsPerIncident)
+                throw new ArgumentException($"Maksymalnie {MaxAttachmentsPerIncident} załączników na zgłoszenie.");
 
-            if (!allowedExtensions.Contains(extension))
-                throw new ArgumentException("Unsupported file type.");
+            var blobUrl = await _blobStorage.UploadAsync(file, "incidents");
 
-            if(file.Length> 5 * 1024 * 1024) 
-                throw new ArgumentException("File size exceeds the limit.");
-
-            var fileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(path, fileName);
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                file.CopyToAsync(stream);
-            }
             var attachment = new Attachment
             {
                 Id = Guid.NewGuid(),
-                PathToFile = $"/attachments/{fileName}",
+                PathToFile = blobUrl,
+                FileName = file.FileName,
+                ContentType = file.ContentType ?? "application/octet-stream",
+                FileSizeBytes = file.Length,
+                UploadedAt = DateTime.UtcNow,
                 IncidentId = incidentId
             };
 
+            await _context.Attachments.AddAsync(attachment);
+            await _context.SaveChangesAsync();
 
-            _context.Attachments.AddAsync(attachment);
-            _context.SaveChangesAsync();
+            return attachment;
+        }
 
-            return Task.FromResult(attachment);
+        public async Task<IReadOnlyList<AttachmentDto>> GetByIncidentAsync(Guid incidentId)
+        {
+            return await _context.Attachments
+                .Where(a => a.IncidentId == incidentId)
+                .OrderBy(a => a.UploadedAt)
+                .Select(a => new AttachmentDto
+                {
+                    Id = a.Id,
+                    Url = a.PathToFile,
+                    FileName = a.FileName,
+                    ContentType = a.ContentType,
+                    FileSizeBytes = a.FileSizeBytes,
+                    UploadedAt = a.UploadedAt
+                })
+                .ToListAsync();
+        }
+
+        public async Task<int> CountByIncidentAsync(Guid incidentId)
+        {
+            return await _context.Attachments.CountAsync(a => a.IncidentId == incidentId);
+        }
+
+        public async Task<bool> DeleteAsync(Guid attachmentId)
+        {
+            var att = await _context.Attachments.FindAsync(attachmentId);
+            if (att == null) return false;
+
+            try { await _blobStorage.DeleteAsync(att.PathToFile, "incidents"); } catch { }
+
+            _context.Attachments.Remove(att);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private static void ValidateFile(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("Plik jest pusty.");
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!AllowedExtensions.Contains(extension))
+                throw new ArgumentException("Niedozwolony typ pliku. Dozwolone: JPG, PNG, PDF, DOCX, WEBP.");
+
+            if (file.Length > MaxFileSizeBytes)
+                throw new ArgumentException("Plik przekracza limit 5 MB.");
         }
     }
 }

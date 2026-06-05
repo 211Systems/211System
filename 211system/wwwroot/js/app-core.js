@@ -11,11 +11,11 @@ window.logout = function () {
     window.location.href = '/AuthView/Login';
 };
 function initClock() {
-    const clock = document.getElementById('live-clock');
-    if (!clock) return;
-
     function updateClock() {
-        clock.textContent = new Date().toLocaleTimeString('pl-PL');
+        const time = new Date().toLocaleTimeString('pl-PL');
+        document.querySelectorAll('.live-clock, #live-clock').forEach(el => {
+            el.textContent = time;
+        });
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -100,7 +100,7 @@ function initUserContext() {
     else if (rolesArray.includes("Medyk")) {
         show('menu-medic-worker'); show('link-operations');
     }
- 
+
     else if (rolesArray.includes("Komendant")) {
         show('menu-police-manager'); show('link-police-depts'); show('link-police-cars');
         show('menu-police-worker'); show('link-police-operations');
@@ -117,7 +117,7 @@ function initUserContext() {
         show('menu-fire-manager'); show('link-fire-depts'); show('link-fire-trucks');
         show('menu-fire-worker'); show('link-fire-operations');
     }
-    else if (rolesArray.includes("strazak")) { 
+    else if (rolesArray.includes("strazak")) {
         show('menu-fire-worker'); show('link-fire-operations');
     }
 }
@@ -171,7 +171,7 @@ function initAvatarUpload() {
                         || decoded.unique_name
                         || "";
                 }
-            
+
             } else {
                 const err = await response.json();
                 alert(err.message || "Błąd podczas wgrywania pliku.");

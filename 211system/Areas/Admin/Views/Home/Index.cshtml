@@ -2,15 +2,16 @@
     ViewData["Title"] = "Panel Głównego Administratora";
 }
 
-<div class="row align-items-center mb-3 mt-2">
+<div class="adm-panel sys-page-header row align-items-center mt-2 mb-3">
     <div class="col-auto">
-        <img src="~/logo.png" alt="Logo System 211" style="height: 70px; width: auto; border-radius: 8px;" class="elevation-2">
+        <img src="~/logo.png" alt="Logo System 211" class="sys-page-logo elevation-2">
     </div>
     <div class="col">
-        <h2 class="m-0 font-weight-bold">Centrum Dowodzenia 211 — Administrator</h2>
-        <p class="text-muted m-0">Statystyki, podgląd na żywo i diagnostyka systemu. <span id="adm-refresh" class="badge badge-secondary"></span></p>
+        <h2 class="sys-page-title m-0">Centrum Dowodzenia 211 — Administrator</h2>
+        <p class="sys-page-subtitle m-0">Statystyki, podgląd na żywo i diagnostyka systemu. <span id="adm-refresh" class="badge badge-secondary"></span></p>
     </div>
-    <div class="col-auto">
+    <div class="col-auto d-flex align-items-center">
+        <span class="badge badge-dark p-2 live-clock mr-2" style="font-size: 1rem;">00:00:00</span>
         <button class="btn btn-outline-secondary" onclick="loadAll()"><i class="fas fa-sync"></i> Odśwież</button>
     </div>
 </div>
@@ -187,7 +188,7 @@
                 const d = await r.json();
                 document.getElementById('diag-system').innerHTML = `
                     <p>Baza danych: <span class="badge badge-${d.database === 'OK' ? 'success' : 'danger'}">${d.database}</span></p>
-                    <p>Czas serwera (UTC): <b>${new Date(d.serverTimeUtc).toLocaleString('pl-PL')}</b></p>
+                    <p>Czas systemowy: <span class="badge badge-dark p-2 live-clock" style="font-size:1rem;">00:00:00</span></p>
                     <p>Użytkownicy łącznie: <b>${d.totalUsers}</b></p>`;
 
                 const sv = d.stuckVehicles;
@@ -199,6 +200,9 @@
 
                 document.getElementById('diag-roles').innerHTML = (d.roles || [])
                     .map(rr => `<span class="badge badge-secondary p-2 m-1">${rr.role}: <b>${rr.users}</b></span>`).join('');
+
+                const now = new Date().toLocaleTimeString('pl-PL');
+                document.querySelectorAll('.live-clock').forEach(el => { el.textContent = now; });
             } catch (e) { console.error(e); }
         }
 

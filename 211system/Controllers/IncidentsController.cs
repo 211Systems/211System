@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using _211system.Data;
 using _211system.DTOs.CPR112;
+using _211system.Models.Services;
 using _211system.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,22 +20,31 @@ namespace _211system.Controllers
         private readonly _211DbContext _context;
         private readonly IBlobStorageService _blobStorageService;
         private readonly IWeatherService _weatherService;
+        private readonly IAttachmentService _attachmentService;
 
-        public IncidentsController(IIncidentService incidentService, _211DbContext context, IBlobStorageService blobStorageService, IWeatherService weatherService)
+        public IncidentsController(IIncidentService incidentService, _211DbContext context, IBlobStorageService blobStorageService, IWeatherService weatherService, IAttachmentService attachmentService)
         {
             _incidentService = incidentService;
             _context = context;
             _blobStorageService = blobStorageService;
             _weatherService = weatherService;
+            _attachmentService = attachmentService;
         }
 
         [HttpPost]
-        public async Task<ActionResult<IncidentDto>> CreateIncident([FromForm] CreateIncidentDto dto, IFormFile? photo)
+        public async Task<ActionResult<IncidentDto>> CreateIncident([FromForm] CreateIncidentDto dto, IFormFile? photo, [FromForm] List<IFormFile>? photos)
         {
             Console.WriteLine($"Otrzymano: Desc={dto.Description}, SeverityId={dto.SeverityLevelId}");
 
             if (dto.SeverityLevelId == 0)
                 return BadRequest("Niepoprawny priorytet (ID=0)");
+
+            var allPhotos = new List<IFormFile>();
+            if (photos != null) allPhotos.AddRange(photos.Where(p => p != null && p.Length > 0));
+            if (photo != null && photo.Length > 0) allPhotos.Add(photo);
+            if (allPhotos.Count > AttachmentService.MaxAttachmentsPerIncident)
+                return BadRequest(new { message = $"Maksymalnie {AttachmentService.MaxAttachmentsPerIncident} załączników na zgłoszenie." });
+
             try
             {
                 var applicationUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -50,13 +60,25 @@ namespace _211system.Controllers
                     dto.OperatorId = null;
                 }
 
-                if (photo != null && photo.Length > 0)
-                {
-                    var photoUrl = await _blobStorageService.UploadAsync(photo, "incidents");
-                    dto.PhotoUrl = photoUrl;
-                }
-
                 var result = await _incidentService.CreateIncidentAsync(dto);
+
+                if (allPhotos.Count > 0)
+                {
+                    var incidentEntity = await _context.Incidents.FindAsync(result.Id);
+                    foreach (var file in allPhotos)
+                    {
+                        var att = await _attachmentService.UploadFileAsync(file, result.Id);
+                        if (incidentEntity != null && string.IsNullOrEmpty(incidentEntity.PhotoUrl))
+                        {
+                            incidentEntity.PhotoUrl = att.PathToFile;
+                        }
+                    }
+                    if (incidentEntity != null) await _context.SaveChangesAsync();
+                    result.PhotoUrl = incidentEntity?.PhotoUrl != null
+                        ? _blobStorageService.GetSecureFileUrl(incidentEntity.PhotoUrl, "incidents")
+                        : null;
+                    result.AttachmentCount = allPhotos.Count;
+                }
 
                 try
                 {
@@ -99,6 +121,11 @@ namespace _211system.Controllers
                 .OrderByDescending(i => i.ReportDate)
                 .ToListAsync();
 
+            var attachmentCounts = await _context.Attachments
+                .GroupBy(a => a.IncidentId)
+                .Select(g => new { IncidentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.IncidentId, x => x.Count);
+
             var dtos = incidents.Select(inc => new IncidentDto
             {
                 Id = inc.Id,
@@ -113,7 +140,8 @@ namespace _211system.Controllers
                 OperatorId = inc.OperatorId,
                 PhotoUrl = string.IsNullOrEmpty(inc.PhotoUrl)
                     ? null
-                    : _blobStorageService.GetSecureFileUrl(inc.PhotoUrl, "incidents")
+                    : _blobStorageService.GetSecureFileUrl(inc.PhotoUrl, "incidents"),
+                AttachmentCount = attachmentCounts.TryGetValue(inc.Id, out var cnt) ? cnt : 0
             }).ToList();
 
             return Ok(dtos);
@@ -267,10 +295,16 @@ namespace _211system.Controllers
 
             return Ok(history);
         }
-        
+
         [HttpGet("{id}/units")]
         public async Task<IActionResult> GetIncidentUnits(Guid id)
         {
+            var transports = await _context.TransportRecords
+                .Where(t => t.IncidentId == id)
+                .OrderBy(t => t.TransportedAt)
+                .Select(t => new { t.VehicleLabel, t.DestinationName, t.TransportedAt })
+                .ToListAsync();
+
             var crews = await _context.VehicleCrews.ToListAsync();
             List<string> CrewOf(string type, Guid vehicleId) =>
                 crews.Where(c => c.VehicleType == type && c.VehicleId == vehicleId).Select(c => c.MemberName).ToList();
@@ -341,7 +375,7 @@ namespace _211system.Controllers
                 });
             }
 
-            return Ok(result);
+            return Ok(new { units = result, transports });
         }
     }
 }

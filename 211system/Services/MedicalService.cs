@@ -1,4 +1,5 @@
 ﻿using _211system.Data;
+using _211system.DTOs;
 using _211system.DTOs.Hospital;
 using _211system.Models;
 using _211system.Models.Hospital;
@@ -16,12 +17,14 @@ namespace _211system.Services
         private readonly _211DbContext _context;
         private readonly IAuthService _authService;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ITransportService _transportService;
 
-        public MedicalService(_211DbContext context, IAuthService authService, IHttpClientFactory httpClientFactory)
+        public MedicalService(_211DbContext context, IAuthService authService, IHttpClientFactory httpClientFactory, ITransportService transportService)
         {
             _context = context;
             _authService = authService;
             _httpClientFactory = httpClientFactory;
+            _transportService = transportService;
         }
 
         public async Task<HospitalDto> CreateHospitalAsync(CreateHospitalDto dto)
@@ -220,17 +223,17 @@ namespace _211system.Services
 
             if (ambulance == null) throw new ArgumentException("Karetka nie istnieje.");
 
-            if (!ambulance.IsAvailable) 
+            if (!ambulance.IsAvailable)
                 throw new InvalidOperationException("Ta karetka jest już w trakcie innej akcji.");
-            
+
             ambulance.IsAvailable = false;
             ambulance.CurrentIncidentId = incidentId;
 
             var incident = await _context.Incidents.Include(i => i.SeverityLevel).FirstOrDefaultAsync(i => i.Id == incidentId);
             if (incident != null)
             {
-                incident.IsMedicalActive = true; 
-                
+                incident.IsMedicalActive = true;
+
                 if (incident.Status == "Nowe")
                 {
                     incident.Status = "W toku";
@@ -264,13 +267,13 @@ namespace _211system.Services
                 await NotifyMedicalEndpointAsync(ambulance, incident);
             }
         }
-        
+
         private async Task NotifyMedicalEndpointAsync(Ambulance ambulance, Incident incident)
         {
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                
+
                 var payload = new
                 {
                     IncidentId = incident.Id,
@@ -278,13 +281,13 @@ namespace _211system.Services
                     Description = incident.Description,
                     Severity = incident.SeverityLevel != null ? incident.SeverityLevel.Name : "Brak",
                     DispatchTime = DateTime.UtcNow,
-                    AssignedAmbulance = new 
+                    AssignedAmbulance = new
                     {
                         AmbulanceId = ambulance.Id,
                         LicensePlate = ambulance.LicensePlate,
                         Type = ambulance.Type.ToString(),
                         HospitalId = ambulance.HospitalId,
-                        Crew = ambulance.Paramedic != null ? new 
+                        Crew = ambulance.Paramedic != null ? new
                         {
                             ParamedicId = ambulance.Paramedic.Id,
                             FirstName = ambulance.Paramedic.Name,
@@ -298,7 +301,7 @@ namespace _211system.Services
                 var jsonPayload = JsonSerializer.Serialize(payload);
                 var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-                string targetEndpoint = "https://twoj-system.pl/api/medical-receptor/dispatch"; 
+                string targetEndpoint = "https://twoj-system.pl/api/medical-receptor/dispatch";
 
                 var response = await client.PostAsync(targetEndpoint, content);
 
@@ -341,20 +344,20 @@ namespace _211system.Services
         {
             var operation = await _context.MedicalOperations.FindAsync(operationId);
             if (operation == null) throw new ArgumentException("Nie znaleziono takiej operacji.");
-            
+
             if (operation.EndTime != null)
             {
                 throw new InvalidOperationException("Ta akcja została już wcześniej zakończona.");
             }
-            
+
             operation.EndTime = DateTime.UtcNow;
             _context.MedicalOperations.Update(operation);
-            
+
             var ambulances = await _context.Ambulances
                 .Where(a => a.CurrentIncidentId == operation.ReportId)
                 .ToListAsync();
-                
-            foreach(var amb in ambulances)
+
+            foreach (var amb in ambulances)
             {
                 amb.IsAvailable = true;
                 amb.CurrentIncidentId = null;
@@ -365,12 +368,12 @@ namespace _211system.Services
             if (incident != null)
             {
                 incident.IsMedicalActive = false;
-                
+
                 if (!incident.IsPoliceActive && !incident.IsFireActive && !incident.IsMedicalActive)
                 {
                     incident.Status = "Zakończone";
                 }
-                
+
                 _context.Incidents.Update(incident);
             }
 
@@ -465,7 +468,7 @@ namespace _211system.Services
                     var activeOperations = await _context.MedicalOperations
                         .Where(o => o.ParamedicId == ambulance.ParamedicId.Value && o.ReportId == ambulance.CurrentIncidentId.Value)
                         .ToListAsync();
-                        
+
                     if (activeOperations.Any())
                     {
                         _context.MedicalOperations.RemoveRange(activeOperations);
@@ -553,9 +556,22 @@ namespace _211system.Services
 
             if (ambulance == null) throw new ArgumentException("Nie znaleziono karetki przypisanej do tej akcji.");
 
+            var hospital = await _context.Hospitals.FindAsync(targetHospitalId);
+
             ambulance.Status = VehicleOperationalStatus.Transporting;
             _context.Ambulances.Update(ambulance);
             await _context.SaveChangesAsync();
+
+            await _transportService.RecordAsync(new RecordTransportDto
+            {
+                IncidentId = operation.ReportId,
+                VehicleId = ambulance.Id,
+                VehicleType = "medic",
+                VehicleLabel = ambulance.LicensePlate,
+                DestinationId = targetHospitalId,
+                DestinationName = hospital?.Name ?? "Nieznany szpital",
+                DestinationType = "hospital"
+            });
         }
 
         public async Task ReturnToBaseAsync(Guid operationId)

@@ -50,6 +50,10 @@ public class PdfReportService : IPdfReportService
         var fireTrucks = await _context.FireTrucks.ToListAsync();
         var ambulances = await _context.Ambulances.ToListAsync();
         var crews = await _context.VehicleCrews.ToListAsync();
+        var transports = await _context.TransportRecords
+            .Where(t => incidentIds.Contains(t.IncidentId))
+            .OrderBy(t => t.TransportedAt)
+            .ToListAsync();
 
         string CrewSuffix(string vehicleType, Guid? vehicleId)
         {
@@ -179,6 +183,13 @@ public class PdfReportService : IPdfReportService
                     }
 
                     string servicesText = servicesList.Any() ? string.Join("\n", servicesList) : "Brak zadysponowanych służb";
+
+                    var transportRecs = transports.Where(t => t.IncidentId == incident.Id).ToList();
+                    if (transportRecs.Any())
+                    {
+                        servicesText += "\n\nTransport:\n" + string.Join("\n", transportRecs.Select(t =>
+                            $"→ {t.DestinationName} ({t.VehicleLabel}, {t.TransportedAt:dd.MM HH:mm})"));
+                    }
 
                     table.Cell().Element(CellContentStyle).Text(incident.IncidentNumber);
                     table.Cell().Element(CellContentStyle).Text(incident.ReportDate.ToString("dd.MM\nHH:mm"));

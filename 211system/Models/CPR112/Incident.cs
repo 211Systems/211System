@@ -50,4 +50,6 @@ public class Incident
     public virtual ICollection<DispatcherComment> Comments { get; set; } = new List<DispatcherComment>();
 
     public ICollection<IncidentStatusHistory> StatusHistories { get; set; } = new List<IncidentStatusHistory>();
+
+    public virtual ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
 }

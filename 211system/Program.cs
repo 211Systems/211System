@@ -70,6 +70,7 @@ builder.Services.AddScoped<IPdfReportService, PdfReportService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<IWeatherService, WeatherService>();
 builder.Services.AddScoped<IAviationService, AviationService>();
+builder.Services.AddScoped<ITransportService, TransportService>();
 
 builder.Services.AddControllersWithViews()
     .AddJsonOptions(options =>
@@ -113,7 +114,7 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
-    
+
     //Jeżeli masz problem System.InvalidOperationExeption w tym foreachu na dole na świeżej migracji to odkomentuj bo muszą się tabele utowrzyć >:)
     //dbContext.Database.Migrate();
 
