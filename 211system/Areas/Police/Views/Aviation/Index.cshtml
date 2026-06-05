@@ -155,9 +155,23 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="~/js/auth-handler.js" asp-append-version="true"></script>
     <script src="~/js/aviation-pilots.js" asp-append-version="true"></script>
+    <script src="~/js/vehicle-crew.js" asp-append-version="true"></script>
 
     <script>
         const currentServiceFilter = @ViewBag.ServiceFilter;
+
+        window.openAirCrewModal = async function (unitId, commanderId) {
+            try {
+                const people = await window.AviationPilots.loadCandidates(currentServiceFilter, jwtToken);
+                const candidates = people.map(p => ({ id: window.AviationPilots.personId(p), name: window.AviationPilots.personLabel(p) }));
+                const commander = candidates.find(c => String(c.id) === String(commanderId));
+                window.VehicleCrew.open({
+                    type: 'air', vehicleId: unitId, candidates,
+                    commanderId, commanderName: commander ? commander.name : null,
+                    onSaved: () => { alert('Obsada maszyny zapisana.'); fetchData(); }
+                });
+            } catch (e) { alert('Nie udało się wczytać listy załogi.'); }
+        };
         const themeColorClass = "text-@ViewBag.ThemeColor";
         let isAviationManager = false;
         let jwtToken = '';
@@ -236,6 +250,7 @@
                     if (pilotId) {
                         pilotCell += ` <button onclick="unassignPilot('${vId}')" class="btn btn-sm btn-link p-0 text-danger ml-1" title="Odepnij pilota"><i class="fas fa-user-minus"></i></button>`;
                     }
+                    pilotCell += `<br><button onclick="openAirCrewModal('${vId}','${pilotId || ''}')" class="btn btn-sm btn-link p-0 text-dark" title="Obsada (załoga)"><i class="fas fa-users"></i> Załoga</button>`;
                 }
 
                 let actions = `<button onclick="focusMap(${airbase?.latitude || airbase?.Latitude || 0}, ${airbase?.longitude || airbase?.Longitude || 0})" class="btn btn-sm btn-secondary" title="Pokaż bazę na mapie"><i class="fas fa-map-marker-alt"></i></button>`;

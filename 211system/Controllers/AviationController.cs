@@ -133,12 +133,39 @@ namespace _211system.Controllers
         public async Task<IActionResult> GetActiveOperations() => Ok(await _aviationService.GetActiveOperationsAsync());
 
         [HttpPost("operations/{operationId}/transport")]
-        public async Task<IActionResult> TransportPatient(Guid operationId, [FromBody] Guid hospitalId) => Ok();
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
+        public async Task<IActionResult> TransportPatient(Guid operationId, [FromBody] Guid hospitalId)
+        {
+            try
+            {
+                await _aviationService.TransportPatientAsync(operationId, hospitalId);
+                return Ok(new { message = "Maszyna realizuje transport." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
 
         [HttpPost("operations/{operationId}/return")]
-        public async Task<IActionResult> ReturnToBase(Guid operationId) => Ok();
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
+        public async Task<IActionResult> ReturnToBase(Guid operationId)
+        {
+            try
+            {
+                await _aviationService.ReturnToBaseAsync(operationId);
+                return Ok(new { message = "Maszyna wraca do bazy." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
 
         [HttpPut("operations/{operationId}/end")]
-        public async Task<IActionResult> EndOperation(Guid operationId) => Ok();
+        [Authorize(Roles = "Admin, Admin112, Dyspozytor112, Inspektor, Komendant, Naczelnik, Kierownik Szpitala, Kapitan, Lekarz, Medyk, Policjant, Strazak")]
+        public async Task<IActionResult> EndOperation(Guid operationId)
+        {
+            try
+            {
+                await _aviationService.EndOperationAsync(operationId);
+                return Ok(new { message = "Misja lotnicza zakończona." });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
     }
 }

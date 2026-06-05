@@ -25,7 +25,7 @@ namespace _211system.Controllers
             _incidentService = incidentService;
             _context = context;
             _blobStorageService = blobStorageService;
-            _weatherService = weatherService; 
+            _weatherService = weatherService;
         }
 
         [HttpPost]
@@ -33,7 +33,7 @@ namespace _211system.Controllers
         {
             Console.WriteLine($"Otrzymano: Desc={dto.Description}, SeverityId={dto.SeverityLevelId}");
 
-            if (dto.SeverityLevelId == 0) 
+            if (dto.SeverityLevelId == 0)
                 return BadRequest("Niepoprawny priorytet (ID=0)");
             try
             {
@@ -61,17 +61,17 @@ namespace _211system.Controllers
                 try
                 {
                     var incidentEntity = await _context.Incidents.FindAsync(result.Id);
-                    
+
                     if (incidentEntity != null)
                     {
                         double.TryParse(dto.Latitude?.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLat);
                         double.TryParse(dto.Longitude?.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double parsedLng);
 
                         var weather = await _weatherService.GetGroundConditionsAsync(parsedLat, parsedLng);
-                        
+
                         incidentEntity.WeatherTemperature = weather.Temperature;
                         incidentEntity.WeatherCondition = weather.Description;
-                        
+
                         await _context.SaveChangesAsync();
                     }
                 }
@@ -125,7 +125,7 @@ namespace _211system.Controllers
             try
             {
                 var result = await _incidentService.GetIncidentByIdAsync(id);
-            
+
                 if (!string.IsNullOrEmpty(result.PhotoUrl))
                 {
                     result.PhotoUrl = _blobStorageService.GetSecureFileUrl(result.PhotoUrl, "incidents");
@@ -186,7 +186,7 @@ namespace _211system.Controllers
             try
             {
                 var incident = await _context.Incidents.FindAsync(id);
-                if (incident == null) 
+                if (incident == null)
                     return NotFound(new { message = "Nie znaleziono zgłoszenia." });
 
                 var medOps = await _context.MedicalOperations.Where(o => o.ReportId == id).ToListAsync();
@@ -267,5 +267,81 @@ namespace _211system.Controllers
 
             return Ok(history);
         }
-    } 
+        
+        [HttpGet("{id}/units")]
+        public async Task<IActionResult> GetIncidentUnits(Guid id)
+        {
+            var crews = await _context.VehicleCrews.ToListAsync();
+            List<string> CrewOf(string type, Guid vehicleId) =>
+                crews.Where(c => c.VehicleType == type && c.VehicleId == vehicleId).Select(c => c.MemberName).ToList();
+
+            var result = new List<object>();
+
+            var policeOps = await _context.PoliceOperations.Include(o => o.Policeman).Where(o => o.IncidentId == id).ToListAsync();
+            var policeCars = await _context.PoliceCars.ToListAsync();
+            foreach (var o in policeOps)
+            {
+                var car = policeCars.FirstOrDefault(c => c.PolicemanId == o.PolicemanId);
+                result.Add(new
+                {
+                    service = "Policja",
+                    vehicle = car?.LicensePlate ?? "Brak",
+                    commander = o.Policeman != null ? $"{o.Policeman.Name} {o.Policeman.Lastname}" : "Brak",
+                    crew = car != null ? CrewOf("police", car.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = car != null ? (int)car.Status : 0
+                });
+            }
+
+            var fireOps = await _context.FireOperations.Include(o => o.Fireman).Where(o => o.IncidentId == id).ToListAsync();
+            var fireTrucks = await _context.FireTrucks.ToListAsync();
+            foreach (var o in fireOps)
+            {
+                var truck = fireTrucks.FirstOrDefault(t => t.FiremanId == o.FiremanId);
+                result.Add(new
+                {
+                    service = "Straż",
+                    vehicle = truck?.LicensePlate ?? "Brak",
+                    commander = o.Fireman != null ? $"{o.Fireman.Name} {o.Fireman.Lastname}" : "Brak",
+                    crew = truck != null ? CrewOf("fire", truck.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = truck != null ? (int)truck.Status : 0
+                });
+            }
+
+            var medOps = await _context.MedicalOperations.Include(o => o.Paramedic).Where(o => o.ReportId == id).ToListAsync();
+            var ambulances = await _context.Ambulances.ToListAsync();
+            foreach (var o in medOps)
+            {
+                var amb = ambulances.FirstOrDefault(a => a.ParamedicId == o.ParamedicId);
+                result.Add(new
+                {
+                    service = "ZRM (Medyczne)",
+                    vehicle = amb?.LicensePlate ?? "Brak",
+                    commander = o.Paramedic != null ? $"{o.Paramedic.Name} {o.Paramedic.LastName}" : "Brak",
+                    crew = amb != null ? CrewOf("ambulance", amb.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = amb != null ? (int)amb.Status : 0
+                });
+            }
+
+            var airOps = await _context.AviationOperations.Include(o => o.AirUnit)
+                .Where(o => o.IncidentId.HasValue && o.IncidentId.Value == id).ToListAsync();
+            foreach (var o in airOps)
+            {
+                var svc = o.AirUnit != null ? o.AirUnit.ServiceType.ToString() : "";
+                result.Add(new
+                {
+                    service = $"Lotnictwo ({svc})",
+                    vehicle = o.AirUnit?.Callsign ?? "Brak",
+                    commander = string.IsNullOrEmpty(o.AirUnit?.PilotName) ? "brak pilota" : o.AirUnit.PilotName,
+                    crew = o.AirUnit != null ? CrewOf("air", o.AirUnit.Id) : new List<string>(),
+                    active = o.EndTime == null,
+                    status = o.AirUnit != null ? (int)o.AirUnit.Status : 0
+                });
+            }
+
+            return Ok(result);
+        }
+    }
 }

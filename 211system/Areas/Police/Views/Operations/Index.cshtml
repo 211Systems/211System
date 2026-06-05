@@ -161,17 +161,21 @@
             missions.forEach(u => {
                 const id = u.id || u.Id;
                 const cs = u.callsign || u.Callsign;
-                html += `<div class="d-flex justify-content-between align-items-center border-bottom py-2">
-                    <span><b>${cs}</b> <span class="badge bg-warning text-dark">W misji</span></span>
-                    <button class="btn btn-sm btn-secondary" onclick="endMyAirMission('${id}')"><i class="fas fa-undo"></i> Zakończ misję i wróć do bazy</button>
+                html += `<div class="d-flex justify-content-between align-items-center border-bottom py-2 flex-wrap">
+                    <span><b>${cs}</b> <span class="badge bg-warning text-dark">W misji (lotnictwo policyjne)</span></span>
+                    <span class="btn-group">
+                        <button class="btn btn-sm btn-primary" onclick="endMyAirMission('${id}','Poszukiwania / obserwacja z powietrza')"><i class="fas fa-binoculars"></i> Poszukiwania i powrót</button>
+                        <button class="btn btn-sm btn-secondary" onclick="endMyAirMission('${id}','Wsparcie z powietrza')"><i class="fas fa-undo"></i> Wsparcie i powrót</button>
+                    </span>
                 </div>`;
             });
             html += '</div></div>';
             box.innerHTML = html;
         }
 
-        window.endMyAirMission = async function(unitId) {
-            if (!confirm("Zakończyć misję lotniczą i zawrócić maszynę do bazy?")) return;
+        window.endMyAirMission = async function(unitId, actionLabel) {
+            const label = actionLabel || 'Zakończenie misji';
+            if (!confirm(`Realizujesz: "${label}". Maszyna wróci do bazy, a zgłoszenie zostanie domknięte (jeśli żadna inna służba nie działa). Kontynuować?`)) return;
             const res = await window.AviationPilots.endMission(unitId, token);
             if (res.ok) { alert("Misja lotnicza zakończona. Maszyna wraca do bazy."); await loadMyAirMissions(); }
             else alert("Nie udało się zakończyć misji (brak uprawnień lub błąd serwera).");

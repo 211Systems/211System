@@ -440,7 +440,6 @@ window.completeReturn = async function (vehicleId, serviceType, baseLat, baseLng
     if (typeof window.refreshAll === 'function') await window.refreshAll();
 };
 
-
 window.ensureOnSceneModal = function () {
     if (document.getElementById('onSceneModal')) return;
     const wrapper = document.createElement('div');
@@ -524,17 +523,29 @@ window.openOnSceneModal = async function (vehicleId, serviceType, incidentId, at
             <button type="button" class="btn btn-primary font-weight-bold" onclick="window.confirmTransport()"><i class="fas fa-building"></i> Przewieź na komisariat</button>
             <button type="button" class="btn btn-secondary" onclick="window.finishOnScene()">Zakończ bez przewozu</button>
             ${cancelBtn}`;
+    } else if (serviceType === 'aviation' && airSvc === 2) {
+        titleEl.innerHTML = '<i class="fas fa-helicopter mr-2"></i> Lotnictwo gaśnicze na miejscu — działania';
+        bodyEl.innerHTML = `<p>Maszyna nad miejscem zdarzenia. Wybierz realizowane <b>działanie z powietrza</b>; po jego zakończeniu maszyna wraca do bazy, a zgłoszenie zostaje domknięte (jeśli żadna inna służba nie działa).</p>`;
+        footerEl.innerHTML = `
+            <button type="button" class="btn btn-danger font-weight-bold" onclick="window.finishOnScene('Gaszenie pożaru z powietrza (zrzut wody)')"><i class="fas fa-fire"></i> Gaszenie z powietrza i powrót</button>
+            <button type="button" class="btn btn-outline-danger" onclick="window.finishOnScene('Rozpoznanie pożarowe z powietrza')">Rozpoznanie i powrót</button>
+            ${cancelBtn}`;
+    } else if (serviceType === 'aviation' && airSvc === 1) {
+        titleEl.innerHTML = '<i class="fas fa-helicopter mr-2"></i> Lotnictwo policyjne na miejscu — działania';
+        bodyEl.innerHTML = `<p>Maszyna nad miejscem zdarzenia. Wybierz realizowane <b>działanie z powietrza</b>; po jego zakończeniu maszyna wraca do bazy, a zgłoszenie zostaje domknięte (jeśli żadna inna służba nie działa).</p>`;
+        footerEl.innerHTML = `
+            <button type="button" class="btn btn-primary font-weight-bold" onclick="window.finishOnScene('Poszukiwania / obserwacja z powietrza')"><i class="fas fa-binoculars"></i> Poszukiwania/obserwacja i powrót</button>
+            <button type="button" class="btn btn-outline-primary" onclick="window.finishOnScene('Wsparcie z powietrza')">Wsparcie i powrót</button>
+            ${cancelBtn}`;
+    } else if (serviceType === 'aviation') {
+        titleEl.innerHTML = '<i class="fas fa-helicopter mr-2"></i> Statek powietrzny na miejscu';
+        bodyEl.innerHTML = `<p>Załoga zakończyła działania nad miejscem zdarzenia. Maszyna wraca do bazy.</p>`;
+        footerEl.innerHTML = `
+            <button type="button" class="btn btn-danger font-weight-bold" onclick="window.finishOnScene('Działania z powietrza')"><i class="fas fa-undo"></i> Zakończ i wróć do bazy</button>
+            ${cancelBtn}`;
     } else {
-        if (serviceType === 'aviation' && airSvc === 1) {
-            titleEl.innerHTML = '<i class="fas fa-helicopter mr-2"></i> Śmigłowiec policyjny na miejscu';
-            bodyEl.innerHTML = `<p>Załoga zakończyła działania w powietrzu nad miejscem zdarzenia. Lotnictwo policyjne nie realizuje transportu osób — maszyna wraca do bazy.</p>`;
-        } else if (serviceType === 'aviation') {
-            titleEl.innerHTML = '<i class="fas fa-helicopter mr-2"></i> Statek powietrzny na miejscu';
-            bodyEl.innerHTML = `<p>Załoga zakończyła działania nad miejscem zdarzenia. Ta maszyna nie realizuje transportu osób — wraca do bazy.</p>`;
-        } else {
-            titleEl.innerHTML = '<i class="fas fa-fire-extinguisher mr-2"></i> Zastęp na miejscu';
-            bodyEl.innerHTML = `<p>Zastęp PSP zakończył działania na miejscu zdarzenia. Straż nie realizuje transportu osób.</p>`;
-        }
+        titleEl.innerHTML = '<i class="fas fa-fire-extinguisher mr-2"></i> Zastęp na miejscu';
+        bodyEl.innerHTML = `<p>Zastęp PSP zakończył działania na miejscu zdarzenia. Straż nie realizuje transportu osób.</p>`;
         footerEl.innerHTML = `
             <button type="button" class="btn btn-danger font-weight-bold" onclick="window.finishOnScene()"><i class="fas fa-undo"></i> Zakończ i wróć do bazy</button>
             ${cancelBtn}`;
@@ -583,10 +594,12 @@ window.confirmTransport = async function () {
     await window.completeReturn(vehicleId, serviceType, bLat, bLng);
 };
 
-window.finishOnScene = async function () {
+window.finishOnScene = async function (actionLabel) {
     const ctx = window._onSceneCtx;
     if (!ctx) return;
     const { vehicleId, serviceType } = ctx;
+
+    if (actionLabel) console.log(`[DZIAŁANIE] ${serviceType} (${vehicleId}): ${actionLabel}`);
 
     window._onSceneActionTaken = true;
     $('#onSceneModal').modal('hide');
@@ -965,6 +978,17 @@ window.openDispatchModal = async function (type, targetIncidentId = null, incLat
             else if (type === 'fire') uType = "Wóz Bojowy";
             else if (type === 'aviation') uType = u.type !== undefined ? (unitTypeMap[u.type] || u.type) : "Statek Powietrzny";
 
+            let originCol = 'Baza macierzysta';
+            if (type === 'aviation') {
+                const airSvc = (u.serviceType !== undefined ? u.serviceType : u.ServiceType);
+                const svcLabel = airSvc === 0 ? 'HEMS (med.)' : (airSvc === 1 ? 'Policja' : (airSvc === 2 ? 'Straż' : 'Lotnictwo'));
+                const baseName = u.airbaseName || u.AirbaseName || 'Baza lotnicza';
+                const pilot = u.pilotName || u.PilotName;
+                originCol = `<div><i class="fas fa-warehouse text-muted mr-1"></i><b>${baseName}</b></div>`
+                    + `<small class="badge badge-info">${svcLabel}</small>`
+                    + (pilot ? ` <small class="text-muted">pilot: ${pilot}</small>` : ` <small class="text-danger">brak pilota</small>`);
+            }
+
             let unitLat = u.latitude || u.Latitude || 0;
             let unitLng = u.longitude || u.Longitude || 0;
             if (window.vehicleMarkers[id]) {
@@ -977,7 +1001,7 @@ window.openDispatchModal = async function (type, targetIncidentId = null, incLat
                 <tr class="amb-row">
                     <td class="align-middle"><b>${plate}</b></td>
                     <td class="align-middle"><span class="badge badge-secondary">${uType}</span></td>
-                    <td class="align-middle">Baza macierzysta</td>
+                    <td class="align-middle">${originCol}</td>
                     <td class="text-right align-middle">
                         ${(unitLat !== 0 && incLat !== null && type !== 'aviation') ?
                     `<button class="btn btn-sm btn-info shadow-sm mr-1" title="Podgląd dojazdu" onclick="window.drawRoute(${unitLat}, ${unitLng}, ${incLat}, ${incLng})">
@@ -1259,7 +1283,8 @@ window.loadIncidents = async function () {
                     <td class="align-middle font-weight-bold">${inc.status}</td>
                     <td class="align-middle text-right">
                         <div class="btn-group">
-                            <button class="btn btn-xs btn-outline-light ml-1 mr-1" onclick="window.showHistory('${inc.id}')" title="Historia logów"><i class="fas fa-history"></i></button>
+                            <button class="btn btn-xs btn-outline-light ml-1 mr-1" onclick="window.showIncidentUnits('${inc.id}', '${inc.incidentNumber || ''}')" title="Przypisane jednostki i obsada"><i class="fas fa-users"></i></button>
+                            <button class="btn btn-xs btn-outline-light mr-1" onclick="window.showHistory('${inc.id}')" title="Historia logów"><i class="fas fa-history"></i></button>
                             <button class="btn btn-xs btn-info" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
                             <button class="btn btn-xs btn-primary ml-1" onclick="window.openDispatchModal('police', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
                             <button class="btn btn-xs btn-danger ml-1" onclick="window.openDispatchModal('fire', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
@@ -1275,6 +1300,51 @@ window.loadIncidents = async function () {
         console.error("Błąd ładowania incydentów:", e);
         tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Błąd połączenia z bazą danych.</td></tr>';
     }
+};
+
+window.showIncidentUnits = async function (incidentId, incidentNumber) {
+    if (!document.getElementById('incidentUnitsModal')) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `
+        <div class="modal fade" id="incidentUnitsModal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title"><i class="fas fa-users"></i> Przypisane jednostki <span id="iu-num"></span></h5>
+                        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body" id="iu-body">Ładowanie...</div>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(wrap.firstElementChild);
+    }
+    document.getElementById('iu-num').textContent = incidentNumber ? '— ' + incidentNumber : '';
+    const body = document.getElementById('iu-body');
+    body.innerHTML = 'Ładowanie...';
+    $('#incidentUnitsModal').modal('show');
+
+    const statusMap = { 0: 'W bazie', 1: 'W drodze', 2: 'Na miejscu', 3: 'Transport', 4: 'Powrót', 5: 'Transport do szpitala' };
+    try {
+        const res = await fetch(`/api/CPR112/Incidents/${incidentId}/units`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
+        if (!res.ok) { body.innerHTML = '<p class="text-danger">Brak dostępu lub błąd serwera.</p>'; return; }
+        const units = await res.json();
+        if (!units.length) { body.innerHTML = '<p class="text-muted">Do tego zgłoszenia nie przypisano jeszcze żadnych jednostek.</p>'; return; }
+        body.innerHTML = `
+            <table class="table table-sm table-striped">
+                <thead><tr><th>Służba</th><th>Jednostka</th><th>Dowódca/Kierowca</th><th>Obsada</th><th>Status</th></tr></thead>
+                <tbody>
+                ${units.map(u => `
+                    <tr class="${u.active ? '' : 'text-muted'}">
+                        <td><b>${u.service}</b></td>
+                        <td>${u.vehicle}</td>
+                        <td>${u.commander}</td>
+                        <td>${(u.crew && u.crew.length) ? u.crew.join(', ') : '<span class="text-muted">—</span>'}</td>
+                        <td>${u.active ? `<span class="badge bg-success">Aktywna</span> ${statusMap[u.status] || ''}` : '<span class="badge bg-secondary">Zakończona</span>'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+    } catch (e) { body.innerHTML = '<p class="text-danger">Błąd połączenia.</p>'; }
 };
 
 window.loadCenters = async function () {

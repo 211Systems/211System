@@ -128,11 +128,24 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/vehicle-crew.js"></script>
     <script>
         const token = localStorage.getItem('jwt');
         window.allVehicles = [];
         window.allPersonnel = [];
         window.allDepartments = [];
+
+        window.openCrewModal = function (truckId, deptId, commanderId) {
+            const candidates = (window.allPersonnel || [])
+                .filter(p => (p.fDepartmentId || p.FDepartmentId) === deptId)
+                .map(p => ({ id: p.id || p.Id, name: `${p.name || p.Name} ${p.lastname || p.Lastname || ''}` }));
+            const commander = candidates.find(c => String(c.id) === String(commanderId));
+            window.VehicleCrew.open({
+                type: 'fire', vehicleId: truckId, candidates,
+                commanderId, commanderName: commander ? commander.name : null,
+                onSaved: () => alert('Obsada wozu zapisana.')
+            });
+        };
 
         let isFireManager = false;
         if (token) {
@@ -195,6 +208,7 @@
                 let actions = '';
                 if (isFireManager) {
                     actions = `
+                        <button onclick="openCrewModal('${vId}', '${deptId}', '${persId}')" class="btn btn-sm btn-dark" title="Obsada (załoga)"><i class="fas fa-users"></i></button>
                         <button onclick="openEqModal('${vId}')" class="btn btn-sm btn-info" title="Wyposażenie"><i class="fas fa-briefcase"></i></button>
                         <button onclick="openEditModal('${vId}', '${plate}', '${deptId}', '${persId}')" class="btn btn-sm btn-warning text-dark"><i class="fas fa-edit"></i></button>
                         <button onclick="deleteVehicle('${vId}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
@@ -218,7 +232,7 @@
             const select = document.getElementById('add-veh-dept');
             select.innerHTML = '<option value="">-- Wybierz remizę --</option>';
             window.allDepartments.forEach(d => select.innerHTML += `<option value="${d.id || d.Id}">${d.name || d.Name}</option>`);
-            
+
             document.getElementById('add-veh-personnel').innerHTML = '<option value="">-- Wybierz najpierw remizę --</option>';
             document.getElementById('add-veh-personnel').disabled = true;
             document.getElementById('addVehicleForm').reset();
@@ -252,7 +266,7 @@
         window.openEditModal = function(id, plate, deptId, persId) {
             document.getElementById('edit-veh-id').value = id;
             document.getElementById('edit-veh-plate').value = plate;
-            
+
             const pSelect = document.getElementById('edit-veh-personnel');
             const occupied = getOccupiedPersonnelIds(id);
             const availableStaff = window.allPersonnel.filter(s => (s.fDepartmentId || s.FDepartmentId) === deptId && !occupied.includes(s.id || s.Id));
@@ -260,7 +274,7 @@
             pSelect.innerHTML = '<option value="">Brak przypisania</option>';
             availableStaff.forEach(s => pSelect.innerHTML += `<option value="${s.id || s.Id}">${s.name || s.Name} ${s.lastname || s.Lastname || ""}</option>`);
             pSelect.value = persId || "";
-            
+
             $('#editVehicleModal').modal('show');
         }
 

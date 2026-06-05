@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace _211system.Migrations
 {
     /// <inheritdoc />
-    public partial class unites : Migration
+    public partial class vehgicle : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -212,6 +212,21 @@ namespace _211system.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_StatusHistories", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "VehicleCrews",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    VehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    VehicleType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    MemberId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MemberName = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VehicleCrews", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -1257,6 +1272,9 @@ namespace _211system.Migrations
 
             migrationBuilder.DropTable(
                 name: "StatusHistories");
+
+            migrationBuilder.DropTable(
+                name: "VehicleCrews");
 
             migrationBuilder.DropTable(
                 name: "Ambulances");

@@ -151,8 +151,21 @@
 
 @section Scripts {
     <script src="~/js/api-custom-list-handler.js"></script>
+    <script src="~/js/vehicle-crew.js"></script>
     <script>
         const token = localStorage.getItem('jwt');
+
+        window.openCrewModal = function (ambulanceId, hospitalId, commanderId) {
+            const candidates = (window.paramedicsList || [])
+                .filter(p => (p.hospitalId || p.HospitalId) === hospitalId)
+                .map(p => ({ id: p.id || p.Id, name: `${p.name || p.Name} ${p.lastName || p.LastName}` }));
+            const commander = candidates.find(c => String(c.id) === String(commanderId));
+            window.VehicleCrew.open({
+                type: 'ambulance', vehicleId: ambulanceId, candidates,
+                commanderId, commanderName: commander ? commander.name : null,
+                onSaved: () => alert('Obsada karetki zapisana.')
+            });
+        };
 
         window.currentUserRoles = [];
         window.currentUserEmail = "";
@@ -266,6 +279,7 @@
 
                 if (canManage) {
                     actionBtn += `
+                        <button onclick="window.openCrewModal('${amb.id || amb.Id}', '${hId}', '${pId}')" class="btn btn-xs btn-dark mr-1" title="Obsada (załoga)"><i class="fas fa-users"></i></button>
                         <button onclick="window.openEqModal('${amb.id || amb.Id}', ${canManage})" class="btn btn-xs btn-info mr-1" title="Wyposażenie"><i class="fas fa-medkit"></i></button>
                         <button onclick="window.openEditModal('${amb.id || amb.Id}', '${amb.licensePlate || amb.LicensePlate}', ${typeVal}, '${pId}', '${hId}')" class="btn btn-xs btn-warning text-dark mr-1" title="Edytuj"><i class="fas fa-edit"></i></button>
                         <button onclick="window.deleteAmbulance('${amb.id || amb.Id}')" class="btn btn-xs btn-danger" title="Usuń"><i class="fas fa-trash"></i></button>

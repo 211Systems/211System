@@ -73,6 +73,15 @@ public class ReportsController : Controller
             var policeCars = await _context.PoliceCars.ToListAsync();
             var fireTrucks = await _context.FireTrucks.ToListAsync();
             var ambulances = await _context.Ambulances.ToListAsync();
+            var crews = await _context.VehicleCrews.ToListAsync();
+
+            string CrewSuffix(string vehicleType, Guid? vehicleId)
+            {
+                if (vehicleId == null) return "";
+                var members = crews.Where(c => c.VehicleType == vehicleType && c.VehicleId == vehicleId.Value)
+                                   .Select(c => c.MemberName).ToList();
+                return members.Any() ? " + obsada: " + string.Join(", ", members) : "";
+            }
 
             var result = incidents.Select(i => {
                 var pOps = policeOps.Where(po => po.IncidentId == i.Id).ToList();
@@ -83,16 +92,28 @@ public class ReportsController : Controller
                 var servicesList = new List<string>();
 
                 if (pOps.Any())
-                    servicesList.Add("<b>POL:</b> " + string.Join(", ", pOps.Select(po => $"{po.Policeman.Name} {po.Policeman.Lastname} (Radiowóz: {policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id)?.LicensePlate ?? "Brak"})")));
+                    servicesList.Add("<b>POL:</b> " + string.Join(", ", pOps.Select(po => {
+                        var car = policeCars.FirstOrDefault(c => c.PolicemanId == po.Policeman.Id);
+                        return $"{po.Policeman.Name} {po.Policeman.Lastname} (Radiowóz: {car?.LicensePlate ?? "Brak"}){CrewSuffix("police", car?.Id)}";
+                    })));
 
                 if (fOps.Any())
-                    servicesList.Add("<b>PSP:</b> " + string.Join(", ", fOps.Select(fo => $"{fo.Fireman.Name} {fo.Fireman.Lastname} (Wóz: {fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id)?.LicensePlate ?? "Brak"})")));
+                    servicesList.Add("<b>PSP:</b> " + string.Join(", ", fOps.Select(fo => {
+                        var truck = fireTrucks.FirstOrDefault(t => t.FiremanId == fo.Fireman.Id);
+                        return $"{fo.Fireman.Name} {fo.Fireman.Lastname} (Wóz: {truck?.LicensePlate ?? "Brak"}){CrewSuffix("fire", truck?.Id)}";
+                    })));
 
                 if (mOps.Any())
-                    servicesList.Add("<b>ZRM:</b> " + string.Join(", ", mOps.Select(mo => $"{mo.Paramedic.Name} {mo.Paramedic.LastName} (Karetka: {ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id)?.LicensePlate ?? "Brak"})")));
+                    servicesList.Add("<b>ZRM:</b> " + string.Join(", ", mOps.Select(mo => {
+                        var amb = ambulances.FirstOrDefault(a => a.ParamedicId == mo.Paramedic.Id);
+                        return $"{mo.Paramedic.Name} {mo.Paramedic.LastName} (Karetka: {amb?.LicensePlate ?? "Brak"}){CrewSuffix("ambulance", amb?.Id)}";
+                    })));
 
                 if (aOps.Any())
-                    servicesList.Add("<b>LOT:</b> " + string.Join(", ", aOps.Select(ao => $"{ao.AirUnit?.Callsign ?? "Brak"} ({ao.AirUnit?.ServiceType})")));
+                    servicesList.Add("<b>LOT:</b> " + string.Join(", ", aOps.Select(ao => {
+                        var pilot = string.IsNullOrEmpty(ao.AirUnit?.PilotName) ? "brak pilota" : ao.AirUnit.PilotName;
+                        return $"{ao.AirUnit?.Callsign ?? "Brak"} [{ao.AirUnit?.ServiceType}] (pilot: {pilot}){CrewSuffix("air", ao.AirUnit?.Id)}";
+                    })));
 
                 string servicesText = servicesList.Any() ? string.Join("<br>", servicesList) : "Brak służb";
 

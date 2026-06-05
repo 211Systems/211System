@@ -19,6 +19,7 @@ namespace _211system.Data
         }
 
         public DbSet<NasaFlarePoint> NasaFlarePoints { get; set; }
+        public DbSet<VehicleCrew> VehicleCrews { get; set; }
 
         // CPR 112
         public DbSet<Attachment> Attachments { get; set; }
