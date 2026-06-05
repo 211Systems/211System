@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using _211system.Data;
 using _211system.Models;
@@ -12,6 +14,11 @@ namespace _211system.Tests
 {
     public class PdfReportServiceTests
     {
+        public PdfReportServiceTests()
+        {
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        }
+
         private _211DbContext GetInMemoryDbContext()
         {
             var options = new DbContextOptionsBuilder<_211DbContext>()
@@ -39,11 +46,15 @@ namespace _211system.Tests
             return context;
         }
 
+        private static void CleanupReportFile(string? path)
+        {
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                File.Delete(path);
+        }
+
         [Fact]
         public async Task GenerateIncidentsReportAsync_ShouldGeneratePdfAndSaveToDatabase()
         {
-            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
-
             var context = GetInMemoryDbContext();
             var service = new PdfReportService(context);
 
@@ -58,7 +69,9 @@ namespace _211system.Tests
                 SeverityLevelId = 3,
                 IncidentTypeId = 1,
                 ReportDate = new DateTime(2024, 6, 15),
-                Status = "Zakończone"
+                Status = "Zakończone",
+                Latitude = 52.0,
+                Longitude = 21.0
             });
 
             context.Incidents.Add(new Incident
@@ -69,7 +82,9 @@ namespace _211system.Tests
                 SeverityLevelId = 4,
                 IncidentTypeId = 2,
                 ReportDate = new DateTime(2024, 7, 10),
-                Status = "Nowe"
+                Status = "Nowe",
+                Latitude = 52.1,
+                Longitude = 21.1
             });
 
             context.Incidents.Add(new Incident
@@ -80,7 +95,9 @@ namespace _211system.Tests
                 SeverityLevelId = 2,
                 IncidentTypeId = 3,
                 ReportDate = new DateTime(2023, 5, 5),
-                Status = "Zakończone"
+                Status = "Zakończone",
+                Latitude = 52.2,
+                Longitude = 21.2
             });
 
             await context.SaveChangesAsync();
@@ -95,17 +112,12 @@ namespace _211system.Tests
             Assert.NotNull(savedReport);
             Assert.Equal(result.FileName, Path.GetFileName(savedReport.PathToPDF));
 
-            if (File.Exists(savedReport.PathToPDF))
-            {
-                File.Delete(savedReport.PathToPDF);
-            }
+            CleanupReportFile(savedReport.PathToPDF);
         }
 
         [Fact]
         public async Task GenerateIncidentsReportAsync_WhenNoIncidentsMatch_ShouldStillGenerateEmptyReport()
         {
-            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
-
             var context = GetInMemoryDbContext();
             var service = new PdfReportService(context);
 
@@ -120,10 +132,60 @@ namespace _211system.Tests
             var savedReport = await context.PeriodicReports.FirstOrDefaultAsync();
             Assert.NotNull(savedReport);
 
-            if (File.Exists(savedReport!.PathToPDF))
+            CleanupReportFile(savedReport!.PathToPDF);
+        }
+
+        [Fact]
+        public async Task GenerateIncidentsReportAsync_EmptyRange_ReturnsValidPdf()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new PdfReportService(context);
+
+            context.Incidents.Add(new Incident
             {
-                File.Delete(savedReport.PathToPDF);
-            }
+                Id = Guid.NewGuid(),
+                IncidentNumber = "POZA",
+                Description = "Poza zakresem",
+                SeverityLevelId = 1,
+                IncidentTypeId = 1,
+                ReportDate = new DateTime(2020, 1, 1),
+                Status = "Zakończone",
+                Latitude = 52.0,
+                Longitude = 21.0
+            });
+            await context.SaveChangesAsync();
+
+            var from = new DateTime(2030, 1, 1);
+            var to = new DateTime(2030, 1, 31);
+
+            var result = await service.GenerateIncidentsReportAsync(from, to);
+
+            Assert.NotNull(result.FileBytes);
+            Assert.True(result.FileBytes.Length > 100);
+            Assert.Equal("%PDF", Encoding.ASCII.GetString(result.FileBytes.Take(4).ToArray()));
+
+            var saved = await context.PeriodicReports.FirstOrDefaultAsync();
+            CleanupReportFile(saved?.PathToPDF);
+        }
+
+        [Fact]
+        public async Task GenerateIncidentsReportAsync_FileNameContainsDates()
+        {
+            var context = GetInMemoryDbContext();
+            var service = new PdfReportService(context);
+
+            var from = new DateTime(2025, 6, 1);
+            var to = new DateTime(2025, 6, 30);
+
+            var result = await service.GenerateIncidentsReportAsync(from, to);
+
+            Assert.Contains("20250601", result.FileName);
+            Assert.Contains("20250630", result.FileName);
+            Assert.StartsWith("Raport_", result.FileName);
+            Assert.EndsWith(".pdf", result.FileName);
+
+            var saved = await context.PeriodicReports.FirstOrDefaultAsync();
+            CleanupReportFile(saved?.PathToPDF);
         }
 
         [Fact]

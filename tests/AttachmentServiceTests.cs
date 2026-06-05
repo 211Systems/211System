@@ -1,3 +1,9 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using _211system.Data;
 using _211system.Models.Interfaces;
 using _211system.Models.Services;
@@ -6,32 +12,33 @@ using CPR112.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using Xunit;
 
 namespace tests;
 
-public class AttachmentServiceTests
-{
-    private _211DbContext GetContext()
+    public class AttachmentServiceTests
     {
-        var options = new DbContextOptionsBuilder<_211DbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        return new _211DbContext(options);
-    }
+    private _211DbContext GetContext()
+        {
+            var options = new DbContextOptionsBuilder<_211DbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            return new _211DbContext(options);
+        }
 
     private static Mock<IFormFile> CreateFile(string name, long size = 1024)
-    {
+        {
         var mock = new Mock<IFormFile>();
         mock.Setup(f => f.FileName).Returns(name);
         mock.Setup(f => f.Length).Returns(size);
         mock.Setup(f => f.ContentType).Returns("image/jpeg");
         mock.Setup(f => f.OpenReadStream()).Returns(new MemoryStream(new byte[] { 1, 2, 3 }));
         return mock;
-    }
+        }
 
     [Fact]
     public async Task UploadFileAsync_Should_Save_Attachment_To_Database()
-    {
+        {
         var context = GetContext();
         var blobMock = new Mock<IBlobStorageService>();
         blobMock.Setup(b => b.UploadAsync(It.IsAny<IFormFile>(), "incidents"))
@@ -49,7 +56,7 @@ public class AttachmentServiceTests
 
     [Fact]
     public async Task UploadFileAsync_WhenLimitExceeded_ShouldThrow()
-    {
+                {
         var context = GetContext();
         var incidentId = Guid.NewGuid();
         for (int i = 0; i < AttachmentService.MaxAttachmentsPerIncident; i++)
@@ -63,7 +70,7 @@ public class AttachmentServiceTests
                 ContentType = "image/jpeg",
                 FileSizeBytes = 100,
                 UploadedAt = DateTime.UtcNow
-            });
+                });
         }
         await context.SaveChangesAsync();
 
@@ -72,13 +79,13 @@ public class AttachmentServiceTests
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             service.UploadFileAsync(CreateFile("extra.jpg").Object, incidentId));
-    }
+        }
 
-    [Fact]
+        [Fact]
     public async Task GetByIncidentAsync_Should_Return_All_Attachments()
-    {
+        {
         var context = GetContext();
-        var incidentId = Guid.NewGuid();
+            var incidentId = Guid.NewGuid();
         context.Attachments.AddRange(
             new Attachment { Id = Guid.NewGuid(), IncidentId = incidentId, PathToFile = "a", FileName = "a.jpg", ContentType = "image/jpeg", FileSizeBytes = 1, UploadedAt = DateTime.UtcNow },
             new Attachment { Id = Guid.NewGuid(), IncidentId = incidentId, PathToFile = "b", FileName = "b.jpg", ContentType = "image/jpeg", FileSizeBytes = 2, UploadedAt = DateTime.UtcNow }
@@ -89,9 +96,9 @@ public class AttachmentServiceTests
         var list = await service.GetByIncidentAsync(incidentId);
 
         Assert.Equal(2, list.Count);
-    }
+        }
 
-    [Fact]
+        [Fact]
     public async Task DeleteAsync_Should_Remove_Attachment()
     {
         var context = GetContext();

@@ -136,12 +136,12 @@ namespace _211system.Models.Services
             car.CurrentIncidentId = incidentId;
 
             var incident = await _context.Incidents.Include(i => i.SeverityLevel).FirstOrDefaultAsync(i => i.Id == incidentId);
-            if (incident != null)
-            {
-                incident.IsPoliceActive = true;
-                if (incident.Status == "Nowe") incident.Status = "W toku";
-                _context.Incidents.Update(incident);
-            }
+            if (incident == null)
+                throw new ArgumentException("Zgłoszenie nie istnieje.");
+
+            incident.IsPoliceActive = true;
+            if (incident.Status == "Nowe") incident.Status = "W toku";
+            _context.Incidents.Update(incident);
 
             _context.PoliceCars.Update(car);
 
@@ -171,10 +171,7 @@ namespace _211system.Models.Services
 
             await _context.SaveChangesAsync();
 
-            if (incident != null)
-            {
-                await NotifyPoliceEndpointAsync(car, incident);
-            }
+            await NotifyPoliceEndpointAsync(car, incident);
         }
 
         private async Task NotifyPoliceEndpointAsync(PoliceCar car, CPR112.Models.Incident incident)

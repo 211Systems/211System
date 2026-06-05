@@ -14,6 +14,10 @@ namespace _211system.Services
             var connectionString = configuration.GetConnectionString("AzureBlobStorage");
             _blobServiceClient = new BlobServiceClient(connectionString);
         }
+        public BlobStorageService(BlobServiceClient blobServiceClient)
+        {
+            _blobServiceClient = blobServiceClient;
+        }
 
         public async Task<string> UploadAsync(IFormFile file, string containerName)
         {
