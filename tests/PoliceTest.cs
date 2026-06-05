@@ -2,8 +2,12 @@
 using _211system.Models.Dtos.Police;
 using _211system.Models.Interfaces;
 using _211system.Models.Services;
+using _211system.DTOs;
+using _211system.Models;
+using _211system.Services;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using Police;
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -39,7 +43,7 @@ public class PoliceTest
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
         var httpMock = new Mock<IHttpClientFactory>();
-        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
 
         var dto = new CreatePDepartmentDto
         {
@@ -62,7 +66,7 @@ public class PoliceTest
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
         var httpMock = new Mock<IHttpClientFactory>();
-        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
 
         var departmentDto = new CreatePDepartmentDto { Name = "KPP Test", Address = "Test", District = "Test" };
         var department = await policeService.CreateDepartmentAsync(departmentDto);
@@ -91,7 +95,7 @@ public class PoliceTest
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
         var httpMock = new Mock<IHttpClientFactory>();
-        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
 
         var policemanDto = new CreatePolicemanDto
         {
@@ -113,7 +117,7 @@ public class PoliceTest
         var dbContext = await GetDatabaseContext();
         var authMock = GetMockAuthService();
         var httpMock = new Mock<IHttpClientFactory>();
-        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object);
+        var policeService = new PoliceService(dbContext, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
 
         await policeService.CreateDepartmentAsync(new CreatePDepartmentDto { Name = "K1", Address = "A1", District = "D1" });
         await policeService.CreateDepartmentAsync(new CreatePDepartmentDto { Name = "K2", Address = "A2", District = "D2" });
@@ -123,5 +127,60 @@ public class PoliceTest
         Assert.NotNull(result);
         Assert.Equal(2, result.Count());
         Assert.Contains(result, d => d.Name == "K1");
+    }
+
+    [Fact]
+    public async Task TransportToStationAsync_Should_Update_Car_And_Record_Transport()
+    {
+        var dbContext = await GetDatabaseContext();
+        var transportMock = TestServiceMocks.CreateTransportService();
+        var policeService = new PoliceService(
+            dbContext,
+            GetMockAuthService().Object,
+            new Mock<IHttpClientFactory>().Object,
+            transportMock.Object);
+
+        var deptId = Guid.NewGuid();
+        var incidentId = Guid.NewGuid();
+        var policemanId = Guid.NewGuid();
+        var operationId = Guid.NewGuid();
+        var carId = Guid.NewGuid();
+
+        dbContext.PoliceDepartments.Add(new PDepartment
+        {
+            PDepartmentId = deptId,
+            Name = "Komenda Mokotów",
+            Address = "ul. Test",
+            District = "Mokotów"
+        });
+        dbContext.PoliceCars.Add(new PoliceCar
+        {
+            Id = carId,
+            LicensePlate = "WA 1234",
+            PDepartmentId = deptId,
+            PolicemanId = policemanId,
+            CurrentIncidentId = incidentId,
+            Status = VehicleOperationalStatus.OnScene
+        });
+        dbContext.PoliceOperations.Add(new PoliceOperation
+        {
+            Id = operationId,
+            IncidentId = incidentId,
+            PolicemanId = policemanId,
+            PDepartmentId = deptId,
+            StartTime = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        await policeService.TransportToStationAsync(operationId, deptId);
+
+        var car = await dbContext.PoliceCars.FindAsync(carId);
+        Assert.Equal(VehicleOperationalStatus.Transporting, car!.Status);
+
+        transportMock.Verify(t => t.RecordAsync(It.Is<RecordTransportDto>(d =>
+            d.IncidentId == incidentId &&
+            d.VehicleId == carId &&
+            d.DestinationName == "Komenda Mokotów" &&
+            d.DestinationType == "police_station")), Times.Once);
     }
 }

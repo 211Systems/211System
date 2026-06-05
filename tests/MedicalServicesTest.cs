@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
 using _211system.Models;
+using _211system.DTOs;
 
 namespace tests
 {
@@ -32,7 +33,7 @@ namespace tests
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
             
-            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object, TestServiceMocks.CreateTransportService().Object);
             
             var paramedicId = Guid.NewGuid();
             var reportId = Guid.NewGuid();
@@ -65,7 +66,7 @@ namespace tests
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
             
-            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object, TestServiceMocks.CreateTransportService().Object);
             
             var paramedicId = Guid.NewGuid();
 
@@ -103,7 +104,7 @@ namespace tests
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
             
-            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object, TestServiceMocks.CreateTransportService().Object);
             
             var operationId = Guid.NewGuid();
 
@@ -130,7 +131,7 @@ namespace tests
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
             
-            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object, TestServiceMocks.CreateTransportService().Object);
 
             context.Hospitals.AddRange(
                 new Hospital { Id = Guid.NewGuid(), Name = "Szpital A", Address = "Adres A", HasSOR = true },
@@ -152,7 +153,7 @@ namespace tests
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
 
-            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object, TestServiceMocks.CreateTransportService().Object);
 
             var accountId = Guid.NewGuid().ToString();
             var account = new ApplicationUser { Id = accountId, Email = "ratownik@szpital.pl" };
@@ -185,7 +186,7 @@ namespace tests
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
 
-            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object, TestServiceMocks.CreateTransportService().Object);
 
             var hospitalId = Guid.NewGuid();
             var hospital = new Hospital
@@ -230,7 +231,7 @@ namespace tests
             var mockAuthService = new Mock<IAuthService>();
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
 
-            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object);
+            var service = new MedicalService(context, mockAuthService.Object, mockHttpClientFactory.Object, TestServiceMocks.CreateTransportService().Object);
 
             var hospital1 = new Hospital
             {
@@ -276,6 +277,59 @@ namespace tests
             Assert.Equal(52.3333, amb1.Latitude);
             Assert.Equal(21.1111, amb1.Longitude);
             Assert.Equal(1, amb1.Status);
+        }
+
+        [Fact]
+        public async Task TransportToHospitalAsync_Should_Update_Ambulance_And_Record_Transport()
+        {
+            var context = GetInMemoryDbContext();
+            var transportMock = TestServiceMocks.CreateTransportService();
+            var service = new MedicalService(
+                context,
+                new Mock<IAuthService>().Object,
+                new Mock<IHttpClientFactory>().Object,
+                transportMock.Object);
+
+            var hospitalId = Guid.NewGuid();
+            var incidentId = Guid.NewGuid();
+            var operationId = Guid.NewGuid();
+            var ambulanceId = Guid.NewGuid();
+
+            context.Hospitals.Add(new Hospital
+            {
+                Id = hospitalId,
+                Name = "Szpital Miejski",
+                Address = "ul. Test 1"
+            });
+            context.Ambulances.Add(new Ambulance
+            {
+                Id = ambulanceId,
+                LicensePlate = "WA 99999",
+                Type = AmbulanceType.S,
+                HospitalId = hospitalId,
+                CurrentIncidentId = incidentId,
+                Status = VehicleOperationalStatus.OnScene
+            });
+            context.MedicalOperations.Add(new MedicalOperation
+            {
+                Id = operationId,
+                ReportId = incidentId,
+                ParamedicId = Guid.NewGuid(),
+                StartTime = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+
+            await service.TransportToHospitalAsync(operationId, hospitalId);
+
+            var ambulance = await context.Ambulances.FindAsync(ambulanceId);
+            Assert.Equal(VehicleOperationalStatus.Transporting, ambulance!.Status);
+
+            transportMock.Verify(t => t.RecordAsync(It.Is<RecordTransportDto>(d =>
+                d.IncidentId == incidentId &&
+                d.VehicleId == ambulanceId &&
+                d.DestinationId == hospitalId &&
+                d.DestinationName == "Szpital Miejski" &&
+                d.VehicleType == "medic")), Times.Once);
         }
     }
 }
