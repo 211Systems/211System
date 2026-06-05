@@ -495,7 +495,9 @@ namespace _211system.Tests
 
             var ok = Assert.IsType<OkObjectResult>(result);
             var list = Assert.IsAssignableFrom<System.Collections.IEnumerable>(ok.Value);
-            Assert.Equal(2, list.Cast<object>().Count());
+            // EnsureCreated ładuje 6 typów z HasData w DbContext.
+            Assert.Equal(await context.IncidentTypes.CountAsync(), list.Cast<object>().Count());
+            Assert.True(list.Cast<object>().Count() >= 2);
         }
 
         [Fact]

@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Police;
+using tests;
 using Xunit;
 
 namespace _211system.Tests
@@ -43,7 +44,7 @@ namespace _211system.Tests
         {
             var httpMock = new Mock<IHttpClientFactory>();
             httpMock.Setup(h => h.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
-            return new PoliceService(db, GetMockAuthService().Object, httpMock.Object);
+            return new PoliceService(db, GetMockAuthService().Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
         }
 
         private PoliceController CreateController(_211DbContext db, IPoliceService? service = null)

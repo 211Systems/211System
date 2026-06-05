@@ -9,6 +9,7 @@ using Police;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using tests;
 using Xunit;
 
 namespace _211system.Tests
@@ -31,7 +32,7 @@ namespace _211system.Tests
             var authMock = new Mock<IAuthService>();
             var httpMock = new Mock<IHttpClientFactory>();
             httpMock.Setup(h => h.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
-            return new PoliceService(db, authMock.Object, httpMock.Object);
+            return new PoliceService(db, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
         }
 
         [Fact]

@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using tests;
 using Xunit;
 
 namespace _211system.Tests
@@ -40,7 +41,7 @@ namespace _211system.Tests
         {
             var httpMock = new Mock<IHttpClientFactory>();
             httpMock.Setup(h => h.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
-            return new PoliceService(db, GetMockAuthService().Object, httpMock.Object);
+            return new PoliceService(db, GetMockAuthService().Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
         }
 
         private async Task<Guid> SeedDepartmentAsync(_211DbContext db, double lat = 52.1, double lng = 21.0)

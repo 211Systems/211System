@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using tests;
 using Xunit;
 
 namespace _211system.Tests
@@ -30,7 +31,7 @@ namespace _211system.Tests
             var authMock = new Mock<IAuthService>();
             var httpMock = new Mock<IHttpClientFactory>();
             httpMock.Setup(h => h.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
-            return new MedicalService(context, authMock.Object, httpMock.Object);
+            return new MedicalService(context, authMock.Object, httpMock.Object, TestServiceMocks.CreateTransportService().Object);
         }
 
         private void SeedSeverity(_211DbContext context)
