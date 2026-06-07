@@ -16,14 +16,41 @@
     </div>
 </div>
 
+<div class="row">
+    <div class="col-lg-3 mb-3">
+        <div class="card card-outline card-dark sticky-top adm-sidebar-tools" style="top: 1rem;">
+            <div class="card-header">
+                <h3 class="card-title mb-0"><i class="fas fa-toolbox"></i> Narzędzia</h3>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <p class="text-muted small mb-3">Integracja NASA — skan anomalii i generowanie incydentów testowych.</p>
+                <button type="button" onclick="fetchNasa(false)" class="btn btn-danger btn-block mb-2 text-left">
+                    <i class="fas fa-satellite mr-1"></i> Skanuj NASA (LIVE)
+                </button>
+                <button type="button" onclick="fetchNasa(true)" class="btn btn-warning btn-block mb-3 text-left">
+                    <i class="fas fa-vial mr-1"></i> Skanuj NASA (DEMO)
+                </button>
+                <hr class="my-1">
+                <a href="/Dispatch/Home/Report" class="btn btn-outline-info btn-block text-left mb-2">
+                    <i class="fas fa-chart-pie mr-1"></i> Generator raportów
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-block text-left" onclick="loadAll()">
+                    <i class="fas fa-sync mr-1"></i> Odśwież dane panelu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-9">
 <ul class="nav nav-tabs mb-3" id="admTabs">
-    <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-stats"><i class="fas fa-chart-bar"></i> Statystyki</a></li>
-    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-live"><i class="fas fa-broadcast-tower"></i> Na żywo</a></li>
-    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-diag"><i class="fas fa-stethoscope"></i> Diagnostyka</a></li>
-    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-manage"><i class="fas fa-cogs"></i> Zarządzanie</a></li>
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-stats"><i class="fas fa-chart-bar"></i> Statystyki</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-live"><i class="fas fa-broadcast-tower"></i> Na żywo</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-diag"><i class="fas fa-stethoscope"></i> Diagnostyka</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-manage"><i class="fas fa-cogs"></i> Zarządzanie</a></li>
 </ul>
 
 <div class="tab-content">
+    <!-- STATYSTYKI -->
     <div class="tab-pane fade show active" id="tab-stats">
         <div class="row">
             <div class="col-lg-3 col-6"><div class="small-box bg-info"><div class="inner"><h3 id="st-inc-total">-</h3><p>Zgłoszenia łącznie</p></div><div class="icon"><i class="fas fa-bell"></i></div><span class="small-box-footer">Dziś: <b id="st-inc-today">-</b></span></div></div>
@@ -53,6 +80,7 @@
         </div>
     </div>
 
+    <!-- NA ŻYWO -->
     <div class="tab-pane fade" id="tab-live">
         <div class="card card-outline card-warning">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-broadcast-tower text-warning"></i> Aktywne zdarzenia i zaangażowane jednostki</h3></div>
@@ -74,6 +102,7 @@
         </div>
     </div>
 
+    <!-- DIAGNOSTYKA -->
     <div class="tab-pane fade" id="tab-diag">
         <div class="row">
             <div class="col-md-6">
@@ -95,6 +124,7 @@
         </div>
     </div>
 
+    <!-- ZARZĄDZANIE -->
     <div class="tab-pane fade" id="tab-manage">
         <div class="row">
             <div class="col-lg-3 col-6"><div class="small-box bg-primary"><div class="inner"><h3>Policja</h3><p>Komendy i Kadra</p></div><div class="icon"><i class="fas fa-building-shield"></i></div><a href="/Admin/PoliceStations" class="small-box-footer">Zarządzaj <i class="fas fa-arrow-circle-right"></i></a></div></div>
@@ -103,6 +133,8 @@
             <div class="col-lg-3 col-6"><div class="small-box bg-warning"><div class="inner"><h3>CPR 112</h3><p>Centra</p></div><div class="icon"><i class="fas fa-headset"></i></div><a href="/Admin/CprCenters" class="small-box-footer">Zarządzaj <i class="fas fa-arrow-circle-right"></i></a></div></div>
         </div>
         <a href="/Dispatch/Home/Report" class="btn btn-warning btn-lg shadow-sm font-weight-bold"><i class="fas fa-chart-pie mr-2"></i> Generator Raportów</a>
+    </div>
+</div>
     </div>
 </div>
 
@@ -201,6 +233,7 @@
                 document.getElementById('diag-roles').innerHTML = (d.roles || [])
                     .map(rr => `<span class="badge badge-secondary p-2 m-1">${rr.role}: <b>${rr.users}</b></span>`).join('');
 
+                // Odśwież zegar w diagnostyce natychmiast po przeładowaniu HTML.
                 const now = new Date().toLocaleTimeString('pl-PL');
                 document.querySelectorAll('.live-clock').forEach(el => { el.textContent = now; });
             } catch (e) { console.error(e); }
@@ -215,5 +248,29 @@
             loadAll();
             setInterval(loadAll, 15000);
         });
+
+        async function fetchNasa(isDemo) {
+            const token = localStorage.getItem('jwt');
+            const url = `/api/Nasa/fetch?isDemo=${isDemo}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(`Skanowanie zakończone.\nZnalezione anomalie: ${data.totalAnomaliesDetected}\nWygenerowane incydenty: ${data.incidentsGenerated}`);
+                    loadAll();
+                } else {
+                    const err = await response.text();
+                    alert('Błąd: ' + err);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Błąd sieci!');
+            }
+        }
     </script>
 }

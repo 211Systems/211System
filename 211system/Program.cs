@@ -1,16 +1,16 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using _211system.Configuration;
 using _211system.Data;
-using _211system.DTOs.CPR112;
 using _211system.Models;
 using _211system.Models.Interfaces;
 using _211system.Models.Services;
 using _211system.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using CPR112.Models;
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -33,6 +33,35 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 var jwtKey = builder.Configuration["Jwt:Key"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
+        "Brak Jwt:Key. Ustaw w User Secrets (dev) lub zmiennych środowiskowych / App Settings (prod).");
+}
+
+builder.Services.Configure<SeedAdminOptions>(builder.Configuration.GetSection(SeedAdminOptions.SectionName));
+builder.Services.AddScoped<IIdentitySeedService, IdentitySeedService>();
+
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("211Cors", policy =>
+    {
+        if (corsOrigins.Length > 0)
+        {
+            policy.WithOrigins(corsOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
+    });
+});
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
 
 builder.Services.AddAuthentication(options =>
 {
@@ -111,59 +140,19 @@ if (app.Environment.IsDevelopment())
 
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-    var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
+    //Jeżeli masz problem System.InvalidOperationExeption przy seedzie na świeżej migracji to odkomentuj:
+    //var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
+    //await dbContext.Database.Migrate();
 
-    //Jeżeli masz problem System.InvalidOperationExeption w tym foreachu na dole na świeżej migracji to odkomentuj bo muszą się tabele utowrzyć >:)
-    //dbContext.Database.Migrate();
+    var identitySeed = scope.ServiceProvider.GetRequiredService<IIdentitySeedService>();
+    await identitySeed.SeedAsync();
+}
 
-    string[] roleNames = { "Admin", "Admin112", "Dyspozytor112", "Inspektor", "Komendant", "Policjant",
-        "Naczelnik", "Strazak", "Kapitan", "Medyk", "Lekarz", "Kierownik Szpitala" };
+app.UseForwardedHeaders();
 
-    foreach (var roleName in roleNames)
-    {
-        if (!await roleManager.RoleExistsAsync(roleName))
-        {
-            await roleManager.CreateAsync(new IdentityRole(roleName));
-        }
-    }
-
-    string adminEmail = "admin@211.pl";
-    if (await userManager.FindByEmailAsync(adminEmail) == null)
-    {
-        var adminUser = new ApplicationUser { UserName = adminEmail, Email = adminEmail };
-        var result = await userManager.CreateAsync(adminUser, "Admin123!");
-        if (result.Succeeded) await userManager.AddToRoleAsync(adminUser, "Admin");
-    }
-
-    string admin112Email = "admin112@211.pl";
-    if (await userManager.FindByEmailAsync(admin112Email) == null)
-    {
-        var admin112User = new ApplicationUser { UserName = admin112Email, Email = admin112Email };
-        var result = await userManager.CreateAsync(admin112User, "Admin112!");
-
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(admin112User, "Admin112");
-
-            var center = await dbContext.Encs.FirstOrDefaultAsync();
-            if (center != null)
-            {
-                dbContext.Operators112.Add(new Operator112
-                {
-                    Id = Guid.NewGuid(),
-                    FirstName = "Główny",
-                    LastName = "Administrator",
-                    StationNumber = "ADM-01",
-                    OpAccountId = admin112User.Id,
-                    Rank = OperatorRank.Admin112,
-                    EncId = center.Id
-                });
-                await dbContext.SaveChangesAsync();
-            }
-        }
-    }
+if (corsOrigins.Length > 0)
+{
+    app.UseCors("211Cors");
 }
 
 app.UseHttpsRedirection();
