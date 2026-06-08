@@ -265,27 +265,7 @@
 
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            // Kompatybilność widoków zapisanych pod Bootstrap 4 (data-toggle / data-target)
-            document.querySelectorAll('[data-toggle]').forEach(function (el) {
-                var t = el.getAttribute('data-toggle');
-                if (t && !el.hasAttribute('data-bs-toggle')) el.setAttribute('data-bs-toggle', t);
-            });
-            document.querySelectorAll('[data-target]').forEach(function (el) {
-                var t = el.getAttribute('data-target');
-                if (t && !el.hasAttribute('data-bs-target')) el.setAttribute('data-bs-target', t);
-            });
-
-            // Dropdowny w środkowym menu — fixed popper, żeby menu nie było obcinane
-            document.querySelectorAll('#main-navigation .dropdown-toggle').forEach(function (toggle) {
-                bootstrap.Dropdown.getOrCreateInstance(toggle, {
-                    popperConfig: function (defaultConfig) {
-                        defaultConfig.strategy = 'fixed';
-                        return defaultConfig;
-                    }
-                });
-            });
-        </script>
+        <script src="~/js/bootstrap-compat.js" asp-append-version="true"></script>
         <script src="~/dist/js/adminlte.min.js"></script>
         <script src="~/js/auth-layout.js" asp-append-version="true"></script>
         <script src="~/js/auth-handler.js" asp-append-version="true"></script>
