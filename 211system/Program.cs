@@ -16,7 +16,9 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var ConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+AppConfiguration.ValidateRequired(builder.Configuration);
+
+var ConnectionString = builder.Configuration.GetConnectionString(AppConfiguration.DefaultConnectionName);
 builder.Services.AddDbContext<_211DbContext>(options => options.UseNpgsql(ConnectionString));
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -32,13 +34,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
-var jwtKey = builder.Configuration["Jwt:Key"];
-
-if (string.IsNullOrWhiteSpace(jwtKey))
-{
-    throw new InvalidOperationException(
-        "Brak Jwt:Key. Ustaw w User Secrets (dev) lub zmiennych środowiskowych / App Settings (prod).");
-}
+var jwtKey = builder.Configuration["Jwt:Key"]!;
 
 builder.Services.Configure<SeedAdminOptions>(builder.Configuration.GetSection(SeedAdminOptions.SectionName));
 builder.Services.AddScoped<IIdentitySeedService, IdentitySeedService>();
@@ -57,6 +53,21 @@ builder.Services.AddCors(options =>
         }
     });
 });
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
+        "Brak Jwt:Key. Ustaw w User Secrets (dev) lub zmiennych środowiskowych / App Settings (prod).");
+}
+
+builder.Services.Configure<SeedAdminOptions>(builder.Configuration.GetSection(SeedAdminOptions.SectionName));
+builder.Services.AddScoped<IIdentitySeedService, IdentitySeedService>();
+
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -140,9 +151,14 @@ if (app.Environment.IsDevelopment())
 
 using (var scope = app.Services.CreateScope())
 {
-    //Jeżeli masz problem System.InvalidOperationExeption przy seedzie na świeżej migracji to odkomentuj:
-    //var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
-    //await dbContext.Database.Migrate();
+    var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var runMigrations = configuration.GetValue("Database:AutoMigrate", app.Environment.IsDevelopment());
+
+    if (runMigrations)
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<_211DbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
 
     var identitySeed = scope.ServiceProvider.GetRequiredService<IIdentitySeedService>();
     await identitySeed.SeedAsync();

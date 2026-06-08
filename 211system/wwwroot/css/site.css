@@ -238,6 +238,151 @@ body {
     color: #fff !important;
 }
 
+/* === Kontrast: legacy badge BS4 + domyślny badge BS5 (biały tekst bez tła) === */
+.content-wrapper .badge.badge-primary,
+.modal-content .badge.badge-primary {
+    background-color: #0d6efd;
+    color: #fff !important;
+}
+
+.content-wrapper .badge.badge-secondary,
+.modal-content .badge.badge-secondary {
+    background-color: #6c757d;
+    color: #fff !important;
+}
+
+.content-wrapper .badge.badge-success,
+.modal-content .badge.badge-success {
+    background-color: #198754;
+    color: #fff !important;
+}
+
+.content-wrapper .badge.badge-danger,
+.modal-content .badge.badge-danger {
+    background-color: #dc3545;
+    color: #fff !important;
+}
+
+.content-wrapper .badge.badge-warning,
+.modal-content .badge.badge-warning {
+    background-color: #ffc107;
+    color: #212529 !important;
+}
+
+.content-wrapper .badge.badge-info,
+.modal-content .badge.badge-info {
+    background-color: #0dcaf0;
+    color: #212529 !important;
+}
+
+.content-wrapper .badge.badge-light,
+.modal-content .badge.badge-light {
+    background-color: #f8f9fa;
+    color: #212529 !important;
+    border: 1px solid #dee2e6;
+}
+
+.content-wrapper .badge.badge-dark,
+.modal-content .badge.badge-dark {
+    background-color: #212529;
+    color: #fff !important;
+}
+
+/* Badge z samym bg-* (BS5) — wymuś czytelny tekst */
+.content-wrapper .badge.bg-warning,
+.content-wrapper .badge.bg-info,
+.modal-content .badge.bg-warning,
+.modal-content .badge.bg-info {
+    color: #212529 !important;
+}
+
+.content-wrapper .badge.bg-primary,
+.content-wrapper .badge.bg-secondary,
+.content-wrapper .badge.bg-success,
+.content-wrapper .badge.bg-danger,
+.content-wrapper .badge.bg-dark,
+.modal-content .badge.bg-primary,
+.modal-content .badge.bg-secondary,
+.modal-content .badge.bg-success,
+.modal-content .badge.bg-danger,
+.modal-content .badge.bg-dark {
+    color: #fff !important;
+}
+
+/* Niewidoczny biały tekst na jasnym tle w treści */
+.dark-mode .content-wrapper .table tbody td,
+.dark-mode .content-wrapper .table tbody td span:not(.badge):not([class*="bg-"]),
+.dark-mode .content-wrapper .card-body,
+.dark-mode .content-wrapper .list-group-item {
+    color: #212529;
+}
+
+.dark-mode .content-wrapper .table tbody .text-white:not(.badge):not([class*="bg-"]),
+.dark-mode .content-wrapper .card-body .text-white:not(.badge):not([class*="bg-"]),
+.dark-mode .content-wrapper .table tbody .text-light:not(.badge):not([class*="bg-"]),
+.dark-mode .content-wrapper .card-body .text-light:not(.badge):not([class*="bg-"]) {
+    color: #212529 !important;
+}
+
+/* Karty / modale z klasą dark-mode wewnątrz jasnej treści */
+.dark-mode .content-wrapper .card.dark-mode,
+.dark-mode .content-wrapper .card-outline.dark-mode,
+.modal-content.dark-mode {
+    background-color: #fff;
+    color: #212529;
+}
+
+.dark-mode .content-wrapper .card.dark-mode .card-body,
+.dark-mode .content-wrapper .card-outline.dark-mode .card-body,
+.modal-content.dark-mode .modal-body,
+.modal-content.dark-mode label,
+.modal-content.dark-mode .form-control,
+.modal-content.dark-mode .text-muted {
+    color: #212529;
+}
+
+.modal-content.dark-mode .text-muted {
+    color: #6c757d !important;
+}
+
+/* Info-boxy z kolorowym tłem — biały tekst OK */
+.dark-mode .content-wrapper .info-box[class*="bg-"] .info-box-text,
+.dark-mode .content-wrapper .info-box[class*="bg-"] .info-box-number,
+.dark-mode .content-wrapper .info-box[class*="bg-"] .info-box-icon {
+    color: #fff !important;
+}
+
+/* Nagłówki tabeli i kart z bg-* — zostaw biały tekst */
+.dark-mode .content-wrapper thead[class*="bg-"] th,
+.dark-mode .content-wrapper .card-header[class*="bg-"],
+.dark-mode .content-wrapper .card-header[class*="bg-"] .card-title,
+.dark-mode .content-wrapper .modal-header[class*="bg-"],
+.dark-mode .content-wrapper .modal-header[class*="bg-"] .modal-title {
+    color: #fff !important;
+}
+
+.dark-mode .content-wrapper .card-header.bg-warning,
+.dark-mode .content-wrapper .modal-header.bg-warning,
+.dark-mode .content-wrapper .card-header.bg-warning .card-title,
+.dark-mode .content-wrapper .modal-header.bg-warning .modal-title {
+    color: #212529 !important;
+}
+
+/* Przyciski link w tabelach */
+.dark-mode .content-wrapper .btn-link.text-danger,
+.dark-mode .content-wrapper .btn-link.text-primary,
+.dark-mode .content-wrapper .btn-link.text-success,
+.dark-mode .content-wrapper .btn-link.text-dark,
+.dark-mode .content-wrapper .btn-link.text-warning {
+    color: inherit;
+}
+
+.dark-mode .content-wrapper .btn-link.text-danger { color: #dc3545 !important; }
+.dark-mode .content-wrapper .btn-link.text-primary { color: #0d6efd !important; }
+.dark-mode .content-wrapper .btn-link.text-success { color: #198754 !important; }
+.dark-mode .content-wrapper .btn-link.text-dark { color: #212529 !important; }
+.dark-mode .content-wrapper .btn-link.text-warning { color: #856404 !important; }
+
 /* --- Navbar: menu nie wypycha profilu poza ekran --- */
 .main-header.navbar .container-fluid.navbar-top-row {
     display: flex;

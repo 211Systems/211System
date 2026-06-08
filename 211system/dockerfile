@@ -15,9 +15,20 @@ FROM build AS publish
 RUN dotnet publish "211system.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+
+# Patch OS packages flagged by Trivy (e.g. libgnutls30 in Debian 12).
+USER root
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends libgnutls30 \
+    && rm -rf /var/lib/apt/lists/*
+USER app
+
 WORKDIR /app
 
 COPY --from=publish /app/publish .
+
+# Safety net: dev config must never ship in production image.
+RUN rm -f appsettings.Development.json
 
 EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080

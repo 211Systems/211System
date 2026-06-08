@@ -1,4 +1,5 @@
-﻿using _211system.Models.Interfaces;
+﻿using _211system.Configuration;
+using _211system.Models.Interfaces;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
@@ -11,7 +12,13 @@ namespace _211system.Services
 
         public BlobStorageService(IConfiguration configuration)
         {
-            var connectionString = configuration.GetConnectionString("AzureBlobStorage");
+            var connectionString = configuration.GetConnectionString(AppConfiguration.AzureBlobStorageConnectionName);
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    $"Brak ConnectionStrings:{AppConfiguration.AzureBlobStorageConnectionName}.");
+            }
+
             _blobServiceClient = new BlobServiceClient(connectionString);
         }
         public BlobStorageService(BlobServiceClient blobServiceClient)
