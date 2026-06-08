@@ -114,13 +114,15 @@ jobs:
           docker build -f 211system/Dockerfile -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
 
       - name: Run Trivy Scanner
-        uses: aquasecurity/trivy-action@master
-        with: 
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
           image-ref: '${{ env.IMAGE_NAME }}:${{ github.sha }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
+          scanners: 'vuln,secret'
+          skip-files: 'appsettings.Development.json'
 
       - name: Push image to GHCR
         run: |
