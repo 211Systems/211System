@@ -44,12 +44,13 @@
 
                 <div class="table-responsive mt-3">
                     <table id="reportsTable" class="table table-striped table-hover w-100 table-valign-middle">
-                        <thead class="bg-secondary">
+                        <thead class="bg-primary text-white">
                             <tr>
                                 <th>Numer</th>
                                 <th>Data</th>
-                                <th>Typ</th>
+                                <th>Typ / Priorytet</th>
                                 <th>Status</th>
+                                <th>Pogoda</th>
                                 <th>Lokalizacja</th>
                                 <th>Służby (Zastępy)</th>
                                 <th>Opis</th>
@@ -84,13 +85,39 @@
                     }
                 ],
                columns: [
-                    { data: 'incidentNumber' },
+                    { data: 'incidentNumber', className: 'font-weight-bold text-primary' },
                     { data: 'date' },
-                    { data: 'type' },
-                    { data: 'status' },
+                    {
+                        data: null,
+                        render: function (data, type, row) {
+                            return `<b>${row.type || 'Brak'}</b><br><small class="text-muted">P: ${row.severity || '—'}</small>`;
+                        }
+                    },
+                    {
+                        data: 'status',
+                        render: function (data) {
+                            const cls = data === 'Zakończone' ? 'success'
+                                : (data === 'W toku' ? 'primary' : (data === 'Fałszywy alarm' ? 'warning' : 'secondary'));
+                            return `<span class="badge badge-${cls}">${data || '—'}</span>`;
+                        }
+                    },
+                    {
+                        data: 'weather',
+                        render: function (data) {
+                            if (!data || data === 'Brak danych')
+                                return '<span class="text-muted"><i class="fas fa-cloud mr-1"></i>Brak danych</span>';
+                            return `<span class="text-info font-weight-bold"><i class="fas fa-cloud-sun mr-1"></i>${data}</span>`;
+                        }
+                    },
                     { data: 'address' },
                     { data: 'services' },
-                    { data: 'description' }
+                    {
+                        data: 'description',
+                        render: function (data) {
+                            if (!data) return '—';
+                            return data.length > 60 ? data.substring(0, 60) + '…' : data;
+                        }
+                    }
                 ],
                             language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pl.json' }
             });

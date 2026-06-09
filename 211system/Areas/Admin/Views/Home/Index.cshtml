@@ -86,8 +86,8 @@
             <div class="card-header"><h3 class="card-title"><i class="fas fa-broadcast-tower text-warning"></i> Aktywne zdarzenia i zaangażowane jednostki</h3></div>
             <div class="card-body table-responsive p-0">
                 <table class="table table-striped table-sm m-0">
-                    <thead><tr><th>Numer</th><th>Typ</th><th>Priorytet</th><th>Status</th><th>POL</th><th>PSP</th><th>ZRM</th><th>LOT</th></tr></thead>
-                    <tbody id="live-incidents"><tr><td colspan="8" class="text-center">Ładowanie...</td></tr></tbody>
+                    <thead><tr><th>Numer</th><th>Typ</th><th>Priorytet</th><th>Status</th><th>Zał.</th><th>POL</th><th>PSP</th><th>ZRM</th><th>LOT</th></tr></thead>
+                    <tbody id="live-incidents"><tr><td colspan="9" class="text-center">Ładowanie...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -139,6 +139,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/incident-attachments.js" asp-append-version="true"></script>
     <script>
         const admToken = localStorage.getItem('jwt');
         const H = { headers: { 'Authorization': 'Bearer ' + admToken } };
@@ -195,16 +196,22 @@
                 const d = await r.json();
                 const tb = document.getElementById('live-incidents');
                 tb.innerHTML = d.incidents.length
-                    ? d.incidents.map(i => `<tr>
+                    ? d.incidents.map(i => {
+                        const att = (i.attachmentCount || 0) > 0
+                            ? `<button type="button" class="btn btn-link btn-sm p-0" onclick="window.IncidentAttachments.showModal('${i.id}', '${(i.incidentNumber || '').replace(/'/g, "\\'")}')" title="Załączniki"><i class="fas fa-paperclip text-info"></i> ${i.attachmentCount}</button>`
+                            : '<span class="text-muted">—</span>';
+                        return `<tr>
                         <td><b>${i.incidentNumber || i.id.substring(0,8)}</b></td>
                         <td>${i.type}</td><td>${i.severity}</td>
                         <td><span class="badge badge-warning text-dark">${i.status}</span></td>
+                        <td>${att}</td>
                         <td>${i.police ? '<span class="badge badge-primary">'+i.police+'</span>' : '-'}</td>
                         <td>${i.fire ? '<span class="badge badge-danger">'+i.fire+'</span>' : '-'}</td>
                         <td>${i.medical ? '<span class="badge badge-success">'+i.medical+'</span>' : '-'}</td>
                         <td>${i.aviation ? '<span class="badge badge-dark">'+i.aviation+'</span>' : '-'}</td>
-                       </tr>`).join('')
-                    : '<tr><td colspan="8" class="text-center text-muted">Brak aktywnych zdarzeń.</td></tr>';
+                       </tr>`;
+                    }).join('')
+                    : '<tr><td colspan="9" class="text-center text-muted">Brak aktywnych zdarzeń.</td></tr>';
 
                 const ta = document.getElementById('live-air');
                 ta.innerHTML = d.busyAir.length

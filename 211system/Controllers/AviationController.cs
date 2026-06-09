@@ -70,7 +70,7 @@ namespace _211system.Controllers
             try
             {
                 await _aviationService.AssignAirUnitToIncidentAsync(unitId, incidentId);
-                return Ok(new { message = "Jednostka powietrzna poderwana!" });
+                return Ok(new { message = "Jednostka powietrzna poderwana! Zapisano pogodę lotniczą przy zgłoszeniu." });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }

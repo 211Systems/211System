@@ -159,6 +159,8 @@ namespace _211system.Controllers
                     result.PhotoUrl = _blobStorageService.GetSecureFileUrl(result.PhotoUrl, "incidents");
                 }
 
+                result.AttachmentCount = await _attachmentService.CountByIncidentAsync(id);
+
                 return Ok(result);
             }
             catch (ArgumentException ex)
@@ -183,13 +185,13 @@ namespace _211system.Controllers
 
                 if (newPhoto != null && newPhoto.Length > 0)
                 {
-                    var incident = await _context.Incidents.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
-                    if (incident != null && !string.IsNullOrEmpty(incident.PhotoUrl))
+                    var att = await _attachmentService.UploadFileAsync(newPhoto, id);
+                    var incident = await _context.Incidents.FindAsync(id);
+                    if (incident != null && string.IsNullOrEmpty(incident.PhotoUrl))
                     {
-                        await _blobStorageService.DeleteAsync(incident.PhotoUrl, "incidents");
+                        incident.PhotoUrl = att.PathToFile;
+                        await _context.SaveChangesAsync();
                     }
-
-                    dto.NewPhotoUrl = await _blobStorageService.UploadAsync(newPhoto, "incidents");
                 }
 
                 await _incidentService.ChangeIncidentStatusAsync(id, operatorId, dto);

@@ -11,7 +11,8 @@
                 if (selectLoc) selectLoc.innerHTML = empty;
                 return;
             }
-            const options = data.map(c => `<option value="${c.id}">${c.name} (${c.region})</option>`).join('');
+            const options = '<option value="">-- Wybierz placówkę --</option>' +
+                data.map(c => `<option value="${c.id}">${c.name} (${c.region || 'brak regionu'})</option>`).join('');
             if (selectReg) selectReg.innerHTML = options;
             if (selectLoc) selectLoc.innerHTML = options;
         }

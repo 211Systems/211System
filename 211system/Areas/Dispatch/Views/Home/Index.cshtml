@@ -371,12 +371,13 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <h6 class="mb-1 text-light"><i class="fas fa-helicopter text-warning"></i> Lotnictwo AVWX</h6>
+                        <div class="col-md-6" id="weather-aviation-panel">
+                            <h6 class="mb-1 text-light"><i class="fas fa-helicopter text-warning"></i> Pogoda lotnicza (AVWX / METAR)</h6>
                             <div class="text-white">
                                 Reguły: <span id="w-flight-rules" class="badge" style="font-size: 1rem;"></span>
                                 <small class="text-muted ml-1" id="w-station"></small><br>
                                 <span id="w-flight-alerts" class="mt-1 d-inline-block"></span>
+                                <small id="w-metar" class="d-block text-muted mt-1" style="font-size: 0.75rem; word-break: break-word;"></small>
                             </div>
                         </div>
                     </div>
@@ -480,6 +481,48 @@
     </div>
 </div>
 
+<div class="modal fade" id="incidentDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-eye"></i> Podgląd Zgłoszenia 112</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Zamknij"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group list-group-unbordered mb-3">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <b>Numer:</b> <span class="text-info font-weight-bold" id="det-number">...</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <b>Typ zdarzenia:</b> <span class="font-weight-bold text-danger" id="det-type">...</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <b>Priorytet:</b> <span id="det-severity">...</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <b>Status:</b> <span id="det-status">...</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <b>Lokalizacja:</b> <span class="text-muted" id="det-address">...</span>
+                    </li>
+                </ul>
+                <div class="alert alert-secondary mb-2">
+                    <strong>Opis zdarzenia:</strong><br />
+                    <span id="det-desc">...</span>
+                </div>
+                <div id="det-attachments"></div>
+                <div id="det-map" style="height: 260px; border-radius: 6px; display:none;" class="border mt-2"></div>
+                <a id="det-nav-link" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-success btn-block mt-2 d-none">
+                    <i class="fas fa-route"></i> Otwórz nawigację (Google Maps)
+                </a>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Zamknij</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="statusModal" tabindex="-1" role="dialog">
     <div class="modal-dialog shadow-lg">
         <div class="modal-content border-info">
@@ -508,12 +551,14 @@
                             <option value="1">Niski</option>
                         </select>
                     </div>
+                    <div id="editIncidentAttachments" class="mb-3"></div>
                     <div class="form-group">
-                        <label><i class="fas fa-sync"></i> Zmień/Dodaj zdjęcie</label>
+                        <label><i class="fas fa-paperclip"></i> Dodaj załączniki</label>
                         <div class="custom-file">
-                            <input type="file" class="custom-file-input" id="editIncPhoto" accept="image/*">
-                            <label class="custom-file-label" for="editIncPhoto" id="editIncPhotoLabel">Wybierz nowe zdjęcie...</label>
+                            <input type="file" class="custom-file-input" id="editIncPhoto" accept="image/*,.pdf,.docx,.webp" multiple>
+                            <label class="custom-file-label" for="editIncPhoto" id="editIncPhotoLabel">Dodaj pliki...</label>
                         </div>
+                        <small class="text-muted">JPG, PNG, WEBP, PDF, DOCX — do 5 MB każdy, max 10 na zgłoszenie</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -528,7 +573,28 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<style>
+    .dispatch-actions { gap: 4px; }
+    .dispatch-actions .btn { min-width: 2rem; padding: 0.2rem 0.45rem; }
+    .dispatch-actions .btn-dispatch-view { background: #f0ad4e; border-color: #eea236; color: #212529; }
+    .dispatch-actions .btn-dispatch-view:hover { background: #ec971f; border-color: #d58512; color: #212529; }
+    .dispatch-actions .btn-dispatch-units { background: #495057; border-color: #3d4349; color: #fff; }
+    .dispatch-actions .btn-dispatch-units:hover { background: #3d4349; border-color: #343a40; color: #fff; }
+    .dispatch-actions .btn-dispatch-history { background: #6c757d; border-color: #5c636a; color: #fff; }
+    .dispatch-actions .btn-dispatch-history:hover { background: #5c636a; border-color: #565e64; color: #fff; }
+    .dispatch-actions .btn-dispatch-edit { color: #ffc107; border-color: #ffc107; }
+    .dispatch-actions .btn-dispatch-edit:hover { background: #ffc107; color: #212529; }
+    .dispatch-actions .btn-dispatch-pol { background: #0b5ed7; border-color: #0a58ca; }
+    .dispatch-actions .btn-dispatch-psp { background: #bb2d3b; border-color: #b02a37; }
+    .dispatch-actions .btn-dispatch-zrm { background: #198754; border-color: #157347; }
+    .dispatch-actions .btn-dispatch-lot { background: #5c636a; border-color: #565e64; color: #fff; }
+    .dispatch-actions .btn-dispatch-att { color: #6edff6; border-color: #6edff6; }
+    .dispatch-actions .btn-dispatch-att:hover { background: #0dcaf0; color: #212529; }
+</style>
+
 @section Scripts {
+    <script src="~/js/incident-attachments.js" asp-append-version="true"></script>
+    <script src="~/js/incident-detail-map.js" asp-append-version="true"></script>
     <script src="~/js/dispatch-ui.js" asp-append-version="true"></script>
     <script src="~/js/dispatch-admin.js" asp-append-version="true"></script>
 
@@ -568,130 +634,6 @@
             }
         };
 
-        window.deleteIncident = async function (id) {
-            if (!confirm("Na pewno usunąć to zgłoszenie?")) return;
-
-            try {
-                const response = await fetch(`/api/CPR112/Incidents/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-                });
-
-                if (response.ok) {
-                    alert("Zgłoszenie usunięte.");
-                    window.location.reload();
-                } else {
-                    alert("Błąd podczas usuwania.");
-                }
-            } catch (e) {
-                console.error("Błąd usuwania:", e);
-                alert("Błąd połączenia.");
-            }
-        };
-
-        window.openEditModal = function(id, status, severity) {
-            const idInput = document.getElementById('editIncidentId');
-            const statusInput = document.getElementById('editIncidentStatus');
-            const priorityInput = document.getElementById('editIncidentPriority');
-
-            if (!idInput || !statusInput || !priorityInput) {
-                alert("Błąd: Nie znaleziono okna edycji w kodzie HTML. Upewnij się, że okno #statusModal jest w pliku Index.cshtml.");
-                return;
-            }
-
-            idInput.value = id;
-            statusInput.value = status || 'Nowe';
-            let sevVal = "1";
-            if (severity === 'Krytyczny' || severity == '4') sevVal = "4";
-            else if (severity === 'Wysoki' || severity == '3') sevVal = "3";
-            else if (severity === 'Średni' || severity == '2') sevVal = "2";
-            else sevVal = "1";
-
-            priorityInput.value = sevVal;
-            $('#statusModal').modal('show');
-        };
-
-        document.addEventListener("DOMContentLoaded", function () {
-            const statusForm = document.getElementById('changeStatusForm');
-            if (statusForm) {
-                statusForm.addEventListener('submit', async function (e) {
-                    e.preventDefault();
-                    const btn = document.getElementById('btn-save-status');
-                    btn.disabled = true;
-
-                    const id = document.getElementById('editIncidentId').value;
-                    const fd = new FormData();
-                    fd.append('NewStatus', document.getElementById('editIncidentStatus').value);
-                    fd.append('NewSeverity', document.getElementById('editIncidentPriority').value);
-
-                    const fi = document.getElementById('editIncPhoto');
-                    if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);
-
-                    try {
-                        const response = await fetch(`/api/CPR112/Incidents/${id}/status`, {
-                            method: 'PUT',
-                            headers: { 'Authorization': 'Bearer ' + window.jwtToken },
-                            body: fd
-                        });
-                        if (response.ok) {
-                            $('#statusModal').modal('hide');
-                            alert("Zaktualizowano zgłoszenie!");
-                            if (typeof window.refreshAll === 'function') window.refreshAll();
-                            else window.location.reload();
-                        } else {
-                            alert("Błąd podczas aktualizacji.");
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        alert("Błąd sieci.");
-                    } finally {
-                        btn.disabled = false;
-                    }
-                });
-            }
-        });
-
-        window.openHistoryModal = async function(id) {
-            $('#historyModal').modal('show');
-            const timeline = document.getElementById('history-timeline');
-            timeline.innerHTML = '<div class="text-center p-4"><i class="fas fa-spinner fa-spin fa-2x text-info"></i><br>Ładowanie historii...</div>';
-
-            try {
-                const response = await fetch(`/api/CPR112/Incidents/${id}/history`, {
-                    headers: { 'Authorization': 'Bearer ' + window.jwtToken }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.length === 0) {
-                        timeline.innerHTML = '<div class="text-muted text-center p-4">Brak zarejestrowanych zmian dla tego zgłoszenia.</div>';
-                        return;
-                    }
-
-                    timeline.innerHTML = data.map(h => `
-                        <div class="time-label">
-                            <span class="bg-info">${new Date(h.changedAt).toLocaleString()}</span>
-                        </div>
-                        <div>
-                            <i class="fas fa-edit bg-secondary"></i>
-                            <div class="timeline-item text-dark">
-                                <h3 class="timeline-header font-weight-bold">Zmiana Statusu</h3>
-                                <div class="timeline-body">
-                                    Operator: <b>${h.operator || 'Nieznany'}</b><br>
-                                    <span class="text-muted">${h.oldStatus || '?'}</span> <i class="fas fa-arrow-right text-info mx-2"></i> <b>${h.newStatus}</b>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('') + '<div><i class="fas fa-clock bg-gray"></i></div>';
-                } else {
-                    timeline.innerHTML = '<div class="text-danger text-center p-4">Błąd serwera. Nie udało się pobrać historii.</div>';
-                }
-            } catch (e) {
-                console.error(e);
-                timeline.innerHTML = '<div class="text-danger text-center p-4">Błąd połączenia z serwerem.</div>';
-            }
-        };
-
         let map;
         let pickerMap;
         let markersLayer;
@@ -699,7 +641,7 @@
         let tempMarker = null;
         let pickerMarker = null;
 
-        async function loadEncFacilities() {
+        window.loadEncFacilities = async function loadEncFacilities() {
             try {
                 const response = await fetch('/api/Enc', {
                     headers: { 'Authorization': 'Bearer ' + window.jwtToken }
@@ -708,6 +650,7 @@
                 if (response.ok) {
                     const facilities = await response.json();
                     const select = document.getElementById('regEncId');
+                    if (!select) return;
                     select.innerHTML = '<option value="">-- Wybierz placówkę --</option>';
 
                     facilities.forEach(f => {
@@ -899,6 +842,8 @@
             if (h === '#admin-operator-section') {
                 document.getElementById('operators-panel').classList.add('active');
                 if (typeof window.loadOperators === 'function') window.loadOperators();
+                if (typeof window.loadEncFacilities === 'function') window.loadEncFacilities();
+                if (typeof window.loadCentersToSelect === 'function') window.loadCentersToSelect();
             } else if (h === '#admin-centers-section') {
                 document.getElementById('centers-panel').classList.add('active');
                 if (typeof window.loadCenters === 'function') window.loadCenters();
@@ -927,10 +872,11 @@
                 const response = await fetch('/api/Operators', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken, 'Content-Type': 'application/json' }, body: JSON.stringify(dto) });
                 if (response.ok) {
                     const result = await response.json();
-                    document.getElementById('new-password-display').innerText = result.temporaryPassword;
+                    document.getElementById('new-password-display').innerText = result.temporaryPassword || result.operatorDetails?.temporaryPassword || '—';
                     $('#unlockedAccountModal').modal('show');
                     document.getElementById('registerOperatorForm').reset();
                     if (typeof window.loadOperators === 'function') window.loadOperators();
+                    if (typeof window.loadEncFacilities === 'function') await window.loadEncFacilities();
                 } else {
                     const err = await response.json();
                     alert("Błąd: " + (err.message || "Nie udało się zarejestrować operatora."));
@@ -967,7 +913,9 @@
                 if (response.ok) {
                     alert("Placówka dodana do systemu.");
                     document.getElementById('createCenterForm').reset();
-                    if (typeof window.loadCenters === 'function') window.loadCenters();
+                    if (typeof window.loadCenters === 'function') await window.loadCenters();
+                    if (typeof window.loadCentersToSelect === 'function') await window.loadCentersToSelect();
+                    if (typeof window.loadEncFacilities === 'function') await window.loadEncFacilities();
                 } else { alert(`Błąd serwera. Sprawdź konsole.`); }
             } catch (e) { alert("Błąd krytyczny komunikacji z serwerem."); }
         };

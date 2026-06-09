@@ -100,6 +100,12 @@ namespace _211system.Controllers
 
             var ids = activeIncidents.Select(i => i.Id).ToList();
 
+            var attachmentCounts = await _context.Attachments
+                .Where(a => ids.Contains(a.IncidentId))
+                .GroupBy(a => a.IncidentId)
+                .Select(g => new { IncidentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.IncidentId, x => x.Count);
+
             var polCount = await _context.PoliceOperations
                 .Where(o => o.EndTime == null && ids.Contains(o.IncidentId)).GroupBy(o => o.IncidentId).Select(g => new { g.Key, c = g.Count() }).ToListAsync();
 
@@ -125,7 +131,8 @@ namespace _211system.Controllers
                 police = polCount.FirstOrDefault(x => x.Key == i.Id)?.c ?? 0,
                 fire = fireCount.FirstOrDefault(x => x.Key == i.Id)?.c ?? 0,
                 medical = medCount.FirstOrDefault(x => x.Key == i.Id)?.c ?? 0,
-                aviation = airOps.Count(x => x.IncidentId == i.Id)
+                aviation = airOps.Count(x => x.IncidentId == i.Id),
+                attachmentCount = attachmentCounts.TryGetValue(i.Id, out var ac) ? ac : 0
             }).ToList();
 
             var busyAir = airOps.Select(o => new
