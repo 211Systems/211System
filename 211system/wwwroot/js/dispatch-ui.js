@@ -942,40 +942,50 @@ window.openDispatchModal = async function (type, targetIncidentId = null, incLat
     $('#universalDispatchModal').modal('show');
 
     const wContainer = document.getElementById('weather-widget-container');
+    const aviationPanel = document.getElementById('weather-aviation-panel');
     if (wContainer) wContainer.classList.add('d-none');
+    if (aviationPanel) aviationPanel.classList.toggle('d-none', type !== 'aviation');
 
     if (incLat !== null && incLng !== null && wContainer) {
-        fetch(`/api/weather/incident/${incLat}/${incLng}`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } })
-            .then(res => res.json())
+        fetch(`/api/Weather/incident/${incLat}/${incLng}`, { headers: { 'Authorization': 'Bearer ' + window.jwtToken } })
+            .then(res => res.ok ? res.json() : Promise.reject(res.status))
             .then(data => {
-                document.getElementById('w-icon').src = data.ground.iconUrl;
-                document.getElementById('w-temp').textContent = data.ground.temperature;
-                document.getElementById('w-desc').textContent = data.ground.description;
+                const ground = data.ground || data.Ground || {};
+                const aviation = data.aviation || data.Aviation || {};
+
+                const iconEl = document.getElementById('w-icon');
+                if (iconEl && ground.iconUrl) iconEl.src = ground.iconUrl;
+                document.getElementById('w-temp').textContent = ground.temperature ?? '—';
+                document.getElementById('w-desc').textContent = ground.description || 'Brak danych';
 
                 let groundAlerts = "";
-                if (data.ground.isSlippery) groundAlerts += `<span class="badge badge-warning text-dark mr-1"><i class="fas fa-exclamation-triangle"></i> Ślisko</span>`;
-                if (data.ground.isFoggy) groundAlerts += `<span class="badge badge-secondary mr-1"><i class="fas fa-smog"></i> Mgła</span>`;
-                if (data.ground.isStormy) groundAlerts += `<span class="badge badge-danger mr-1"><i class="fas fa-bolt"></i> Burza</span>`;
+                if (ground.isSlippery) groundAlerts += `<span class="badge badge-warning text-dark mr-1"><i class="fas fa-exclamation-triangle"></i> Ślisko</span>`;
+                if (ground.isFoggy) groundAlerts += `<span class="badge badge-secondary mr-1"><i class="fas fa-smog"></i> Mgła</span>`;
+                if (ground.isStormy) groundAlerts += `<span class="badge badge-danger mr-1"><i class="fas fa-bolt"></i> Burza</span>`;
                 document.getElementById('w-ground-alerts').innerHTML = groundAlerts || '<span class="text-success"><i class="fas fa-check-circle"></i> Warunki dobre</span>';
 
-                const fr = data.aviation.flightRules;
+                const fr = aviation.flightRules || aviation.FlightRules || 'B/D';
                 const rulesEl = document.getElementById('w-flight-rules');
                 rulesEl.textContent = fr;
-                document.getElementById('w-station').textContent = `(Stacja: ${data.aviation.stationIcao || 'Brak'})`;
+                document.getElementById('w-station').textContent = `(Stacja: ${aviation.stationIcao || aviation.StationIcao || 'Brak'})`;
+
+                const metarEl = document.getElementById('w-metar');
+                const rawMetar = aviation.rawMetar || aviation.RawMetar || '';
+                if (metarEl) metarEl.textContent = rawMetar ? `METAR: ${rawMetar}` : '';
 
                 const flightAlerts = document.getElementById('w-flight-alerts');
                 if (fr === 'VFR') {
                     rulesEl.className = 'badge badge-success';
-                    flightAlerts.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Można dysponować HEMS</span>';
+                    flightAlerts.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Warunki VFR — lot możliwy</span>';
                 } else if (fr === 'MVFR') {
                     rulesEl.className = 'badge badge-warning text-dark';
-                    flightAlerts.innerHTML = '<span class="text-warning"><i class="fas fa-exclamation"></i> Uwaga: Brzegowe warunki lotne</span>';
+                    flightAlerts.innerHTML = '<span class="text-warning"><i class="fas fa-exclamation"></i> MVFR — ostrożnie, brzegowe warunki</span>';
                 } else if (fr === 'IFR' || fr === 'LIFR') {
                     rulesEl.className = 'badge badge-danger';
-                    flightAlerts.innerHTML = '<span class="text-danger font-weight-bold"><i class="fas fa-ban"></i> Zakaz lotów VFR (IFR/LIFR)</span>';
+                    flightAlerts.innerHTML = '<span class="text-danger font-weight-bold"><i class="fas fa-ban"></i> IFR/LIFR — lot VFR odradzany</span>';
                 } else {
                     rulesEl.className = 'badge badge-secondary';
-                    flightAlerts.innerHTML = '<span class="text-muted"><i class="fas fa-question-circle"></i> Brak danych ze stacji AVWX. Decyzja należy do pilota.</span>';
+                    flightAlerts.innerHTML = '<span class="text-muted"><i class="fas fa-question-circle"></i> Brak METAR z AVWX — decyzja pilota</span>';
                 }
 
                 wContainer.classList.remove('d-none');
@@ -1121,11 +1131,33 @@ window.deleteIncident = async function (id) {
     }
 };
 
-window.openEditModal = function (id, status, priority) {
-    document.getElementById('editIncidentId').value = id;
-    document.getElementById('editIncidentStatus').value = status;
-    document.getElementById('editIncidentPriority').value = priority;
+window.openEditModal = async function (id, status, severity) {
+    const idInput = document.getElementById('editIncidentId');
+    const statusInput = document.getElementById('editIncidentStatus');
+    const priorityInput = document.getElementById('editIncidentPriority');
+    if (!idInput || !statusInput || !priorityInput) {
+        alert('Błąd: Nie znaleziono okna edycji (#statusModal).');
+        return;
+    }
+
+    idInput.value = id;
+    statusInput.value = status || 'Nowe';
+
+    let sevVal = '1';
+    if (severity === 'Krytyczny' || severity === '4') sevVal = '4';
+    else if (severity === 'Wysoki' || severity === '3') sevVal = '3';
+    else if (severity === 'Średni' || severity === '2') sevVal = '2';
+    priorityInput.value = sevVal;
+
+    const fi = document.getElementById('editIncPhoto');
+    if (fi) fi.value = '';
+    const fiLabel = document.getElementById('editIncPhotoLabel');
+    if (fiLabel) fiLabel.innerText = 'Dodaj pliki...';
+
     $('#statusModal').modal('show');
+    if (window.IncidentAttachments) {
+        await window.IncidentAttachments.renderInto('editIncidentAttachments', id, { compact: true });
+    }
 };
 
 window.openEditRankModal = function (id, r) {
@@ -1135,13 +1167,18 @@ window.openEditRankModal = function (id, r) {
 };
 
 document.addEventListener("DOMContentLoaded", function () {
-    const setupFileLabel = (inputId, labelId) => {
+    const setupFileLabel = (inputId, labelId, emptyText) => {
         document.getElementById(inputId)?.addEventListener('change', function (e) {
-            document.getElementById(labelId).innerText = e.target.files[0] ? e.target.files[0].name : "Wybierz plik...";
+            const label = document.getElementById(labelId);
+            if (!label) return;
+            const n = e.target.files?.length || 0;
+            if (n === 0) label.innerText = emptyText;
+            else if (n === 1) label.innerText = e.target.files[0].name;
+            else label.innerText = `${n} plików wybrano`;
         });
     };
-    setupFileLabel('incPhoto', 'incPhotoLabel');
-    setupFileLabel('editIncPhoto', 'editIncPhotoLabel');
+    setupFileLabel('incPhoto', 'incPhotoLabel', 'Wybierz pliki...');
+    setupFileLabel('editIncPhoto', 'editIncPhotoLabel', 'Dodaj pliki...');
 
     document.getElementById('createIncidentForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -1164,7 +1201,17 @@ document.addEventListener("DOMContentLoaded", function () {
         //if (window.currentOperatorId) formData.append('OperatorId', window.currentOperatorId);
 
         const fileInput = document.getElementById('incPhoto');
-        if (fileInput && fileInput.files[0]) formData.append('photo', fileInput.files[0]);
+        const maxAtt = window.IncidentAttachments?.MAX_ATTACHMENTS || 10;
+        if (fileInput && fileInput.files.length > 0) {
+            if (fileInput.files.length > maxAtt) {
+                alert(`Maksymalnie ${maxAtt} załączników na zgłoszenie.`);
+                btn.disabled = false;
+                return;
+            }
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('photos', fileInput.files[i]);
+            }
+        }
 
         try {
             const response = await fetch('/api/CPR112/Incidents', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.jwtToken }, body: formData });
@@ -1175,7 +1222,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById('incLat').value = '';
                 document.getElementById('incLng').value = '';
                 if (fileInput) fileInput.value = '';
-                document.getElementById('incPhotoLabel').innerText = "Wybierz plik...";
+                document.getElementById('incPhotoLabel').innerText = "Wybierz pliki...";
                 window.refreshAll();
             } else {
                 const errData = await response.json();
@@ -1198,7 +1245,7 @@ document.addEventListener("DOMContentLoaded", function () {
         //}
 
         const fi = document.getElementById('editIncPhoto');
-        if (fi && fi.files[0]) fd.append('newPhoto', fi.files[0]);
+        const pendingFiles = fi && fi.files.length > 0 ? Array.from(fi.files) : [];
 
         try {
             const res = await fetch(`/api/CPR112/Incidents/${id}/status`, {
@@ -1207,10 +1254,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 body: fd
             });
             if (res.ok) {
+                if (pendingFiles.length && window.IncidentAttachments) {
+                    const upload = await window.IncidentAttachments.uploadBatch(id, pendingFiles);
+                    if (!upload.ok) alert(upload.message);
+                }
+                if (fi) fi.value = '';
+                const fiLabel = document.getElementById('editIncPhotoLabel');
+                if (fiLabel) fiLabel.innerText = 'Dodaj pliki...';
                 $('#statusModal').modal('hide');
-                window.refreshAll();
+                if (typeof window.refreshAll === 'function') await window.refreshAll();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert(err.message || 'Błąd podczas aktualizacji zgłoszenia.');
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error(e); alert('Błąd sieci.'); }
+        finally {
+            const btn = document.getElementById('btn-save-status');
+            if (btn) btn.disabled = false;
+        }
     });
 });
 
@@ -1285,6 +1346,49 @@ window.showHistory = async function (id) {
     } catch (e) { console.error("Błąd historii:", e); }
 };
 
+window.showDispatchIncidentDetails = async function (incidentId) {
+    try {
+        const response = await fetch(`/api/CPR112/Incidents/${incidentId}`, {
+            headers: { 'Authorization': 'Bearer ' + window.jwtToken }
+        });
+        if (!response.ok) {
+            alert('Nie udało się pobrać szczegółów zgłoszenia.');
+            return;
+        }
+        const data = await response.json();
+        document.getElementById('det-number').textContent = data.incidentNumber || incidentId.substring(0, 8);
+        document.getElementById('det-type').textContent = data.incidentType || 'Brak';
+        document.getElementById('det-desc').textContent = data.description || '—';
+        document.getElementById('det-address').textContent =
+            data.latitude && data.longitude ? `GPS: ${data.latitude}, ${data.longitude}` : 'Brak współrzędnych';
+        document.getElementById('det-status').textContent = data.status || '—';
+
+        const severityEl = document.getElementById('det-severity');
+        severityEl.textContent = data.severity || '—';
+        severityEl.className = 'badge ' + (
+            data.severity === 'Krytyczny' ? 'bg-dark' :
+            data.severity === 'Wysoki' ? 'bg-danger' :
+            data.severity === 'Średni' ? 'bg-warning text-dark' : 'bg-info');
+
+        $('#incidentDetailsModal').modal('show');
+
+        if (window.IncidentAttachments) {
+            await window.IncidentAttachments.renderInto('det-attachments', incidentId);
+        }
+
+        if (window.renderIncidentDetailMap) {
+            window.renderIncidentDetailMap({
+                lat: data.latitude,
+                lng: data.longitude,
+                routeColor: '#dc3545'
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Błąd sieci przy pobieraniu zgłoszenia.');
+    }
+};
+
 window.loadIncidents = async function () {
     const tableBody = document.getElementById('incidents-table-body');
     if (!tableBody) return;
@@ -1300,24 +1404,33 @@ window.loadIncidents = async function () {
             tableBody.innerHTML = incidents.map(inc => {
                 let bc = inc.severity === 'Wysoki' ? 'danger' : (inc.severity === 'Średni' ? 'warning' : 'info');
                 if (inc.severity === 'Krytyczny') bc = 'dark';
+                const attCount = inc.attachmentCount || 0;
+                const safeNum = (inc.incidentNumber || '').replace(/'/g, "\\'");
+                const attTitle = attCount > 0 ? `Załączniki (${attCount})` : 'Brak załączników';
 
                 return `
                 <tr>
-                    <td class="align-middle font-weight-bold text-primary">${inc.incidentNumber || inc.id.substring(0, 8)}</td>
+                    <td class="align-middle">
+                        <button type="button" class="btn btn-link p-0 font-weight-bold text-info text-left"
+                            onclick="window.showDispatchIncidentDetails('${inc.id}')"
+                            title="Podgląd zgłoszenia">${inc.incidentNumber || inc.id.substring(0, 8)}</button>
+                    </td>
                     <td class="align-middle">${inc.description}</td>
                     <td class="align-middle text-muted font-weight-bold">${inc.incidentType || 'Brak'}</td>
                     <td class="align-middle"><span class="badge bg-${bc}">${inc.severity}</span></td>
                     <td class="align-middle font-weight-bold">${inc.status}</td>
                     <td class="align-middle text-right">
-                        <div class="btn-group">
-                            <button class="btn btn-xs btn-outline-light ml-1 mr-1" onclick="window.showIncidentUnits('${inc.id}', '${inc.incidentNumber || ''}')" title="Przypisane jednostki i obsada"><i class="fas fa-users"></i></button>
-                            <button class="btn btn-xs btn-outline-light mr-1" onclick="window.showHistory('${inc.id}')" title="Historia logów"><i class="fas fa-history"></i></button>
-                            <button class="btn btn-xs btn-info" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-xs btn-primary ml-1" onclick="window.openDispatchModal('police', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
-                            <button class="btn btn-xs btn-danger ml-1" onclick="window.openDispatchModal('fire', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
-                            <button class="btn btn-xs btn-success ml-1" onclick="window.openDispatchModal('medic', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
-                            <button class="btn btn-xs btn-dark ml-1" onclick="window.openDispatchModal('aviation', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Lotnictwo (HEMS/Policja)"><i class="fas fa-helicopter"></i></button>
-                            ${isAdmin ? `<button class="btn btn-xs btn-outline-danger ml-1" onclick="window.deleteIncident('${inc.id}')"><i class="fas fa-trash"></i></button>` : ''}
+                        <div class="d-flex flex-wrap justify-content-end dispatch-actions">
+                            <button type="button" class="btn btn-sm btn-dispatch-view" onclick="window.showDispatchIncidentDetails('${inc.id}')" title="Podgląd zgłoszenia"><i class="fas fa-eye"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline btn-dispatch-att" onclick="window.IncidentAttachments.showModal('${inc.id}', '${safeNum}')" title="${attTitle}"><i class="fas fa-paperclip"></i>${attCount > 0 ? ` ${attCount}` : ''}</button>
+                            <button type="button" class="btn btn-sm btn-dispatch-units" onclick="window.showIncidentUnits('${inc.id}', '${safeNum}')" title="Przypisane jednostki i obsada"><i class="fas fa-users"></i></button>
+                            <button type="button" class="btn btn-sm btn-dispatch-history" onclick="window.showHistory('${inc.id}')" title="Historia logów"><i class="fas fa-history"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline btn-dispatch-edit" onclick="window.openEditModal('${inc.id}', '${inc.status}', '${inc.severity}')" title="Edytuj status"><i class="fas fa-edit"></i></button>
+                            <button type="button" class="btn btn-sm btn-dispatch-pol text-white" onclick="window.openDispatchModal('police', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Policję"><i class="fas fa-shield-alt"></i></button>
+                            <button type="button" class="btn btn-sm btn-dispatch-psp text-white" onclick="window.openDispatchModal('fire', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Straż"><i class="fas fa-fire"></i></button>
+                            <button type="button" class="btn btn-sm btn-dispatch-zrm text-white" onclick="window.openDispatchModal('medic', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Medyków"><i class="fas fa-ambulance"></i></button>
+                            <button type="button" class="btn btn-sm btn-dispatch-lot" onclick="window.openDispatchModal('aviation', '${inc.id}', ${inc.latitude}, ${inc.longitude})" title="Wyślij Lotnictwo"><i class="fas fa-helicopter"></i></button>
+                            ${isAdmin ? `<button type="button" class="btn btn-sm btn-outline-danger" onclick="window.deleteIncident('${inc.id}')" title="Usuń zgłoszenie"><i class="fas fa-trash"></i></button>` : ''}
                         </div>
                     </td>
                 </tr>`;

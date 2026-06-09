@@ -33,9 +33,7 @@ namespace _211system.Services
 
             var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
 
-            var accessType = containerName.ToLower() == "avatars"
-                ? PublicAccessType.Blob
-                : PublicAccessType.None;
+            var accessType = PublicAccessType.None;
 
             await containerClient.CreateIfNotExistsAsync(accessType);
 

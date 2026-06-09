@@ -1,9 +1,5 @@
 namespace _211system.Configuration;
 
-/// <summary>
-/// Nazwy kluczy konfiguracji — używaj tych samych w appsettings, User Secrets i Azure App Settings.
-/// W Azure podwójny underscore __ odpowiada zagnieżdżeniu JSON (np. Jwt__Key → Jwt:Key).
-/// </summary>
 public static class AppConfiguration
 {
     public const string DefaultConnectionName = "DefaultConnection";

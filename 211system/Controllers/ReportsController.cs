@@ -141,7 +141,7 @@ public class ReportsController : Controller
                     status = i.Status,
                     description = i.Description,
                     address = (i.Latitude != 0 && i.Longitude != 0) ? $"GPS: {i.Latitude}, {i.Longitude}" : "Brak",
-                    weather = i.WeatherTemperature.HasValue ? $"{i.WeatherTemperature}°C, {i.WeatherCondition}" : "Brak danych",
+                    weather = FormatWeather(i.WeatherTemperature, i.WeatherCondition),
                     services = servicesText,
                     transports = transportText
                 };
@@ -153,5 +153,29 @@ public class ReportsController : Controller
         {
             return StatusCode(500, new { error = ex.Message });
         }
+    }
+
+    private static string FormatWeather(double? temperature, string? condition)
+    {
+        var hasTemp = temperature.HasValue;
+        var hasCond = !string.IsNullOrWhiteSpace(condition);
+        if (!hasTemp && !hasCond) return "Brak danych";
+
+        var parts = new List<string>();
+        if (hasTemp) parts.Add($"{Math.Round(temperature!.Value, 1):0.#}°C");
+
+        if (hasCond)
+        {
+            foreach (var line in condition!.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()))
+            {
+                if (line.StartsWith("Lot:", StringComparison.OrdinalIgnoreCase) ||
+                    line.StartsWith("METAR:", StringComparison.OrdinalIgnoreCase))
+                    parts.Add(line);
+                else if (!parts.Any(p => p.Contains('°')))
+                    parts.Add(line);
+            }
+        }
+
+        return string.Join(" | ", parts);
     }
 }

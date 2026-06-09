@@ -91,12 +91,13 @@ namespace _211system.Services
 
                 var flightRules = root.TryGetProperty("flight_rules", out var frProp) ? frProp.GetString() : "B/D";
                 var station = root.TryGetProperty("station", out var stProp) ? stProp.GetString() : "Brak";
+                var rawMetar = root.TryGetProperty("raw", out var rawProp) ? rawProp.GetString() : "";
 
                 return new FlightWeatherDto
                 {
-                    StationIcao = station,
-                    FlightRules = flightRules,
-                    RawMetar = ""
+                    StationIcao = station ?? "Brak",
+                    FlightRules = flightRules ?? "B/D",
+                    RawMetar = rawMetar ?? ""
                 };
             }
             catch (Exception ex)

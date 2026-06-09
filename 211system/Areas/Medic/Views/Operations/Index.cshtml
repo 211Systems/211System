@@ -40,7 +40,7 @@
 </div>
 
 <div class="modal fade" id="incidentDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content dark-mode">
             <div class="modal-header bg-info">
                 <h5 class="modal-title"><i class="fas fa-info-circle"></i> Szczegóły Zgłoszenia 112</h5>
@@ -70,6 +70,7 @@
                     <strong>Opis zdarzenia:</strong><br />
                     <span id="det-desc">...</span>
                 </div>
+                <div id="det-attachments"></div>
                 <div id="det-map" style="height: 260px; border-radius: 6px; display:none;" class="border"></div>
                 <a id="det-nav-link" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-success btn-block mt-2 d-none">
                     <i class="fas fa-route"></i> Otwórz nawigację (Google Maps)
@@ -112,6 +113,7 @@
 @section Scripts {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="~/js/incident-attachments.js" asp-append-version="true"></script>
     <script src="~/js/incident-detail-map.js" asp-append-version="true"></script>
     <script src="~/js/aviation-pilots.js" asp-append-version="true"></script>
     <script>
@@ -269,6 +271,10 @@
                         (data.severity === 'Średni' ? 'bg-warning' : 'bg-info'));
 
                     $('#incidentDetailsModal').modal('show');
+
+                    if (window.IncidentAttachments) {
+                        await window.IncidentAttachments.renderInto('det-attachments', incidentId, { compact: true });
+                    }
 
                     window.renderIncidentDetailMap({
                         lat: data.latitude,

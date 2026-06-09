@@ -4,6 +4,7 @@ using _211system.Models;
 using _211system.Models.Aviation;
 using _211system.Models.Dtos.Aviation;
 using _211system.Models.Interfaces;
+using CPR112.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace _211system.Services
@@ -12,11 +13,13 @@ namespace _211system.Services
     {
         private readonly _211DbContext _context;
         private readonly ITransportService _transportService;
+        private readonly IWeatherService _weatherService;
 
-        public AviationService(_211DbContext context, ITransportService transportService)
+        public AviationService(_211DbContext context, ITransportService transportService, IWeatherService weatherService)
         {
             _context = context;
             _transportService = transportService;
+            _weatherService = weatherService;
         }
 
         public async Task<Airbase> CreateAirbaseAsync(CreateAirbaseDto dto)
@@ -114,9 +117,12 @@ namespace _211system.Services
             unit.Status = VehicleOperationalStatus.EnRouteToIncident;
 
             var incident = await _context.Incidents.FindAsync(incidentId);
-            if (incident != null && incident.Status == "Nowe")
+            if (incident != null)
             {
-                incident.Status = "W toku";
+                if (incident.Status == "Nowe")
+                    incident.Status = "W toku";
+
+                await AppendAviationWeatherAsync(incident);
                 _context.Incidents.Update(incident);
             }
 
@@ -351,6 +357,28 @@ namespace _211system.Services
                     _context.AviationOperations.Update(operation);
                     await _context.SaveChangesAsync();
                 }
+            }
+        }
+
+        private async Task AppendAviationWeatherAsync(Incident incident)
+        {
+            if (incident.Latitude == 0 && incident.Longitude == 0) return;
+            if (incident.WeatherCondition?.Contains("Lot:", StringComparison.OrdinalIgnoreCase) == true) return;
+
+            try
+            {
+                var flight = await _weatherService.GetFlightConditionsAsync(incident.Latitude, incident.Longitude);
+                var lotInfo = $"Lot: {flight.FlightRules} ({flight.StationIcao})";
+                if (!string.IsNullOrWhiteSpace(flight.RawMetar))
+                    lotInfo += $"\nMETAR: {flight.RawMetar}";
+
+                incident.WeatherCondition = string.IsNullOrWhiteSpace(incident.WeatherCondition)
+                    ? lotInfo
+                    : $"{incident.WeatherCondition.Trim()}\n{lotInfo}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AviationService] Nie udało się zapisać pogody lotniczej: {ex.Message}");
             }
         }
     }

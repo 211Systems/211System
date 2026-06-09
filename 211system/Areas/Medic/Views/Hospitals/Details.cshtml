@@ -226,17 +226,32 @@
                     document.getElementById('editHospAddress').value = dept.address || dept.Address;
                     document.getElementById('editHospSor').value = (dept.hasSOR || dept.HasSOR) ? "true" : "false";
                 },
-                renderStaffRow: (p) => `<tr>
+                renderStaffRow: (p, decodedToken) => {
+                    const roles = window.getUserRoles ? window.getUserRoles(decodedToken) : [];
+                    const isAdmin = roles.includes('Admin');
+                    const hierarchy = { 'Kierownik Szpitala': 3, 'Lekarz': 2, 'Medyk': 1 };
+                    let myRank = 0;
+                    if (isAdmin) myRank = 100;
+                    else if (roles.includes('Kierownik Szpitala')) myRank = 3;
+                    else if (roles.includes('Lekarz')) myRank = 2;
+                    const staffRank = p.rank || p.Rank || 'Medyk';
+                    const targetRank = hierarchy[staffRank] || 0;
+                    const canManage = isAdmin || myRank > targetRank;
+                    const email = p.email || p.Email || '';
+                    const pId = p.id || p.Id;
+                    const actionBtns = canManage ? `
+                        <button onclick="window.manageAccountLock('${email}')" class="btn btn-sm btn-dark" title="Zablokuj/odblokuj"><i class="fas fa-user-lock"></i></button>
+                        <button onclick="window.openEditEmpModal('${pId}', '${p.name || ''}', '${p.lastName || ''}', '${p.licenseNumber || ''}', '${staffRank}')" class="btn btn-sm btn-warning" title="Edytuj"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.deleteParamedic('${pId}')" class="btn btn-sm btn-danger" title="Zwolnij"><i class="fas fa-trash"></i></button>
+                    ` : '<span class="text-muted small">Brak uprawnień</span>';
+                    return `<tr>
                     <td><img src="${p.avatarUrl || 'https://ui-avatars.com/api/?name=' + (p.name || 'Medyk')}" class="img-circle" style="width:40px;"></td>
-                    <td><b>${p.name || ''} ${p.lastName || ''}</b><br><small>${p.rank || 'Medyk'}</small></td>
+                    <td><b>${p.name || ''} ${p.lastName || ''}</b><br><small>${staffRank}</small></td>
                     <td>${p.licenseNumber || ''}</td>
-                    <td>${p.email || ''}<br/><span id="lock-status-${p.id || p.Id}" data-email="${p.email || p.Email}"><i class="fas fa-spinner fa-spin"></i></span></td>
-                    <td class="text-right">
-                        <button onclick="window.manageAccountLock('${p.email || p.Email}')" class="btn btn-sm btn-dark"><i class="fas fa-user-lock"></i></button>
-                        <button onclick="window.openEditEmpModal('${p.id || p.Id}', '${p.name || ''}', '${p.lastName || ''}', '${p.licenseNumber || ''}', '${p.rank || ''}')" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
-                        <button onclick="window.deleteParamedic('${p.id || p.Id}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>`,
+                    <td>${email}<br/><span id="lock-status-${pId}" data-email="${email}"><i class="fas fa-spinner fa-spin"></i></span></td>
+                    <td class="text-right">${actionBtns}</td>
+                </tr>`;
+                },
                 buildStaffPayload: () => ({
                     name: document.getElementById('staffName').value,
                     lastName: document.getElementById('staffLastName').value,
@@ -266,7 +281,10 @@
                 }
                 const res = await fetch(`/api/Medical/paramedics/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.jwtToken } });
                 if (res.ok) window.location.reload();
-                else {
+                else if (res.status === 403) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.message || 'Brak uprawnień do zwolnienia tego pracownika.');
+                } else {
                     const err = await res.json().catch(() => ({}));
                     alert(err.message || "Błąd usuwania.");
                 }

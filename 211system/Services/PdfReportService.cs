@@ -106,32 +106,62 @@ public class PdfReportService : IPdfReportService
             });
         }
 
+        static string FormatWeather(Incident incident)
+        {
+            var hasTemp = incident.WeatherTemperature.HasValue;
+            var hasCond = !string.IsNullOrWhiteSpace(incident.WeatherCondition);
+            if (!hasTemp && !hasCond) return "Brak danych";
+
+            var lines = new List<string>();
+            if (hasTemp)
+                lines.Add($"{Math.Round(incident.WeatherTemperature!.Value, 1):0.#}°C");
+
+            if (hasCond)
+            {
+                foreach (var part in incident.WeatherCondition!.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                    lines.Add(part.Trim());
+            }
+
+            return string.Join("\n", lines);
+        }
+
         void ComposeContent(IContainer container)
         {
             container.PaddingVertical(10).Table(table =>
             {
                 table.ColumnsDefinition(columns =>
                 {
-                    columns.ConstantColumn(60);
-                    columns.ConstantColumn(60);
-                    columns.RelativeColumn(2);
-                    columns.RelativeColumn(5);
-                    columns.RelativeColumn(2);
+                    columns.ConstantColumn(52);
+                    columns.ConstantColumn(48);
+                    columns.RelativeColumn(1.6f);
+                    columns.RelativeColumn(1.4f);
+                    columns.RelativeColumn(4.2f);
+                    columns.RelativeColumn(1.6f);
+                    columns.RelativeColumn(1.0f);
                 });
 
                 table.Header(header =>
                 {
-                    header.Cell().Element(CellStyle).Text("Numer");
-                    header.Cell().Element(CellStyle).Text("Data");
-                    header.Cell().Element(CellStyle).Text("Typ Zdarzenia");
-                    header.Cell().Element(CellStyle).Text("Służby (Zastępy)");
-                    header.Cell().Element(CellStyle).Text("Lokalizacja");
+                    header.Cell().Element(HeaderCell).Text("Numer");
+                    header.Cell().Element(HeaderCell).Text("Data");
+                    header.Cell().Element(HeaderCell).Text("Typ Zdarzenia");
+                    header.Cell().Element(HeaderCell).Text("Pogoda");
+                    header.Cell().Element(HeaderCell).Text("Służby (Zastępy)");
+                    header.Cell().Element(HeaderCell).Text("Lokalizacja");
+                    header.Cell().Element(HeaderCell).Text("Status");
 
-                    static IContainer CellStyle(IContainer container) => container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
+                    static IContainer HeaderCell(IContainer c) => c
+                        .DefaultTextStyle(x => x.SemiBold().FontColor(Colors.White))
+                        .Background(Colors.Blue.Darken2)
+                        .PaddingVertical(6)
+                        .PaddingHorizontal(4);
                 });
 
+                var rowIndex = 0;
                 foreach (var incident in incidents)
                 {
+                    var rowBg = rowIndex % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+                    rowIndex++;
 
                     var pOps = policeOps.Where(po => po.IncidentId == incident.Id).ToList();
                     var fOps = fireOps.Where(fo => fo.IncidentId == incident.Id).ToList();
@@ -191,13 +221,24 @@ public class PdfReportService : IPdfReportService
                             $"→ {t.DestinationName} ({t.VehicleLabel}, {t.TransportedAt:dd.MM HH:mm})"));
                     }
 
-                    table.Cell().Element(CellContentStyle).Text(incident.IncidentNumber);
-                    table.Cell().Element(CellContentStyle).Text(incident.ReportDate.ToString("dd.MM\nHH:mm"));
-                    table.Cell().Element(CellContentStyle).Text($"{incident.IncidentType?.Name}\n(P: {incident.SeverityLevel?.Name})");
-                    table.Cell().Element(CellContentStyle).Text(servicesText);
-                    table.Cell().Element(CellContentStyle).Text($"GPS: {incident.Latitude}, {incident.Longitude}");
-                    static IContainer CellContentStyle(IContainer container) => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
+                    table.Cell().Element(c => BodyCell(c, rowBg)).Text(incident.IncidentNumber ?? "—");
+                    table.Cell().Element(c => BodyCell(c, rowBg)).Text(incident.ReportDate.ToString("dd.MM\nHH:mm"));
+                    table.Cell().Element(c => BodyCell(c, rowBg)).Text($"{incident.IncidentType?.Name ?? "Brak"}\n(P: {incident.SeverityLevel?.Name ?? "—"})");
+                    table.Cell().Element(c => BodyCell(c, rowBg)).Text(FormatWeather(incident));
+                    table.Cell().Element(c => BodyCell(c, rowBg)).Text(servicesText);
+                    table.Cell().Element(c => BodyCell(c, rowBg)).Text(
+                        incident.Latitude != 0 || incident.Longitude != 0
+                            ? $"GPS:\n{incident.Latitude:0.#####},\n{incident.Longitude:0.#####}"
+                            : "Brak");
+                    table.Cell().Element(c => BodyCell(c, rowBg)).Text(incident.Status ?? "—");
                 }
+
+                static IContainer BodyCell(IContainer container, string background) =>
+                    container.Background(background)
+                        .BorderBottom(1)
+                        .BorderColor(Colors.Grey.Lighten2)
+                        .PaddingVertical(5)
+                        .PaddingHorizontal(4);
             });
         }
     }

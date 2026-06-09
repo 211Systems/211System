@@ -6,6 +6,7 @@ using CPR112.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 
 namespace _211system.Controllers
@@ -88,6 +89,16 @@ namespace _211system.Controllers
                 return BadRequest(new { message = "Ten adres e-mail jest już zajęty!" });
             }
 
+            var (actorRank, actorHospitalId) = await GetMedicalActorContextAsync();
+            if (!MedicalPersonnelAuthorization.CanAssignRank(User, actorRank, dto.Rank))
+                return StatusCode(403, new { message = "Nie masz uprawnień do nadania tej roli." });
+
+            if (!User.IsInRole("Admin"))
+            {
+                if (!actorHospitalId.HasValue || dto.HospitalId != actorHospitalId.Value)
+                    return StatusCode(403, new { message = "Możesz dodawać personel tylko do swojego szpitala." });
+            }
+
             try
             {
                 var result = await _medicalService.CreateParamedicAsync(dto);
@@ -111,6 +122,17 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
         public async Task<IActionResult> UpdateParamedic(Guid id, [FromBody] UpdateParamedicDto dto)
         {
+            var target = await _context.Paramedics.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+            if (target == null)
+                return NotFound(new { message = "Pracownik nie istnieje w bazie." });
+
+            var (actorRank, actorHospitalId) = await GetMedicalActorContextAsync();
+            if (!MedicalPersonnelAuthorization.CanManageTarget(User, actorRank, actorHospitalId, target.HospitalId, target.Rank))
+                return StatusCode(403, new { message = "Nie masz uprawnień do edycji tego pracownika." });
+
+            if (!MedicalPersonnelAuthorization.CanAssignRank(User, actorRank, dto.Rank))
+                return StatusCode(403, new { message = "Nie masz uprawnień do nadania tej roli." });
+
             try
             {
                 await _medicalService.UpdateParamedicAsync(id, dto);
@@ -126,6 +148,14 @@ namespace _211system.Controllers
         [Authorize(Roles = "Admin, Kierownik Szpitala, Lekarz")]
         public async Task<IActionResult> DeleteParamedic(Guid id)
         {
+            var target = await _context.Paramedics.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+            if (target == null)
+                return NotFound(new { message = "Pracownik nie istnieje w bazie." });
+
+            var (actorRank, actorHospitalId) = await GetMedicalActorContextAsync();
+            if (!MedicalPersonnelAuthorization.CanManageTarget(User, actorRank, actorHospitalId, target.HospitalId, target.Rank))
+                return StatusCode(403, new { message = "Nie masz uprawnień do zwolnienia tego pracownika." });
+
             try
             {
                 await _medicalService.DeleteParamedicAsync(id);
@@ -476,6 +506,23 @@ namespace _211system.Controllers
             {
                 return BadRequest(new { message = "Błąd zwalniania karetki: " + ex.Message });
             }
+        }
+
+        private async Task<(int ActorRank, Guid? HospitalId)> GetMedicalActorContextAsync()
+        {
+            var actorRank = MedicalPersonnelAuthorization.GetActorRank(User);
+            if (User.IsInRole("Admin"))
+                return (actorRank, null);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return (0, null);
+
+            var medic = await _context.Paramedics
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ParaAccountId == userId);
+
+            return (actorRank, medic?.HospitalId);
         }
     }
 }
